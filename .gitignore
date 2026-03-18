@@ -1,0 +1,71 @@
+# Node modules
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage (test)
+coverage/
+.nyc_output/
+
+# Build / dist
+dist/
+build/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Optional npm cache
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Temporary files
+tmp/
+temp/
+
+# Uploads (agar fayl yuklash bo‘lsa)
+uploads/
+public/uploads/
+
+# Database files (agar lokal ishlatsa)
+*.sqlite
+*.sqlite3
+*.db
+
+# Secrets
+config/secrets.json
+
+# Docker
+docker-compose.override.yml
+
+# Misc
+*.tgz
+*.bak
