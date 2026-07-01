@@ -10,17 +10,10 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
-    email: {
-      type: String,
-      unique: true,
-      sparse: true,
-      lowercase: true,
-      trim: true,
-    },
-
     password: {
       type: String,
       minlength: 6,
+      default: null,
     },
 
     phone: {
@@ -45,6 +38,20 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    grade: {
+      number: {
+        type: Number,
+        min: 1,
+        max: 11,
+        default: null,
+      },
+      letter: {
+        type: String,
+        enum: ['A', 'B', 'C', 'D', 'E', null],
+        default: null,
+      },
+    },
+
     role: {
       type: String,
       enum: ['student', 'teacher', 'admin', 'superadmin'],
@@ -67,6 +74,11 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
+    balance: {
+      type: Number,
+      default: 0,
+    },
+
     lastLogin: {
       type: Date,
       default: null,
@@ -80,6 +92,17 @@ userSchema.pre('save', async function () {
 
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+});
+
+userSchema.pre('validate', async function () {
+  if (this.role === 'student') {
+    if (!this.grade?.number) {
+      this.invalidate('grade.number', 'Sinf raqami kiritilishi shart');
+    }
+    if (!this.grade?.letter) {
+      this.invalidate('grade.letter', 'Sinf harfi kiritilishi shart');
+    }
+  }
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {

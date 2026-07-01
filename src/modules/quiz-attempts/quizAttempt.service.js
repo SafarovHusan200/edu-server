@@ -138,7 +138,7 @@ const getQuizResults = async (quizId) => {
     quiz: quizId,
     status: { $in: ['submitted', 'reviewed'] },
   })
-    .populate('student', 'name email')
+    .populate('student', 'name phone')
     .sort({ createdAt: -1 });
 
   return attempts;
@@ -189,7 +189,7 @@ const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
 // quizAttempt.service.js ga qo'shish
 const getAttemptById = async (attemptId, userId, role) => {
   const attempt = await QuizAttempt.findById(attemptId)
-    .populate('student', 'name email')
+    .populate('student', 'name phone')
     .populate('answers.question', 'text type points');
 
   if (!attempt) throw new ApiError(404, 'Attempt topilmadi');

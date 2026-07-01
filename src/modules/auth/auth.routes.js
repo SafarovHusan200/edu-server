@@ -8,6 +8,7 @@ const {
   registerValidation,
   loginValidation,
   telegramAuthValidation,
+  verifyOtpValidation,
 } = require('./auth.validation');
 
 // ─────────────────────────────────────────
@@ -39,8 +40,8 @@ router.post('/register', registerValidation, validate, authController.register);
 // POST /api/v1/auth/login
 router.post('/login', loginValidation, validate, authController.login);
 
-// POST /api/v1/auth/telegram
-router.post('/telegram', telegramAuthValidation, validate, authController.telegramAuth);
+// POST /api/v1/auth/telegram/verify
+router.post('/telegram', verifyOtpValidation, validate, authController.verifyTelegramOtp);
 
 // GET /api/v1/auth/me  ← Private
 router.get('/me', authenticate, authController.getMe);

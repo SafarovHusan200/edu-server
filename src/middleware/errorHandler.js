@@ -17,6 +17,13 @@ const errorHandler = (err, req, res, next) => {
     message = `Bu ${field} allaqachon ro'yxatdan o'tgan`;
   }
 
+  // ← qo'shildi
+  if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = Object.values(err.errors)
+      .map((e) => e.message)
+      .join(', ');
+  }
   // JWT: yaroqsiz token
   if (err.name === 'JsonWebTokenError') {
     statusCode = 401;

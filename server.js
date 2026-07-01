@@ -1,6 +1,7 @@
 // server.js
 
 require('dotenv').config();
+require('./src/bot/bot');
 
 const validateEnv = require('./src/config/env');
 const connectDB = require('./src/config/db');

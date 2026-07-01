@@ -1,52 +1,93 @@
 const User = require('../users/user.model');
 const ApiError = require('../../utils/ApiError');
+const Otp = require('./otp.model');
 
 // ─────────────────────────────────────────
-// REGISTER (email + password)
+// TELEGRAM OTP VERIFY (To'g'rilangan variant)
 // ─────────────────────────────────────────
-const register = async ({ name, email, password, phone, role }) => {
-  // 1. Email band emasligini tekshirish
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new ApiError(400, "Bu email allaqachon ro'yhatdan o'tgan");
+const verifyTelegramOtp = async ({ code }) => {
+  // 1. OTP kodni bazadan qidirish
+  // Bir vaqtning o'zida isUsed va expiresAt ni ham tekshiramiz
+  const otp = await Otp.findOne({
+    code,
+    isUsed: false,
+    expiresAt: { $gt: new Date() },
+  });
+
+  if (!otp) {
+    throw new ApiError(400, "Kod noto'g'ri yoki muddati tugagan");
   }
 
-  // 2. Userni yaratish (password pre('save') da hash bo'ladi)
-  const user = await User.create({ name, email, password, phone, role });
+  // 2. Foydalanuvchini topish (telegramId ni otp modelidan olamiz)
+  const user = await User.findOne({ telegramId: otp.telegramId });
 
-  // 3. Token generatsiya
+  if (!user) {
+    throw new ApiError(404, "Foydalanuvchi topilmadi. Avval botdan ro'yxatdan o'ting");
+  }
+
+  if (user.isBlocked) {
+    throw new ApiError(403, 'Hisobingiz bloklangan');
+  }
+
+  // 3. Kodni ishlatilgan deb belgilash
+  otp.isUsed = true;
+  await otp.save();
+
+  // 4. Oxirgi kirish vaqtini yangilash
+  user.lastLogin = new Date();
+  await user.save();
+
+  // 5. JWT Token yaratish
   const token = user.generateJwtToken();
 
   return { user, token };
 };
 
 // ─────────────────────────────────────────
-// LOGIN (email + password)
+// REGISTER (phone + password)
 // ─────────────────────────────────────────
-const login = async ({ email, password }) => {
-  // 1. Userni topish
-  const user = await User.findOne({ email }).select('+password');
-  if (!user) {
-    throw new ApiError(401, "Email yoki parol noto'g'ri");
+const register = async ({ name, phone, password, role, grade }) => {
+  const existingUser = await User.findOne({ phone });
+  if (existingUser) {
+    throw new ApiError(400, "Bu telefon raqam allaqachon ro'yxatdan o'tgan");
   }
 
-  // 2. Bloklangan foydalanuvchini tekshirish
+  const user = await User.create({ name, phone, password, role, grade });
+  const token = user.generateJwtToken();
+  return { user, token };
+};
+
+// ─────────────────────────────────────────
+// LOGIN (phone + password)
+// ─────────────────────────────────────────
+const login = async ({ phone, password }) => {
+  const user = await User.findOne({ phone });
+
+  console.log(user);
+
+  if (!user) {
+    throw new ApiError(
+      401,
+      "Telefon raqam yoki parol noto'g'ri, Telegram bot orqali kirishga harakat qilib ko'ring unda"
+    );
+  }
+
   if (user.isBlocked) {
     throw new ApiError(403, 'Sizning hisobingiz bloklangan');
   }
 
-  // 3. Parolni tekshirish
   const isMatch = await user.matchPassword(password);
   if (!isMatch) {
-    throw new ApiError(401, "Email yoki parol noto'g'ri");
+    throw new ApiError(
+      401,
+      "Telefon raqam yoki parol noto'g'ri, telegram orqali kirish tavsiya etiladi"
+    );
   }
 
-  // 4. lastLogin yangilash
   user.lastLogin = new Date();
   await user.save();
 
   const token = user.generateJwtToken();
-
   return { user, token };
 };
 
@@ -104,4 +145,5 @@ module.exports = {
   login,
   telegramAuth,
   getMe,
+  verifyTelegramOtp,
 };

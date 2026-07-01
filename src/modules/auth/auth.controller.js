@@ -6,14 +6,14 @@ const ApiResponse = require('../../utils/ApiResponse');
 // POST /api/v1/auth/register
 // ─────────────────────────────────────────
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password, phone, role } = req.body;
+  const { name, phone, password, role, grade } = req.body;
 
   const { user, token } = await authService.register({
     name,
-    email,
-    password,
     phone,
+    password,
     role,
+    grade,
   });
 
   res
@@ -25,29 +25,11 @@ const register = asyncHandler(async (req, res) => {
 // POST /api/v1/auth/login
 // ─────────────────────────────────────────
 const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { phone, password } = req.body;
 
-  const { user, token } = await authService.login({ email, password });
+  const { user, token } = await authService.login({ phone, password });
 
   res.status(200).json(new ApiResponse(200, 'Tizimga muvaffaqiyatli kirdingiz', { user, token }));
-});
-
-// ─────────────────────────────────────────
-// POST /api/v1/auth/telegram
-// ─────────────────────────────────────────
-const telegramAuth = asyncHandler(async (req, res) => {
-  const { telegramId, name, telegramUsername, avatar } = req.body;
-
-  const { user, token } = await authService.telegramAuth({
-    telegramId,
-    name,
-    telegramUsername,
-    avatar,
-  });
-
-  res
-    .status(200)
-    .json(new ApiResponse(200, 'Telegram orqali muvaffaqiyatli kirdingiz', { user, token }));
 });
 
 // ─────────────────────────────────────────
@@ -59,9 +41,21 @@ const getMe = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, "Profil ma'lumotlari", { user }));
 });
 
+const verifyTelegramOtp = asyncHandler(async (req, res) => {
+  const { telegramId, code } = req.body;
+
+  // Servisni chaqiramiz
+  const { user, token } = await authService.verifyTelegramOtp({
+    telegramId,
+    code,
+  });
+
+  res.status(200).json(new ApiResponse(200, 'Muvaffaqiyatli kirdingiz', { user, token }));
+});
+
 module.exports = {
   register,
   login,
-  telegramAuth,
   getMe,
+  verifyTelegramOtp, // ← qo'shildi
 };

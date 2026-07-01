@@ -45,7 +45,7 @@ const getQuizzes = async ({ targetType, targetId }) => {
   if (targetType && targetId) filter.targetId = targetId;
 
   const quizzes = await Quiz.find(filter)
-    .populate('createdBy', 'name email')
+    .populate('createdBy', 'name phone')
     .sort({ createdAt: -1 });
 
   return quizzes;
@@ -55,7 +55,7 @@ const getQuizzes = async ({ targetType, targetId }) => {
 // GET SINGLE QUIZ (studentga — javoblarsiz)
 // ─────────────────────────────────────────
 const getQuizById = async (quizId) => {
-  const quiz = await Quiz.findById(quizId).populate('createdBy', 'name email');
+  const quiz = await Quiz.findById(quizId).populate('createdBy', 'name phone');
   if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
 
   const questions = await Question.find({ quiz: quizId })
@@ -69,7 +69,7 @@ const getQuizById = async (quizId) => {
 // GET SINGLE QUIZ (teacherga — javoblar bilan)
 // ─────────────────────────────────────────
 const getQuizByIdWithAnswers = async (quizId) => {
-  const quiz = await Quiz.findById(quizId).populate('createdBy', 'name email');
+  const quiz = await Quiz.findById(quizId).populate('createdBy', 'name phone');
   if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
 
   const questions = await Question.find({ quiz: quizId }).sort({ order: 1 });
