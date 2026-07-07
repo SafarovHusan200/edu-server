@@ -35,6 +35,9 @@ const quizAttemptSchema = new mongoose.Schema(
     scorePercent: { type: Number, default: 0 }, // % (earnedPoints/totalPoints*100)
     passed: { type: Boolean, default: false },
 
+    // 'passed' bo'lganda diamant faqat bir marta berilishi uchun himoya
+    diamondsAwarded: { type: Boolean, default: false },
+
     // Holat
     status: {
       type: String,

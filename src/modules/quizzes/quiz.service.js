@@ -3,6 +3,7 @@
 const Quiz = require('./quiz.model');
 const Question = require('../questions/question.model');
 const ApiError = require('../../utils/ApiError');
+const { getPagination, buildMeta } = require('../../utils/paginate');
 
 // ─────────────────────────────────────────
 // CREATE QUIZ
@@ -38,17 +39,24 @@ const createQuiz = async ({
 // ─────────────────────────────────────────
 // GET QUIZZES — filter bo'yicha
 // ─────────────────────────────────────────
-const getQuizzes = async ({ targetType, targetId }) => {
+const getQuizzes = async ({ targetType, targetId, page, limit }) => {
   const filter = { isActive: true };
 
   if (targetType) filter.targetType = targetType;
   if (targetType && targetId) filter.targetId = targetId;
 
-  const quizzes = await Quiz.find(filter)
-    .populate('createdBy', 'name phone')
-    .sort({ createdAt: -1 });
+  const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
-  return quizzes;
+  const [quizzes, total] = await Promise.all([
+    Quiz.find(filter)
+      .populate('createdBy', 'name phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit),
+    Quiz.countDocuments(filter),
+  ]);
+
+  return { quizzes, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
 // ─────────────────────────────────────────
@@ -118,7 +126,6 @@ const addQuestion = async (
   userId,
   { text, type, options, correctAnswer, sampleAnswer, points, order }
 ) => {
-  console.log('sampleAnswer:', sampleAnswer);
   const quiz = await Quiz.findById(quizId);
   if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
 

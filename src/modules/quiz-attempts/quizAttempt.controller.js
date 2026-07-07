@@ -41,7 +41,11 @@ const getMyAttempts = asyncHandler(async (req, res) => {
 // GET /api/v1/quiz-attempts/:quizId/results  (teacher/admin)
 // ─────────────────────────────────────────
 const getQuizResults = asyncHandler(async (req, res) => {
-  const attempts = await quizAttemptService.getQuizResults(req.params.quizId);
+  const attempts = await quizAttemptService.getQuizResults(
+    req.params.quizId,
+    req.user.id,
+    req.user.role
+  );
 
   res.status(200).json(new ApiResponse(200, 'Barcha natijalar', { attempts }));
 });

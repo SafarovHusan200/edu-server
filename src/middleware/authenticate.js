@@ -26,6 +26,11 @@ const authenticate = asyncHandler(async (req, res, next) => {
     throw new ApiError(403, 'Sizning hisobingiz bloklangan');
   }
 
+  // Parol o'zgargan yoki logout qilingan bo'lsa, eski token shu yerda rad etiladi
+  if (decoded.tokenVersion !== user.tokenVersion) {
+    throw new ApiError(401, 'Token muddati tugagan, qayta kiring');
+  }
+
   req.user = user;
   next();
 });

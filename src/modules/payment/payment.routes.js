@@ -5,9 +5,17 @@ const router = express.Router();
 
 const paymentController = require('./payment.controller');
 const authenticate = require('../../middleware/authenticate');
+const validate = require('../../middleware/validate');
+const { createPaymentValidation } = require('./payment.validation');
 
 // POST /api/v1/payment/create — Private (foydalanuvchi login qilgan bo'lishi kerak)
-router.post('/create', authenticate, paymentController.createPayment);
+router.post(
+  '/create',
+  authenticate,
+  createPaymentValidation,
+  validate,
+  paymentController.createPayment
+);
 
 // POST /api/v1/payment/callback — Public
 // DIQQAT: bu route auth/CSRF middleware'siz qoldirilishi SHART,

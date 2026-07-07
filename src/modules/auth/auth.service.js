@@ -63,8 +63,6 @@ const register = async ({ name, phone, password, role, grade }) => {
 const login = async ({ phone, password }) => {
   const user = await User.findOne({ phone });
 
-  console.log(user);
-
   if (!user) {
     throw new ApiError(
       401,
@@ -140,10 +138,19 @@ const getMe = async (userId) => {
   return user;
 };
 
+// ─────────────────────────────────────────
+// LOGOUT — tokenVersion oshiriladi, shu userga tegishli barcha eski
+// tokenlar (joriy tokendan tashqari boshqa qurilmalardagilar ham) darhol yaroqsiz bo'ladi
+// ─────────────────────────────────────────
+const logout = async (userId) => {
+  await User.findByIdAndUpdate(userId, { $inc: { tokenVersion: 1 } });
+};
+
 module.exports = {
   register,
   login,
   telegramAuth,
   getMe,
+  logout,
   verifyTelegramOtp,
 };

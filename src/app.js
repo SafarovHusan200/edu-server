@@ -1,5 +1,6 @@
 // src/app.js
 
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -8,6 +9,7 @@ const morgan = require('morgan');
 const routes = require('./routes');
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
+const { apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
@@ -23,10 +25,13 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev')); // Request logger
 }
 
+// Yuklangan fayllar (avatar, kurs muqovasi, dars materiali)
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
 // ─────────────────────────────────────────
 // Routes
 // ─────────────────────────────────────────
-app.use('/api/v1', routes);
+app.use('/api/v1', apiLimiter, routes);
 
 // ─────────────────────────────────────────
 // Health check

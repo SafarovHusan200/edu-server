@@ -3,7 +3,27 @@
 const QuizAttempt = require('./quizAttempt.model');
 const Quiz = require('../quizzes/quiz.model');
 const Question = require('../questions/question.model');
+const User = require('../users/user.model');
+const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
+const { QUIZ_PASS_REWARD } = require('../../config/gamification');
+
+// attempt 'reviewed' bo'lib, 'passed'ga chiqqanda diamant beradi — faqat bir marta
+// (submitAttempt va reviewOpenEnded ikkalasi ham shu holatga olib kelishi mumkin)
+const awardDiamondsIfPassed = async (attempt) => {
+  if (!attempt.passed || attempt.diamondsAwarded) return;
+
+  await User.findByIdAndUpdate(attempt.student, { $inc: { diamonds: QUIZ_PASS_REWARD } });
+  attempt.diamondsAwarded = true;
+
+  await notificationService.createNotification({
+    userId: attempt.student,
+    type: 'quiz',
+    title: "Diamant qo'lga kiritdingiz!",
+    message: `Testni muvaffaqiyatli topshirganingiz uchun ${QUIZ_PASS_REWARD} diamant oldingiz`,
+    meta: { quizId: attempt.quiz._id ?? attempt.quiz, attemptId: attempt._id },
+  });
+};
 
 // ─────────────────────────────────────────
 // START ATTEMPT
@@ -107,6 +127,10 @@ const submitAttempt = async (attemptId, studentId, answers) => {
   attempt.status = hasOpenEnded ? 'submitted' : 'reviewed';
   attempt.submittedAt = new Date();
 
+  if (attempt.status === 'reviewed') {
+    await awardDiamondsIfPassed(attempt);
+  }
+
   await attempt.save();
 
   return attempt;
@@ -133,7 +157,17 @@ const getMyAttempts = async (quizId, studentId) => {
 // ─────────────────────────────────────────
 // GET ALL RESULTS (teacher / admin)
 // ─────────────────────────────────────────
-const getQuizResults = async (quizId) => {
+const getQuizResults = async (quizId, teacherId, role) => {
+  const quiz = await Quiz.findById(quizId);
+  if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
+
+  const isOwner = quiz.createdBy.toString() === teacherId.toString();
+  const isAdmin = ['admin', 'superadmin'].includes(role);
+
+  if (!isOwner && !isAdmin) {
+    throw new ApiError(403, "Siz bu quiz natijalarini ko'ra olmaysiz");
+  }
+
   const attempts = await QuizAttempt.find({
     quiz: quizId,
     status: { $in: ['submitted', 'reviewed'] },
@@ -181,7 +215,17 @@ const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
   attempt.passed = scorePercent >= attempt.quiz.passingScore;
   attempt.status = 'reviewed';
 
+  await awardDiamondsIfPassed(attempt);
+
   await attempt.save();
+
+  await notificationService.createNotification({
+    userId: attempt.student,
+    type: 'quiz',
+    title: 'Natijangiz baholandi',
+    message: `"${attempt.quiz.title}" testidagi natijangiz tekshirildi: ${scorePercent}%`,
+    meta: { quizId: attempt.quiz._id, attemptId: attempt._id },
+  });
 
   return attempt;
 };

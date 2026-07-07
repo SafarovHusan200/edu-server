@@ -29,11 +29,11 @@ const createQuiz = asyncHandler(async (req, res) => {
 // GET /api/v1/quizzes
 // ─────────────────────────────────────────
 const getQuizzes = asyncHandler(async (req, res) => {
-  const { targetType, targetId } = req.query;
+  const { targetType, targetId, page, limit } = req.query;
 
-  const quizzes = await quizService.getQuizzes({ targetType, targetId });
+  const { quizzes, meta } = await quizService.getQuizzes({ targetType, targetId, page, limit });
 
-  res.status(200).json(new ApiResponse(200, "Quizlar ro'yxati", { quizzes }));
+  res.status(200).json(new ApiResponse(200, "Quizlar ro'yxati", { quizzes, meta }));
 });
 
 // ─────────────────────────────────────────

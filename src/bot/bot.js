@@ -2,7 +2,11 @@ const TelegramBot = require('node-telegram-bot-api');
 const Otp = require('../modules/auth/otp.model');
 const User = require('../modules/users/user.model');
 
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
+// Test muhitida polling boshlanmaydi — aks holda testlar haqiqiy Telegram
+// serveriga ulanib, jarayon ochiq qolib ketishiga (hanging) sabab bo'lardi.
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
+  polling: process.env.NODE_ENV !== 'test',
+});
 
 // Foydalanuvchi ma'lumotlarini vaqtincha xotirada ushlab turish uchun state
 const userState = {};

@@ -4,6 +4,7 @@ const { validationResult } = require('express-validator');
 
 const authController = require('./auth.controller');
 const authenticate = require('../../middleware/authenticate');
+const { authLimiter } = require('../../middleware/rateLimiter');
 const {
   registerValidation,
   loginValidation,
@@ -35,15 +36,18 @@ const validate = (req, res, next) => {
 // ─────────────────────────────────────────
 
 // POST /api/v1/auth/register
-router.post('/register', registerValidation, validate, authController.register);
+router.post('/register', authLimiter, registerValidation, validate, authController.register);
 
 // POST /api/v1/auth/login
-router.post('/login', loginValidation, validate, authController.login);
+router.post('/login', authLimiter, loginValidation, validate, authController.login);
 
 // POST /api/v1/auth/telegram/verify
-router.post('/telegram', verifyOtpValidation, validate, authController.verifyTelegramOtp);
+router.post('/telegram', authLimiter, verifyOtpValidation, validate, authController.verifyTelegramOtp);
 
 // GET /api/v1/auth/me  ← Private
 router.get('/me', authenticate, authController.getMe);
+
+// POST /api/v1/auth/logout  ← Private
+router.post('/logout', authenticate, authController.logout);
 
 module.exports = router;

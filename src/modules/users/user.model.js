@@ -79,9 +79,23 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // Testlarni topshirish va darslarni tugatish uchun beriladigan o'yin ichi valyuta
+    diamonds: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
     lastLogin: {
       type: Date,
       default: null,
+    },
+
+    // Logout yoki parol o'zgarganda oshadi — shu qiymat oldingi tokenlarni
+    // yaroqsiz qilish uchun ishlatiladi (authenticate middleware'da tekshiriladi)
+    tokenVersion: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true }
@@ -116,6 +130,7 @@ userSchema.methods.generateJwtToken = function () {
       id: this._id,
       role: this.role,
       tarif: this.tarif,
+      tokenVersion: this.tokenVersion,
     },
     process.env.JWT_TOKEN_SECRET,
     { expiresIn: '1d' }
@@ -125,6 +140,7 @@ userSchema.methods.generateJwtToken = function () {
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.tokenVersion;
   return obj;
 };
 

@@ -27,6 +27,20 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
 
+    // 'wallet'  — user.balance ni to'ldirish
+    // 'course'  — muvaffaqiyatli bo'lganda shu 'course' uchun Enrollment yaratiladi
+    purpose: {
+      type: String,
+      enum: ['wallet', 'course'],
+      default: 'wallet',
+    },
+
+    course: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course',
+      default: null,
+    },
+
     status: {
       type: String,
       enum: ['draft', 'progress', 'billing', 'hold', 'success', 'error', 'revert'],

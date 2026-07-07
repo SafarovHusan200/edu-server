@@ -1,0 +1,701 @@
+{
+  "info": {
+    "name": "Edu Platform API",
+    "description": "edu-platform.uz server-api uchun to'liq Postman kolleksiyasi",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1" },
+    { "key": "token", "value": "" },
+    { "key": "teacherToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "courseId", "value": "" },
+    { "key": "lessonId", "value": "" },
+    { "key": "enrollmentId", "value": "" },
+    { "key": "reviewId", "value": "" },
+    { "key": "notificationId", "value": "" },
+    { "key": "quizId", "value": "" },
+    { "key": "questionId", "value": "" },
+    { "key": "attemptId", "value": "" },
+    { "key": "invoiceId", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "rewardId", "value": "" },
+    { "key": "redemptionId", "value": "" },
+    { "key": "certificateId", "value": "" },
+    { "key": "certificateNumber", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ali Valiyev\",\n  \"phone\": \"998901234567\",\n  \"password\": \"password123\",\n  \"role\": \"student\",\n  \"grade\": { \"number\": 5, \"letter\": \"A\" }\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"998901234567\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Telegram OTP Verify",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/telegram",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telegramId\": \"123456789\",\n  \"code\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" }
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": "{{baseUrl}}/auth/logout" }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Update Me",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/users/me",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Yangi Ism\"\n}" }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/users/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"password123\",\n  \"newPassword\": \"newpassword123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Upload Avatar",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/users/me/avatar",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "avatar", "type": "file", "src": [] }]
+            }
+          }
+        },
+        {
+          "name": "Leaderboard",
+          "request": { "method": "GET", "url": "{{baseUrl}}/users/leaderboard?page=1&limit=10" }
+        },
+        {
+          "name": "List Users (admin)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/users?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get User By Id (admin)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/users/{{userId}}"
+          }
+        },
+        {
+          "name": "Block/Unblock User (admin)",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/users/{{userId}}/block",
+            "body": { "mode": "raw", "raw": "{\n  \"isBlocked\": true\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/categories" }
+        },
+        {
+          "name": "Get Category By Id",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/categories/{{categoryId}}" }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/categories",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dasturlash\",\n  \"description\": \"Dasturlash bo'yicha kurslar\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/categories/{{categoryId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"Yangilangan tavsif\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/categories/{{categoryId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Courses",
+      "item": [
+        {
+          "name": "List Courses",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": "{{baseUrl}}/courses?page=1&limit=10&search=js"
+          }
+        },
+        {
+          "name": "Get Course By Id",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/courses/{{courseId}}" }
+        },
+        {
+          "name": "Create Course",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/courses",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"JavaScript asoslari\",\n  \"description\": \"Noldan JavaScript o'rganish\",\n  \"category\": \"{{categoryId}}\",\n  \"price\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Course (publish)",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/courses/{{courseId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"isPublished\": true\n}" }
+          }
+        },
+        {
+          "name": "Delete Course",
+          "request": {
+            "method": "DELETE",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/courses/{{courseId}}"
+          }
+        },
+        {
+          "name": "Upload Thumbnail",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/courses/{{courseId}}/thumbnail",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "thumbnail", "type": "file", "src": [] }]
+            }
+          }
+        },
+        {
+          "name": "Get Course Stats (teacher)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/courses/{{courseId}}/stats"
+          }
+        },
+        {
+          "name": "List Lessons of Course",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/courses/{{courseId}}/lessons" }
+        },
+        {
+          "name": "Create Lesson in Course",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/courses/{{courseId}}/lessons",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"1-dars: Kirish\",\n  \"description\": \"Kursga kirish\",\n  \"content\": \"Dars matni...\",\n  \"order\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "List Reviews of Course",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/courses/{{courseId}}/reviews" }
+        },
+        {
+          "name": "Create Review for Course",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/courses/{{courseId}}/reviews",
+            "body": { "mode": "raw", "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Juda foydali kurs!\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lessons",
+      "item": [
+        {
+          "name": "Get Lesson By Id",
+          "request": { "method": "GET", "url": "{{baseUrl}}/lessons/{{lessonId}}" }
+        },
+        {
+          "name": "Update Lesson",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/lessons/{{lessonId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Yangilangan dars nomi\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Lesson",
+          "request": {
+            "method": "DELETE",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/lessons/{{lessonId}}"
+          }
+        },
+        {
+          "name": "Upload Material",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/lessons/{{lessonId}}/material",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "material", "type": "file", "src": [] }]
+            }
+          }
+        },
+        {
+          "name": "Complete Lesson (student, +diamonds)",
+          "request": { "method": "POST", "url": "{{baseUrl}}/lessons/{{lessonId}}/complete" }
+        }
+      ]
+    },
+    {
+      "name": "Enrollment",
+      "item": [
+        {
+          "name": "Enroll to Course",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/enrollment",
+            "body": { "mode": "raw", "raw": "{\n  \"courseId\": \"{{courseId}}\"\n}" }
+          }
+        },
+        {
+          "name": "My Enrollments",
+          "request": { "method": "GET", "url": "{{baseUrl}}/enrollment/my?page=1&limit=10" }
+        },
+        {
+          "name": "Get Enrollment By Id",
+          "request": { "method": "GET", "url": "{{baseUrl}}/enrollment/{{enrollmentId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Update Review",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/reviews/{{reviewId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Yangilangan izoh\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Review",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/reviews/{{reviewId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": { "method": "GET", "url": "{{baseUrl}}/notifications?page=1&limit=10" }
+        },
+        {
+          "name": "Mark As Read",
+          "request": { "method": "PATCH", "url": "{{baseUrl}}/notifications/{{notificationId}}/read" }
+        },
+        {
+          "name": "Mark All As Read",
+          "request": { "method": "PATCH", "url": "{{baseUrl}}/notifications/read-all" }
+        },
+        {
+          "name": "Delete Notification",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/notifications/{{notificationId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Quizzes",
+      "item": [
+        {
+          "name": "List Quizzes",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/quizzes?page=1&limit=10" }
+        },
+        {
+          "name": "Get Quiz By Id (student)",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/quizzes/{{quizId}}" }
+        },
+        {
+          "name": "Get Quiz With Answers (teacher)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/quizzes/{{quizId}}/answers"
+          }
+        },
+        {
+          "name": "Create Quiz",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/quizzes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Matematika testi\",\n  \"targetType\": \"standalone\",\n  \"passingScore\": 60,\n  \"maxAttempts\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Quiz",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/quizzes/{{quizId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Yangilangan test nomi\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Quiz",
+          "request": {
+            "method": "DELETE",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/quizzes/{{quizId}}"
+          }
+        },
+        {
+          "name": "Add Question",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/quizzes/{{quizId}}/questions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"2 + 2 = ?\",\n  \"type\": \"multiple_choice\",\n  \"options\": [{ \"label\": \"A\", \"text\": \"3\" }, { \"label\": \"B\", \"text\": \"4\" }],\n  \"correctAnswer\": 1,\n  \"points\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Question",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/quizzes/questions/{{questionId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"points\": 2\n}" }
+          }
+        },
+        {
+          "name": "Delete Question",
+          "request": {
+            "method": "DELETE",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/quizzes/questions/{{questionId}}"
+          }
+        },
+        {
+          "name": "Start Attempt",
+          "request": { "method": "POST", "url": "{{baseUrl}}/quizzes/{{quizId}}/start" }
+        },
+        {
+          "name": "Submit Attempt",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/quizzes/attempts/{{attemptId}}/submit",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    { \"questionId\": \"{{questionId}}\", \"givenAnswer\": 1 }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "My Attempts",
+          "request": { "method": "GET", "url": "{{baseUrl}}/quizzes/{{quizId}}/my-attempts" }
+        },
+        {
+          "name": "Quiz Results (teacher)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/quizzes/{{quizId}}/results"
+          }
+        },
+        {
+          "name": "Review Open Ended (teacher)",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/quizzes/attempts/{{attemptId}}/review",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewedAnswers\": [\n    { \"questionId\": \"{{questionId}}\", \"pointsEarned\": 2 }\n  ]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Create Payment (wallet top-up)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/payment/create",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"purpose\": \"wallet\",\n  \"amount\": 50000,\n  \"returnUrl\": \"https://example.com/return\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Payment (course purchase)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/payment/create",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"purpose\": \"course\",\n  \"courseId\": \"{{courseId}}\",\n  \"returnUrl\": \"https://example.com/return\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Callback (Multicard simulation)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/payment/callback",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_id\": \"{{invoiceId}}\",\n  \"uuid\": \"mock-uuid\",\n  \"amount\": 50000,\n  \"status\": \"success\",\n  \"card_pan\": \"8600 **** **** 1234\",\n  \"payment_time\": \"2026-07-06 12:00:00\",\n  \"sign\": \"COMPUTE_MD5(store_id+invoice_id+amount+secret)\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Payment Status",
+          "request": { "method": "GET", "url": "{{baseUrl}}/payment/status/{{invoiceId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Rewards",
+      "item": [
+        {
+          "name": "List Rewards",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/rewards?page=1&limit=10" }
+        },
+        {
+          "name": "Get Reward By Id",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/rewards/{{rewardId}}" }
+        },
+        {
+          "name": "Create Reward (admin)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/rewards",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Firma kitobi\",\n  \"description\": \"Motivatsion kitob\",\n  \"cost\": 30,\n  \"stock\": 10\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Reward (admin)",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/rewards/{{rewardId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"cost\": 25\n}" }
+          }
+        },
+        {
+          "name": "Delete Reward (admin)",
+          "request": {
+            "method": "DELETE",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/rewards/{{rewardId}}"
+          }
+        },
+        {
+          "name": "Upload Reward Image (admin)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/rewards/{{rewardId}}/image",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "image", "type": "file", "src": [] }]
+            }
+          }
+        },
+        {
+          "name": "Redeem Reward (student)",
+          "request": { "method": "POST", "url": "{{baseUrl}}/rewards/{{rewardId}}/redeem" }
+        },
+        {
+          "name": "My Redemptions (student)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/rewards/redemptions/my?page=1&limit=10" }
+        },
+        {
+          "name": "All Redemptions (admin)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/rewards/redemptions?status=pending&page=1&limit=10"
+          }
+        },
+        {
+          "name": "Update Redemption Status (admin)",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/rewards/redemptions/{{redemptionId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"delivered\",\n  \"adminNote\": \"Qo'lda topshirildi\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Certificates",
+      "item": [
+        {
+          "name": "My Certificates (student)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/certificates/my?page=1&limit=10" }
+        },
+        {
+          "name": "Download Certificate",
+          "request": { "method": "GET", "url": "{{baseUrl}}/certificates/{{certificateId}}/download" }
+        },
+        {
+          "name": "Verify Certificate (public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": "{{baseUrl}}/certificates/verify/{{certificateNumber}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stats",
+      "item": [
+        {
+          "name": "Teacher Dashboard",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/stats/teacher"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": "http://localhost:5000/health"
+          }
+        }
+      ]
+    }
+  ]
+}

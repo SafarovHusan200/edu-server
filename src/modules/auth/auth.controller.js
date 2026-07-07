@@ -53,9 +53,19 @@ const verifyTelegramOtp = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, 'Muvaffaqiyatli kirdingiz', { user, token }));
 });
 
+// ─────────────────────────────────────────
+// POST /api/v1/auth/logout
+// ─────────────────────────────────────────
+const logout = asyncHandler(async (req, res) => {
+  await authService.logout(req.user.id);
+
+  res.status(200).json(new ApiResponse(200, 'Tizimdan chiqdingiz'));
+});
+
 module.exports = {
   register,
   login,
   getMe,
+  logout,
   verifyTelegramOtp, // ← qo'shildi
 };

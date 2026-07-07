@@ -9,14 +9,16 @@ const ApiError = require('../../utils/ApiError');
 // POST /api/v1/payment/create — Private
 // ─────────────────────────────────────────
 const createPayment = asyncHandler(async (req, res) => {
-  const { amount, returnUrl, ofd } = req.body;
+  const { amount, returnUrl, ofd, purpose, courseId } = req.body;
 
-  if (!amount) {
+  if (purpose !== 'course' && !amount) {
     throw new ApiError(400, "To'lov summasi (amount) kiritilishi shart");
   }
 
   const { payment, checkoutUrl } = await paymentService.createPayment({
     userId: req.user.id,
+    purpose,
+    courseId,
     amount,
     returnUrl,
     ofd,
@@ -70,7 +72,7 @@ const handleCallback = asyncHandler(async (req, res) => {
 const getPaymentStatus = asyncHandler(async (req, res) => {
   const { invoiceId } = req.params;
 
-  const payment = await paymentService.getStatusByInvoiceId(invoiceId);
+  const payment = await paymentService.getStatusByInvoiceId(invoiceId, req.user.id, req.user.role);
 
   res.status(200).json(new ApiResponse(200, "To'lov holati", { payment }));
 });
