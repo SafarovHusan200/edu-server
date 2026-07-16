@@ -29,15 +29,28 @@ const paymentSchema = new mongoose.Schema(
 
     // 'wallet'  — user.balance ni to'ldirish
     // 'course'  — muvaffaqiyatli bo'lganda shu 'course' uchun Enrollment yaratiladi
+    // 'premium' — muvaffaqiyatli bo'lganda user.tarif='premium' bo'ladi
     purpose: {
       type: String,
-      enum: ['wallet', 'course'],
+      enum: ['wallet', 'course', 'premium'],
       default: 'wallet',
     },
 
     course: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Course',
+      default: null,
+    },
+
+    promoCode: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PromoCode',
+      default: null,
+    },
+
+    // Qo'llanilgan chegirma foizi — tarixiy yozuv, promokod keyin o'zgarsa ham to'g'ri qoladi
+    discountPercent: {
+      type: Number,
       default: null,
     },
 

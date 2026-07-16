@@ -16,6 +16,7 @@ const paymentRoutes = require('../modules/payment/payment.routes');
 const rewardRoutes = require('../modules/rewards/reward.routes');
 const certificateRoutes = require('../modules/certificates/certificate.routes');
 const statsRoutes = require('../modules/stats/stats.routes');
+const promoCodeRoutes = require('../modules/promocodes/promocode.routes');
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -30,5 +31,6 @@ router.use('/payment', paymentRoutes);
 router.use('/rewards', rewardRoutes);
 router.use('/certificates', certificateRoutes);
 router.use('/stats', statsRoutes);
+router.use('/promo-codes', promoCodeRoutes);
 
 module.exports = router;

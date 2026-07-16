@@ -5,8 +5,8 @@ const { body } = require('express-validator');
 const createPaymentValidation = [
   body('purpose')
     .optional()
-    .isIn(['wallet', 'course'])
-    .withMessage("purpose 'wallet' yoki 'course' bo'lishi kerak"),
+    .isIn(['wallet', 'course', 'premium'])
+    .withMessage("purpose 'wallet', 'course' yoki 'premium' bo'lishi kerak"),
 
   body('courseId')
     .if(body('purpose').equals('course'))
@@ -17,12 +17,19 @@ const createPaymentValidation = [
     .withMessage("courseId noto'g'ri format"),
 
   body('amount')
-    .if(body('purpose').not().equals('course'))
+    .if(body('purpose').not().isIn(['course', 'premium']))
     .notEmpty()
     .withMessage("To'lov summasi (amount) kiritilishi shart")
     .bail()
     .isInt({ min: 1000 })
     .withMessage("amount kamida 1000 (tiyin) bo'lishi kerak"),
+
+  body('promoCode')
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 3, max: 30 })
+    .withMessage("promoCode noto'g'ri format"),
 
   body('returnUrl').optional().isURL().withMessage("returnUrl formati noto'g'ri"),
 ];

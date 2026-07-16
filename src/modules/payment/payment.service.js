@@ -6,16 +6,19 @@ const Payment = require('./payment.model');
 const Course = require('../courses/course.model');
 const Enrollment = require('../enrollment/enrollment.model');
 const User = require('../users/user.model');
+const PromoCode = require('../promocodes/promocode.model');
+const promocodeService = require('../promocodes/promocode.service');
 const notificationService = require('../notifications/notification.service');
 const multicardService = require('./multicard.service');
 const ApiError = require('../../utils/ApiError');
+const { PREMIUM_PRICE } = require('../../config/pricing');
 
 const MIN_WALLET_TOPUP = 1000; // tiyin
 
 // ─────────────────────────────────────────
 // TO'LOV YARATISH
 // ─────────────────────────────────────────
-const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, returnUrl, ofd }) => {
+const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, promoCode, returnUrl, ofd }) => {
   let finalAmount = amount;
   let course = null;
 
@@ -34,10 +37,27 @@ const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, ret
     // Summani clientdan emas, serverdagi kurs narxidan olamiz — bo'lmasa client
     // to'lov summasini o'zgartirib yuborishi mumkin edi.
     finalAmount = course.price;
+  } else if (purpose === 'premium') {
+    const user = await User.findById(userId);
+    if (user.tarif === 'premium') {
+      throw new ApiError(400, 'Siz allaqachon premium foydalanuvchisiz');
+    }
+
+    finalAmount = PREMIUM_PRICE;
   } else {
     if (!amount || amount < MIN_WALLET_TOPUP) {
       throw new ApiError(400, `Hisobni to'ldirish summasi kamida ${MIN_WALLET_TOPUP} tiyin bo'lishi kerak`);
     }
+  }
+
+  let promoCodeDoc = null;
+  let discountPercent = null;
+
+  if (promoCode && (purpose === 'course' || purpose === 'premium')) {
+    // Chegirma foizi ham serverda, promo koddan olinadi — client foizni o'zi yubormaydi
+    promoCodeDoc = await promocodeService.validatePromoCode(promoCode);
+    discountPercent = promoCodeDoc.discountPercent;
+    finalAmount = Math.round(finalAmount * (1 - discountPercent / 100));
   }
 
   // Har bir to'lov uchun o'ziga xos invoiceId generatsiya qilamiz
@@ -58,6 +78,8 @@ const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, ret
     amount: finalAmount,
     purpose,
     course: course?._id ?? null,
+    promoCode: promoCodeDoc?._id ?? null,
+    discountPercent,
     status: 'draft',
   });
 
@@ -100,6 +122,16 @@ const grantPaymentOutcome = async (payment) => {
       message: "To'lovingiz qabul qilindi va kursga yozildingiz",
       meta: { paymentId: payment._id, courseId: payment.course },
     });
+  } else if (payment.purpose === 'premium') {
+    await User.findByIdAndUpdate(payment.user, { tarif: 'premium' });
+
+    await notificationService.createNotification({
+      userId: payment.user,
+      type: 'payment',
+      title: "To'lov muvaffaqiyatli",
+      message: 'Premium tarif faollashtirildi!',
+      meta: { paymentId: payment._id },
+    });
   } else {
     await User.findByIdAndUpdate(payment.user, { $inc: { balance: payment.amount } });
 
@@ -110,6 +142,12 @@ const grantPaymentOutcome = async (payment) => {
       message: 'Hisobingiz balansi to\'ldirildi',
       meta: { paymentId: payment._id, amount: payment.amount },
     });
+  }
+
+  // Draft/muvaffaqiyatsiz to'lovlar promokodni "sarflab" qo'ymasligi uchun
+  // usedCount faqat shu yerda, muvaffaqiyatli natija berilgandan keyin oshiriladi
+  if (payment.promoCode) {
+    await PromoCode.findByIdAndUpdate(payment.promoCode, { $inc: { usedCount: 1 } });
   }
 };
 

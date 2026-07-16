@@ -9,9 +9,9 @@ const ApiError = require('../../utils/ApiError');
 // POST /api/v1/payment/create — Private
 // ─────────────────────────────────────────
 const createPayment = asyncHandler(async (req, res) => {
-  const { amount, returnUrl, ofd, purpose, courseId } = req.body;
+  const { amount, returnUrl, ofd, purpose, courseId, promoCode } = req.body;
 
-  if (purpose !== 'course' && !amount) {
+  if (!['course', 'premium'].includes(purpose) && !amount) {
     throw new ApiError(400, "To'lov summasi (amount) kiritilishi shart");
   }
 
@@ -20,6 +20,7 @@ const createPayment = asyncHandler(async (req, res) => {
     purpose,
     courseId,
     amount,
+    promoCode,
     returnUrl,
     ofd,
   });

@@ -27,7 +27,9 @@
     { "key": "rewardId", "value": "" },
     { "key": "redemptionId", "value": "" },
     { "key": "certificateId", "value": "" },
-    { "key": "certificateNumber", "value": "" }
+    { "key": "certificateNumber", "value": "" },
+    { "key": "promoCodeId", "value": "" },
+    { "key": "promoCode", "value": "" }
   ],
   "item": [
     {
@@ -542,7 +544,19 @@
             "url": "{{baseUrl}}/payment/create",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"purpose\": \"course\",\n  \"courseId\": \"{{courseId}}\",\n  \"returnUrl\": \"https://example.com/return\"\n}"
+              "raw": "{\n  \"purpose\": \"course\",\n  \"courseId\": \"{{courseId}}\",\n  \"promoCode\": \"{{promoCode}}\",\n  \"returnUrl\": \"https://example.com/return\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Payment (premium)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/payment/create",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"purpose\": \"premium\",\n  \"promoCode\": \"{{promoCode}}\",\n  \"returnUrl\": \"https://example.com/return\"\n}"
             }
           }
         },
@@ -680,6 +694,58 @@
             "method": "GET",
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{teacherToken}}", "type": "string" }] },
             "url": "{{baseUrl}}/stats/teacher"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Promo Codes",
+      "item": [
+        {
+          "name": "Preview Discount (public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": "{{baseUrl}}/promo-codes/preview?code={{promoCode}}&purpose=course&courseId={{courseId}}"
+          }
+        },
+        {
+          "name": "Create Promo Code (admin)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/promo-codes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"YOZGI30\",\n  \"discountPercent\": 30,\n  \"expiresAt\": \"2026-12-31T00:00:00.000Z\",\n  \"maxUses\": 100\n}"
+            }
+          }
+        },
+        {
+          "name": "List Promo Codes (admin)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/promo-codes?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Update Promo Code (admin)",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/promo-codes/{{promoCodeId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"isActive\": false\n}" }
+          }
+        },
+        {
+          "name": "Delete Promo Code (admin)",
+          "request": {
+            "method": "DELETE",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/promo-codes/{{promoCodeId}}"
           }
         }
       ]
