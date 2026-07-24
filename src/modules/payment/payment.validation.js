@@ -5,8 +5,8 @@ const { body } = require('express-validator');
 const createPaymentValidation = [
   body('purpose')
     .optional({ checkFalsy: true })
-    .isIn(['wallet', 'course', 'premium'])
-    .withMessage("purpose 'wallet', 'course' yoki 'premium' bo'lishi kerak"),
+    .isIn(['wallet', 'course', 'premium', 'donation'])
+    .withMessage("purpose 'wallet', 'course', 'premium' yoki 'donation' bo'lishi kerak"),
 
   body('courseId')
     .if(body('purpose').equals('course'))

@@ -27,12 +27,13 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
 
-    // 'wallet'  — user.balance ni to'ldirish
-    // 'course'  — muvaffaqiyatli bo'lganda shu 'course' uchun Enrollment yaratiladi
-    // 'premium' — muvaffaqiyatli bo'lganda user.tarif='premium' bo'ladi
+    // 'wallet'   — user.balance ni to'ldirish
+    // 'course'   — muvaffaqiyatli bo'lganda shu 'course' uchun Enrollment yaratiladi
+    // 'premium'  — muvaffaqiyatli bo'lganda user.tarif='premium' bo'ladi
+    // 'donation' — xayriya; muvaffaqiyatli bo'lsa ham foydalanuvchiga hech narsa berilmaydi
     purpose: {
       type: String,
-      enum: ['wallet', 'course', 'premium'],
+      enum: ['wallet', 'course', 'premium', 'donation'],
       default: 'wallet',
     },
 

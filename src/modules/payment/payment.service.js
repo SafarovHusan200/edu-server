@@ -44,6 +44,10 @@ const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, pro
     }
 
     finalAmount = PREMIUM_PRICE;
+  } else if (purpose === 'donation') {
+    if (!amount || amount < MIN_WALLET_TOPUP) {
+      throw new ApiError(400, `Xayriya summasi kamida ${MIN_WALLET_TOPUP} tiyin bo'lishi kerak`);
+    }
   } else {
     if (!amount || amount < MIN_WALLET_TOPUP) {
       throw new ApiError(400, `Hisobni to'ldirish summasi kamida ${MIN_WALLET_TOPUP} tiyin bo'lishi kerak`);
@@ -131,6 +135,15 @@ const grantPaymentOutcome = async (payment) => {
       title: "To'lov muvaffaqiyatli",
       message: 'Premium tarif faollashtirildi!',
       meta: { paymentId: payment._id },
+    });
+  } else if (payment.purpose === 'donation') {
+    // Xayriya — foydalanuvchiga hech narsa berilmaydi, faqat rahmat xabari yuboriladi
+    await notificationService.createNotification({
+      userId: payment.user,
+      type: 'payment',
+      title: 'Xayriya uchun rahmat!',
+      message: "Sizning xayriyangiz muvaffaqiyatli qabul qilindi",
+      meta: { paymentId: payment._id, amount: payment.amount },
     });
   } else {
     await User.findByIdAndUpdate(payment.user, { $inc: { balance: payment.amount } });
