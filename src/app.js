@@ -16,7 +16,10 @@ const app = express();
 // ─────────────────────────────────────────
 // Global Middleware
 // ─────────────────────────────────────────
-app.use(helmet()); // HTTP header himoyasi
+// crossOriginResourcePolicy: default helmet "same-origin" bo'lganida frontend
+// (boshqa origin) /uploads dagi rasmlarni <img> orqali ko'rsata olmaydi —
+// bu API alohida frontend origin tomonidan iste'mol qilinishi uchun ochiladi.
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
 app.use(express.json()); // JSON body parser
 app.use(express.urlencoded({ extended: true }));
