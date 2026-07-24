@@ -4,7 +4,7 @@ const { body } = require('express-validator');
 
 const createPaymentValidation = [
   body('purpose')
-    .optional()
+    .optional({ checkFalsy: true })
     .isIn(['wallet', 'course', 'premium'])
     .withMessage("purpose 'wallet', 'course' yoki 'premium' bo'lishi kerak"),
 
@@ -25,13 +25,16 @@ const createPaymentValidation = [
     .withMessage("amount kamida 1000 (tiyin) bo'lishi kerak"),
 
   body('promoCode')
-    .optional()
+    .optional({ checkFalsy: true })
     .isString()
     .trim()
     .isLength({ min: 3, max: 30 })
     .withMessage("promoCode noto'g'ri format"),
 
-  body('returnUrl').optional().isURL().withMessage("returnUrl formati noto'g'ri"),
+  body('returnUrl')
+    .optional({ checkFalsy: true })
+    .isURL()
+    .withMessage("returnUrl formati noto'g'ri"),
 ];
 
 module.exports = { createPaymentValidation };
