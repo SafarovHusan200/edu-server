@@ -13,7 +13,10 @@ const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 
 const isOwnerOrStaff = (course, userId, role) => {
-  const isOwner = course.teacher.toString() === userId?.toString();
+  // course.teacher populate qilingan bo'lishi mumkin (to'liq hujjat) — bu holda
+  // .toString() ID emas, "[object Object]" qaytaradi, shuning uchun _id'ni ajratib olamiz
+  const teacherId = course.teacher?._id ?? course.teacher;
+  const isOwner = teacherId?.toString() === userId?.toString();
   const isStaff = ['admin', 'superadmin'].includes(role);
   return isOwner || isStaff;
 };
