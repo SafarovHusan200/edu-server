@@ -31,6 +31,8 @@ const getCourses = asyncHandler(async (req, res) => {
     category,
     teacher,
     search,
+    userId: req.user?.id,
+    role: req.user?.role,
   });
 
   res.status(200).json(new ApiResponse(200, "Kurslar ro'yxati", { courses, meta }));

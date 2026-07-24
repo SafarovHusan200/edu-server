@@ -22,11 +22,11 @@ const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
 // COURSE CRUD
 // ───────────────────────────────────────────────────────
 
-// GET /api/v1/courses — public
-router.get('/', courseController.getCourses);
+// GET /api/v1/courses — public (login bo'lsa o'zining draft kurslari ham ko'rinadi)
+router.get('/', authenticate.optional, courseController.getCourses);
 
 // GET /api/v1/courses/:id — public (login bo'lsa to'liq kontent aniqlanadi)
-router.get('/:id', courseController.getCourseById);
+router.get('/:id', authenticate.optional, courseController.getCourseById);
 
 // POST /api/v1/courses
 router.post(

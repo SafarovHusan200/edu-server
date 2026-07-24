@@ -39,10 +39,17 @@ const createCourse = async ({ title, description, category, price, teacherId }) 
   });
 };
 
-const getCourses = async ({ page, limit, category, teacher, search }) => {
+const getCourses = async ({ page, limit, category, teacher, search, userId, role }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
-  const filter = { isPublished: true };
+  const isStaff = ['admin', 'superadmin'].includes(role);
+
+  // Odatiy holda faqat published kurslar ko'rinadi. Admin/superadmin — hammasini,
+  // login qilgan foydalanuvchi esa o'zining hali publish qilinmagan kurslarini ham ko'radi.
+  const filter = isStaff
+    ? {}
+    : { $or: [{ isPublished: true }, ...(userId ? [{ teacher: userId }] : [])] };
+
   if (category) filter.category = category;
   if (teacher) filter.teacher = teacher;
   if (search) filter.title = { $regex: search, $options: 'i' };
@@ -54,6 +61,7 @@ const getCourses = async ({ page, limit, category, teacher, search }) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageLimit),
+
     Course.countDocuments(filter),
   ]);
 
@@ -115,7 +123,10 @@ const deleteCourse = async (courseId, userId, role) => {
   });
 
   if (activeEnrollments > 0) {
-    throw new ApiError(400, "Bu kursga yozilgan studentlar bor, avval kursni yopilgan holatga o'tkazing");
+    throw new ApiError(
+      400,
+      "Bu kursga yozilgan studentlar bor, avval kursni yopilgan holatga o'tkazing"
+    );
   }
 
   await Lesson.deleteMany({ course: courseId });
@@ -128,7 +139,7 @@ const setThumbnail = async (courseId, userId, role, publicPath) => {
   if (!course) throw new ApiError(404, 'Kurs topilmadi');
 
   if (!isOwnerOrStaff(course, userId, role)) {
-    throw new ApiError(403, "Siz bu kursni tahrirlay olmaysiz");
+    throw new ApiError(403, 'Siz bu kursni tahrirlay olmaysiz');
   }
 
   course.thumbnail = publicPath;
@@ -173,7 +184,8 @@ const getCourseStats = async (courseId, userId, role) => {
       active: activeCount,
       completed: completedCount,
       total: totalEnrollments,
-      completionRate: totalEnrollments > 0 ? Math.round((completedCount / totalEnrollments) * 100) : 0,
+      completionRate:
+        totalEnrollments > 0 ? Math.round((completedCount / totalEnrollments) * 100) : 0,
     },
     rating: {
       avg: course.ratingAvg,

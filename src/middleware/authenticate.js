@@ -35,4 +35,28 @@ const authenticate = asyncHandler(async (req, res, next) => {
   next();
 });
 
+// Public endpointlar uchun: token bo'lsa req.user'ni to'ldiradi, bo'lmasa yoki
+// yaroqsiz bo'lsa ham so'rovni rad etmay davom ettiradi.
+const optionalAuthenticate = asyncHandler(async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+  if (!token) return next();
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_TOKEN_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (user && !user.isBlocked && decoded.tokenVersion === user.tokenVersion) {
+      req.user = user;
+    }
+  } catch {
+    // noto'g'ri/eskirgan token — public endpoint sifatida baribir davom etadi
+  }
+
+  next();
+});
+
+authenticate.optional = optionalAuthenticate;
+
 module.exports = authenticate; // ← shu muhim
