@@ -33,7 +33,7 @@ const createPaymentValidation = [
 
   body('returnUrl')
     .optional({ checkFalsy: true })
-    .isURL()
+    .isURL({ require_tld: false })
     .withMessage("returnUrl formati noto'g'ri"),
 ];
 
