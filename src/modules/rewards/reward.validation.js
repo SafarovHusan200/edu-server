@@ -20,8 +20,10 @@ const rewardValidation = [
     .isInt({ min: 1 })
     .withMessage("cost kamida 1 diamant bo'lishi kerak"),
 
+  // values: 'falsy' — stock:null "cheksiz miqdor" degani (modelga qarang), shuning
+  // uchun optional() standart "faqat undefined" tekshiruvi buni to'xtatib qo'ymasligi kerak
   body('stock')
-    .optional()
+    .optional({ values: 'falsy' })
     .isInt({ min: 0 })
     .withMessage("stock manfiy bo'lmagan son bo'lishi kerak"),
 ];
