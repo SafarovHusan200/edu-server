@@ -29,7 +29,7 @@ const createQuiz = async ({
     targetId: targetType === 'standalone' ? null : targetId,
     passingScore: passingScore ?? 60,
     maxAttempts: maxAttempts ?? 3,
-    timeLimit: timeLimit ?? null,
+    timeLimit,
     createdBy,
   });
 

@@ -37,7 +37,9 @@ const quizValidation = [
     .withMessage("maxAttempts kamida 1 bo'lishi kerak"),
 
   body('timeLimit')
-    .optional()
+    .notEmpty()
+    .withMessage('timeLimit kiritilishi shart')
+    .bail()
     .isInt({ min: 1 })
     .withMessage("timeLimit kamida 1 daqiqa bo'lishi kerak"),
 ];

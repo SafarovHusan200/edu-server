@@ -50,10 +50,11 @@ const quizSchema = new mongoose.Schema(
       min: 1,
     },
 
-    // Vaqt limiti (daqiqada), null = cheksiz
+    // Vaqt limiti (daqiqada) — majburiy
     timeLimit: {
       type: Number,
-      default: null,
+      required: true,
+      min: 1,
     },
 
     isActive: {
