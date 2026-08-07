@@ -81,7 +81,7 @@ const completeLesson = asyncHandler(async (req, res) => {
 
   const message = alreadyCompleted
     ? 'Bu dars allaqachon tugatilgan'
-    : "Dars tugatildi, diamant qo'shildi";
+    : "Dars tugatildi, diamond qo'shildi";
 
   res.status(200).json(new ApiResponse(200, message, { enrollment, alreadyCompleted }));
 });

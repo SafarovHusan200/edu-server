@@ -26,6 +26,8 @@ const quizAttemptSchema = new mongoose.Schema(
         givenAnswer: { type: mongoose.Schema.Types.Mixed, default: null },
         isCorrect: { type: Boolean, default: false },
         pointsEarned: { type: Number, default: 0 },
+        // open_ended savolni ustoz tekshirganda qoldiradigan izohi (ixtiyoriy)
+        feedback: { type: String, trim: true, default: null },
       },
     ],
 
@@ -35,7 +37,7 @@ const quizAttemptSchema = new mongoose.Schema(
     scorePercent: { type: Number, default: 0 }, // % (earnedPoints/totalPoints*100)
     passed: { type: Boolean, default: false },
 
-    // 'passed' bo'lganda diamant faqat bir marta berilishi uchun himoya
+    // Diamond (natijaga proportsional) faqat bir marta berilishi uchun himoya
     diamondsAwarded: { type: Boolean, default: false },
 
     // Holat
@@ -54,7 +56,18 @@ const quizAttemptSchema = new mongoose.Schema(
     startedAt: { type: Date, default: Date.now },
     submittedAt: { type: Date, default: null },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+// Test qancha vaqtda ishlanganini soniyada beradi — hali topshirilmagan
+// (in_progress) bo'lsa null. Frontend buni daqiqa/soniyaga o'zi formatlaydi.
+quizAttemptSchema.virtual('durationSeconds').get(function () {
+  if (!this.submittedAt || !this.startedAt) return null;
+  return Math.round((this.submittedAt - this.startedAt) / 1000);
+});
 
 module.exports = mongoose.model('QuizAttempt', quizAttemptSchema);

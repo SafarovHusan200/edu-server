@@ -8,8 +8,18 @@ const ApiResponse = require('../../utils/ApiResponse');
 // POST /api/v1/quizzes
 // ─────────────────────────────────────────
 const createQuiz = asyncHandler(async (req, res) => {
-  const { title, description, targetType, targetId, passingScore, maxAttempts, timeLimit } =
-    req.body;
+  const {
+    title,
+    description,
+    targetType,
+    targetId,
+    passingScore,
+    maxAttempts,
+    timeLimit,
+    availableFrom,
+    availableUntil,
+    grade,
+  } = req.body;
 
   const quiz = await quizService.createQuiz({
     title,
@@ -19,6 +29,9 @@ const createQuiz = asyncHandler(async (req, res) => {
     passingScore,
     maxAttempts,
     timeLimit,
+    availableFrom,
+    availableUntil,
+    grade,
     createdBy: req.user.id,
   });
 

@@ -18,7 +18,7 @@ const rewardValidation = [
     .withMessage("Narx (cost) kiritilishi shart")
     .bail()
     .isInt({ min: 1 })
-    .withMessage("cost kamida 1 diamant bo'lishi kerak"),
+    .withMessage("cost kamida 1 diamond bo'lishi kerak"),
 
   // values: 'falsy' — stock:null "cheksiz miqdor" degani (modelga qarang), shuning
   // uchun optional() standart "faqat undefined" tekshiruvi buni to'xtatib qo'ymasligi kerak

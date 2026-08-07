@@ -12,6 +12,7 @@ const {
   updateMeValidation,
   changePasswordValidation,
   setBlockedValidation,
+  updateUserValidation,
 } = require('./user.validation');
 
 router.use(authenticate);
@@ -29,6 +30,12 @@ router.patch(
 
 // POST /api/v1/users/me/avatar
 router.post('/me/avatar', uploadImage('avatars').single('avatar'), userController.uploadAvatar);
+
+// POST /api/v1/users/me/telegram/link — bot deep-link uchun bir martalik token
+router.post('/me/telegram/link', userController.linkTelegram);
+
+// DELETE /api/v1/users/me/telegram
+router.delete('/me/telegram', userController.unlinkTelegram);
 
 // GET /api/v1/users/leaderboard — istalgan login qilgan foydalanuvchi ko'ra oladi
 // /:id dan OLDIN ro'yxatdan o'tkazilishi shart, aks holda "leaderboard" so'zi
@@ -49,5 +56,17 @@ router.patch(
   validate,
   userController.setBlocked
 );
+
+// PATCH /api/v1/users/:id — superadmin (rol o'zgartirish shu jumladan)
+router.patch(
+  '/:id',
+  authorize('superadmin'),
+  updateUserValidation,
+  validate,
+  userController.updateUser
+);
+
+// DELETE /api/v1/users/:id — superadmin
+router.delete('/:id', authorize('superadmin'), userController.deleteUser);
 
 module.exports = router;

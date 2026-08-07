@@ -57,9 +57,31 @@ const quizSchema = new mongoose.Schema(
       min: 1,
     },
 
+    // Qaysi sinf uchun (1-11) — faollashtirishda minimal savol sonini
+    // aniqlash uchun ishlatiladi (boshlang'ich vs katta sinflar)
+    grade: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 11,
+    },
+
+    // Quizni boshlash mumkin bo'lgan sana-vaqt oralig'i (bir martalik, aniq muddat).
+    // Ikkalasi ham ixtiyoriy — bo'sh bo'lsa cheklov yo'q. Faqat "boshlash" (start)
+    // amalini cheklaydi, allaqachon boshlangan attempt oraliq tugagach ham submit qilinaveradi.
+    availableFrom: {
+      type: Date,
+      default: null,
+    },
+
+    availableUntil: {
+      type: Date,
+      default: null,
+    },
+
     isActive: {
       type: Boolean,
-      default: true,
+      default: false,
     },
   },
   { timestamps: true }

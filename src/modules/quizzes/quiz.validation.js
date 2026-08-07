@@ -42,6 +42,31 @@ const quizValidation = [
     .bail()
     .isInt({ min: 1 })
     .withMessage("timeLimit kamida 1 daqiqa bo'lishi kerak"),
+
+  body('grade')
+    .notEmpty()
+    .withMessage('grade (sinf) kiritilishi shart')
+    .bail()
+    .isInt({ min: 1, max: 11 })
+    .withMessage("grade 1-11 oralig'ida bo'lishi kerak"),
+
+  // Masalan: "2026-08-10T09:00:00+05:00" (Toshkent vaqti bilan, offset ko'rsatilgan holda)
+  body('availableFrom')
+    .optional()
+    .isISO8601()
+    .withMessage("availableFrom sana-vaqt formatida bo'lishi kerak (masalan: 2026-08-10T09:00:00+05:00)"),
+
+  body('availableUntil')
+    .optional()
+    .isISO8601()
+    .withMessage("availableUntil sana-vaqt formatida bo'lishi kerak (masalan: 2026-08-10T17:00:00+05:00)")
+    .bail()
+    .custom((value, { req }) => {
+      if (req.body.availableFrom && new Date(value) <= new Date(req.body.availableFrom)) {
+        throw new Error("availableUntil availableFrom dan keyin bo'lishi kerak");
+      }
+      return true;
+    }),
 ];
 
 const questionValidation = [

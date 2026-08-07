@@ -1,6 +1,8 @@
 // src/config/gamification.js
 
 module.exports = {
-  QUIZ_PASS_REWARD: 10, // testni muvaffaqiyatli (passed=true) topshirganda
+  // 100% natija uchun beriladigan diamond — haqiqiy miqdor scorePercentga
+  // proportsional hisoblanadi (masalan 70% -> 7, 75% -> 7.5)
+  QUIZ_MAX_REWARD: 10,
   LESSON_COMPLETE_REWARD: 5, // bitta darsni tugatganda
 };

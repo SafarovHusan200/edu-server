@@ -79,7 +79,7 @@ const issueCertificate = async (studentId, courseId) => {
 
   const [student, course] = await Promise.all([
     User.findById(studentId).select('name'),
-    Course.findById(courseId).select('title'),
+    Course.findById(courseId).select('title teacher').populate('teacher', 'name'),
   ]);
 
   if (!student || !course) throw new ApiError(404, 'Foydalanuvchi yoki kurs topilmadi');
@@ -116,8 +116,8 @@ const issueCertificate = async (studentId, courseId) => {
   await notificationService.createNotification({
     userId: studentId,
     type: 'system',
-    title: "Tabriklaymiz, sertifikat tayyor!",
-    message: `"${course.title}" kursini yakunlaganingiz uchun sertifikat berildi`,
+    title: '🎓 Tabriklaymiz, sertifikat tayyor!',
+    message: `📚 Kurs: "${course.title}"\n👨‍🏫 O'qituvchi: ${course.teacher?.name ?? '—'}\n📜 Sertifikat raqami: ${certificateNumber}\n✅ Siz ushbu kursni muvaffaqiyatli yakunladingiz!`,
     meta: { courseId: course._id, certificateId: certificate._id },
   });
 

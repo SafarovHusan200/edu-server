@@ -59,7 +59,7 @@ const deleteReward = async (id) => {
   await reward.deleteOne();
 };
 
-// POST /rewards/:id/redeem — diamant atomik yechiladi (race condition yo'q)
+// POST /rewards/:id/redeem — diamond atomik yechiladi (race condition yo'q)
 const redeemReward = async (studentId, rewardId) => {
   const reward = await Reward.findById(rewardId);
   if (!reward || !reward.isActive) throw new ApiError(404, "Sovg'a topilmadi");
@@ -75,7 +75,7 @@ const redeemReward = async (studentId, rewardId) => {
   );
 
   if (!updatedUser) {
-    throw new ApiError(400, 'Diamantlaringiz yetarli emas');
+    throw new ApiError(400, 'Diamondlaringiz yetarli emas');
   }
 
   if (reward.stock !== null) {
@@ -91,8 +91,8 @@ const redeemReward = async (studentId, rewardId) => {
   await notificationService.createNotification({
     userId: studentId,
     type: 'reward',
-    title: "Sovg'a so'rovi yuborildi",
-    message: `"${reward.title}" sovg'asi uchun ${reward.cost} diamant sarflandi. Admin tasdig'ini kuting`,
+    title: "🎁 Sovg'a so'rovi yuborildi",
+    message: `🎁 Sovg'a: "${reward.title}"\n💎 Sarflangan diamond: ${reward.cost}\n⏳ Holat: admin tasdig'ini kutmoqda`,
     meta: { rewardId: reward._id, redemptionId: redemption._id },
   });
 
@@ -146,25 +146,28 @@ const updateRedemptionStatus = async (redemptionId, { status, adminNote }) => {
   redemption.adminNote = adminNote ?? redemption.adminNote;
   await redemption.save();
 
+  let reward = await Reward.findById(redemption.reward).select('title stock');
+
   if (status === 'rejected') {
     await User.findByIdAndUpdate(redemption.student, {
       $inc: { diamonds: redemption.diamondsSpent },
     });
 
-    const reward = await Reward.findById(redemption.reward);
     if (reward && reward.stock !== null) {
       await Reward.findByIdAndUpdate(redemption.reward, { $inc: { stock: 1 } });
     }
   }
 
+  const rewardTitle = reward?.title ?? "Noma'lum sovg'a";
+
   await notificationService.createNotification({
     userId: redemption.student,
     type: 'reward',
-    title: status === 'delivered' ? "Sovg'angiz yetkazildi" : "So'rovingiz rad etildi",
+    title: status === 'delivered' ? "📦 Sovg'angiz yetkazildi!" : "❌ So'rovingiz rad etildi",
     message:
       status === 'delivered'
-        ? "Sovg'a so'rovingiz tasdiqlandi va yetkazildi"
-        : `So'rovingiz rad etildi, diamantlaringiz qaytarildi${adminNote ? `: ${adminNote}` : ''}`,
+        ? `🎁 Sovg'a: "${rewardTitle}"\n✅ So'rovingiz tasdiqlandi va yetkazib berildi`
+        : `🎁 Sovg'a: "${rewardTitle}"\n💎 ${redemption.diamondsSpent} diamond hisobingizga qaytarildi${adminNote ? `\n📝 Sabab: ${adminNote}` : ''}`,
     meta: { redemptionId: redemption._id },
   });
 

@@ -24,7 +24,7 @@ const hasActiveAccess = async (courseId, studentId) => {
 // Pullik kurs bo'lsa — to'lov yaratib checkoutUrl qaytaradi (enrollment to'lov
 // muvaffaqiyatli bo'lgach payment.service.applyCallback ichida yaratiladi).
 const enroll = async (studentId, courseId) => {
-  const course = await Course.findById(courseId);
+  const course = await Course.findById(courseId).populate('teacher', 'name');
   if (!course || !course.isPublished) {
     throw new ApiError(404, 'Kurs topilmadi');
   }
@@ -55,8 +55,8 @@ const enroll = async (studentId, courseId) => {
   await notificationService.createNotification({
     userId: studentId,
     type: 'enrollment',
-    title: "Kursga yozildingiz",
-    message: `Siz "${course.title}" kursiga muvaffaqiyatli yozildingiz`,
+    title: '🎓 Kursga muvaffaqiyatli yozildingiz!',
+    message: `📚 Kurs: "${course.title}"\n👨‍🏫 O'qituvchi: ${course.teacher?.name ?? '—'}\n✅ O'qishni hoziroq boshlashingiz mumkin!`,
     meta: { courseId: course._id },
   });
 

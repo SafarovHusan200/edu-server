@@ -21,7 +21,7 @@ const rewardSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Diamantdagi narxi
+    // Diamonddagi narxi
     cost: {
       type: Number,
       required: true,

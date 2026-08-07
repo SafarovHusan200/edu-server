@@ -4,6 +4,13 @@ const Quiz = require('./quiz.model');
 const Question = require('../questions/question.model');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
+const {
+  ELEMENTARY_MAX_GRADE,
+  MIDDLE_MAX_GRADE,
+  MIN_QUESTIONS_ELEMENTARY,
+  MIN_QUESTIONS_MIDDLE,
+  MIN_QUESTIONS_SENIOR,
+} = require('../../config/quizRules');
 
 // ─────────────────────────────────────────
 // CREATE QUIZ
@@ -16,10 +23,17 @@ const createQuiz = async ({
   passingScore,
   maxAttempts,
   timeLimit,
+  availableFrom,
+  availableUntil,
+  grade,
   createdBy,
 }) => {
   if (targetType !== 'standalone' && !targetId) {
     throw new ApiError(400, 'Course yoki Lesson uchun targetId kiritilishi shart');
+  }
+
+  if (availableFrom && availableUntil && new Date(availableUntil) <= new Date(availableFrom)) {
+    throw new ApiError(400, "availableUntil availableFrom dan keyin bo'lishi kerak");
   }
 
   const quiz = await Quiz.create({
@@ -30,10 +44,26 @@ const createQuiz = async ({
     passingScore: passingScore ?? 60,
     maxAttempts: maxAttempts ?? 3,
     timeLimit,
+    availableFrom: availableFrom ?? null,
+    availableUntil: availableUntil ?? null,
+    grade,
     createdBy,
   });
 
   return quiz;
+};
+
+// Grade bo'yicha minimal savol soni — uch bosqich: 1-4 (boshlang'ich), 5-8 (o'rta), 9-11 (yuqori)
+const getMinQuestions = (grade) => {
+  if (grade <= ELEMENTARY_MAX_GRADE) return MIN_QUESTIONS_ELEMENTARY;
+  if (grade <= MIDDLE_MAX_GRADE) return MIN_QUESTIONS_MIDDLE;
+  return MIN_QUESTIONS_SENIOR;
+};
+
+const getGradeTierLabel = (grade) => {
+  if (grade <= ELEMENTARY_MAX_GRADE) return "boshlang'ich sinflar";
+  if (grade <= MIDDLE_MAX_GRADE) return '5-8-sinflar';
+  return '9-sinf va undan yuqori sinflar';
 };
 
 // ─────────────────────────────────────────
@@ -94,6 +124,20 @@ const updateQuiz = async (quizId, userId, updateData) => {
 
   if (quiz.createdBy.toString() !== userId.toString()) {
     throw new ApiError(403, 'Siz bu quizni tahrirlay olmaysiz');
+  }
+
+  if (updateData.isActive) {
+    const grade = updateData.grade ?? quiz.grade;
+    const minQuestions = getMinQuestions(grade);
+    const questionCount = await Question.countDocuments({ quiz: quizId });
+
+    if (questionCount < minQuestions) {
+      const tier = getGradeTierLabel(grade);
+      throw new ApiError(
+        400,
+        `Quizni faollashtirish uchun ${tier} (${grade}-sinf) uchun kamida ${minQuestions} ta savol bo'lishi kerak, hozir ${questionCount} ta`
+      );
+    }
   }
 
   const updated = await Quiz.findByIdAndUpdate(quizId, updateData, { new: true });

@@ -94,7 +94,7 @@ const addMaterial = async (lessonId, userId, role, publicPath) => {
   return lesson;
 };
 
-// POST /lessons/:id/complete — student darsni tugatgani uchun diamant oladi (idempotent)
+// POST /lessons/:id/complete — student darsni tugatgani uchun diamond oladi (idempotent)
 const completeLesson = async (lessonId, studentId) => {
   const lesson = await Lesson.findById(lessonId);
   if (!lesson) throw new ApiError(404, 'Dars topilmadi');
@@ -134,8 +134,8 @@ const completeLesson = async (lessonId, studentId) => {
   await notificationService.createNotification({
     userId: studentId,
     type: 'lesson',
-    title: 'Diamant qo\'lga kiritdingiz!',
-    message: `"${lesson.title}" darsini tugatganingiz uchun ${LESSON_COMPLETE_REWARD} diamant oldingiz`,
+    title: '💎 Diamond qo\'lga kiritdingiz!',
+    message: `📖 Kurs: "${course.title}"\n✅ Dars: "${lesson.title}"\n💎 Mukofot: ${LESSON_COMPLETE_REWARD} diamond`,
     meta: { lessonId: lesson._id, courseId: course._id, diamonds: LESSON_COMPLETE_REWARD },
   });
 

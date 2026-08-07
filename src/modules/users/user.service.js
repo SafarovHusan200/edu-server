@@ -1,8 +1,13 @@
 // src/modules/users/user.service.js
 
+const crypto = require('crypto');
 const User = require('./user.model');
+const Course = require('../courses/course.model');
+const TelegramLinkToken = require('../auth/telegramLinkToken.model');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
+
+const TELEGRAM_LINK_TTL_MS = 15 * 60 * 1000; // 15 daqiqa
 
 const updateMe = async (userId, { name, grade }) => {
   const user = await User.findById(userId);
@@ -80,7 +85,89 @@ const setBlocked = async (id, isBlocked) => {
   return user;
 };
 
-// GET /users/leaderboard — eng ko'p diamant to'plagan studentlar
+// PATCH /users/:id — superadmin: istalgan foydalanuvchini (rol ham) tahrirlaydi
+const updateUser = async (id, { name, phone, role, tarif, grade }) => {
+  const user = await User.findById(id);
+  if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
+
+  if (name !== undefined) user.name = name;
+  if (phone !== undefined) user.phone = phone;
+  if (role !== undefined) user.role = role;
+  if (tarif !== undefined) user.tarif = tarif;
+  if (grade !== undefined) {
+    user.grade = {
+      number: grade.number ?? user.grade?.number,
+      letter: grade.letter ?? user.grade?.letter,
+    };
+  }
+
+  await user.save();
+  return user;
+};
+
+// DELETE /users/:id — superadmin
+const deleteUser = async (id, requesterId) => {
+  if (id === requesterId?.toString()) {
+    throw new ApiError(400, "O'zingizni o'chira olmaysiz");
+  }
+
+  const user = await User.findById(id);
+  if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
+
+  const authoredCourses = await Course.countDocuments({ teacher: id });
+  if (authoredCourses > 0) {
+    throw new ApiError(
+      400,
+      "Bu foydalanuvchi kurslar yaratgan, avval kurslarni boshqa o'qituvchiga o'tkazing yoki o'chiring"
+    );
+  }
+
+  await user.deleteOne();
+};
+
+// POST /users/me/telegram/link — profildan bog'lash uchun bir martalik token
+const createTelegramLinkToken = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
+
+  if (user.telegramId) {
+    throw new ApiError(400, 'Sizda allaqachon ulangan Telegram hisobi bor');
+  }
+
+  const token = crypto.randomBytes(16).toString('hex');
+  const expiresAt = new Date(Date.now() + TELEGRAM_LINK_TTL_MS);
+
+  await TelegramLinkToken.create({ user: userId, token, expiresAt });
+
+  const botUsername = process.env.TELEGRAM_BOT_USERNAME;
+  const deepLink = botUsername ? `https://t.me/${botUsername}?start=${token}` : null;
+
+  return { token, deepLink, expiresAt };
+};
+
+// DELETE /users/me/telegram — profildan Telegramni uzish
+const unlinkTelegram = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
+
+  if (!user.telegramId) {
+    throw new ApiError(400, "Sizda ulangan Telegram hisobi yo'q");
+  }
+
+  if (!user.password) {
+    throw new ApiError(
+      400,
+      "Telegramni uzishdan oldin parol o'rnating (aks holda hisobingizga kira olmay qolasiz)"
+    );
+  }
+
+  user.telegramId = undefined;
+  user.telegramUsername = null;
+  await user.save();
+  return user;
+};
+
+// GET /users/leaderboard — eng ko'p diamond to'plagan studentlar
 const getLeaderboard = async ({ page, limit }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
   const filter = { role: 'student' };
@@ -108,5 +195,9 @@ module.exports = {
   getUsers,
   getUserById,
   setBlocked,
+  updateUser,
+  deleteUser,
+  createTelegramLinkToken,
+  unlinkTelegram,
   getLeaderboard,
 };

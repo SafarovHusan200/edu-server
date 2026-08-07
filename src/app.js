@@ -13,6 +13,12 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
+// ETag/304 kerak emas — API javoblari foydalanuvchiga xos va tez-tez o'zgaradi,
+// keshlash foyda bermaydi, aksincha ba'zi HTTP client'larda bo'sh javobga olib
+// kelishi mumkin (304 body'siz keladi). /uploads statik fayllar keshlashiga
+// bu ta'sir qilmaydi — u express.static'ning o'z alohida etag mexanizmi.
+app.set('etag', false);
+
 // ─────────────────────────────────────────
 // Global Middleware
 // ─────────────────────────────────────────

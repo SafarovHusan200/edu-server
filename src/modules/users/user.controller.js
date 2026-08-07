@@ -62,6 +62,38 @@ const setBlocked = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, isBlocked ? 'Foydalanuvchi bloklandi' : 'Blok olib tashlandi', { user }));
 });
 
+// PATCH /api/v1/users/:id — superadmin
+const updateUser = asyncHandler(async (req, res) => {
+  const { name, phone, role, tarif, grade } = req.body;
+
+  const user = await userService.updateUser(req.params.id, { name, phone, role, tarif, grade });
+
+  res.status(200).json(new ApiResponse(200, 'Foydalanuvchi yangilandi', { user }));
+});
+
+// DELETE /api/v1/users/:id — superadmin
+const deleteUser = asyncHandler(async (req, res) => {
+  await userService.deleteUser(req.params.id, req.user.id);
+
+  res.status(200).json(new ApiResponse(200, "Foydalanuvchi o'chirildi"));
+});
+
+// POST /api/v1/users/me/telegram/link
+const linkTelegram = asyncHandler(async (req, res) => {
+  const { token, deepLink, expiresAt } = await userService.createTelegramLinkToken(req.user.id);
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, "Telegramni ulash uchun havola tayyor", { token, deepLink, expiresAt }));
+});
+
+// DELETE /api/v1/users/me/telegram
+const unlinkTelegram = asyncHandler(async (req, res) => {
+  const user = await userService.unlinkTelegram(req.user.id);
+
+  res.status(200).json(new ApiResponse(200, 'Telegram uzildi', { user }));
+});
+
 // GET /api/v1/users/leaderboard
 const getLeaderboard = asyncHandler(async (req, res) => {
   const { page, limit } = req.query;
@@ -78,5 +110,9 @@ module.exports = {
   getUsers,
   getUserById,
   setBlocked,
+  updateUser,
+  deleteUser,
+  linkTelegram,
+  unlinkTelegram,
   getLeaderboard,
 };

@@ -6,21 +6,46 @@ const Question = require('../questions/question.model');
 const User = require('../users/user.model');
 const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
-const { QUIZ_PASS_REWARD } = require('../../config/gamification');
+const { QUIZ_MAX_REWARD } = require('../../config/gamification');
 
-// attempt 'reviewed' bo'lib, 'passed'ga chiqqanda diamant beradi — faqat bir marta
+// Xato xabarlarida vaqtni har doim Toshkent vaqti bilan, "10:10 01.01.2026"
+// shaklida ko'rsatish uchun (server qaysi timezone'da ishlashidan qat'i nazar)
+const formatTashkentTime = (date) => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Tashkent',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+
+  return `${get('hour')}:${get('minute')} ${get('day')}.${get('month')}.${get('year')}`;
+};
+
+// attempt 'reviewed' bo'lganda diamond beradi — faqat bir marta va faqat birinchi
+// urinishda (attemptNumber 1), qayta-qayta urinib diamond "farm" qilib olmaslik uchun.
+// Miqdor natijaga proportsional (passed/failed'dan qat'i nazar):
+// scorePercent/100 * QUIZ_MAX_REWARD — masalan 100% -> 10, 70% -> 7, 75% -> 7.5.
 // (submitAttempt va reviewOpenEnded ikkalasi ham shu holatga olib kelishi mumkin)
-const awardDiamondsIfPassed = async (attempt) => {
-  if (!attempt.passed || attempt.diamondsAwarded) return;
+const awardQuizDiamonds = async (attempt, quizTitle, teacherName) => {
+  if (attempt.diamondsAwarded || attempt.attemptNumber !== 1) return;
 
-  await User.findByIdAndUpdate(attempt.student, { $inc: { diamonds: QUIZ_PASS_REWARD } });
+  const diamondAmount = Math.round((attempt.scorePercent / 100) * QUIZ_MAX_REWARD * 100) / 100;
   attempt.diamondsAwarded = true;
+
+  if (diamondAmount <= 0) return;
+
+  await User.findByIdAndUpdate(attempt.student, { $inc: { diamonds: diamondAmount } });
 
   await notificationService.createNotification({
     userId: attempt.student,
     type: 'quiz',
-    title: "Diamant qo'lga kiritdingiz!",
-    message: `Testni muvaffaqiyatli topshirganingiz uchun ${QUIZ_PASS_REWARD} diamant oldingiz`,
+    title: '💎 Diamond qo\'lga kiritdingiz!',
+    message: `📚 Fan: "${quizTitle}"\n👨‍🏫 O'qituvchi: ${teacherName ?? "—"}\n💎 Mukofot: ${diamondAmount} diamond`,
     meta: { quizId: attempt.quiz._id ?? attempt.quiz, attemptId: attempt._id },
   });
 };
@@ -32,6 +57,22 @@ const startAttempt = async (quizId, studentId) => {
   const quiz = await Quiz.findById(quizId);
   if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
   if (!quiz.isActive) throw new ApiError(400, 'Bu quiz faol emas');
+
+  // Faqat "boshlash"ni cheklaydi — allaqachon boshlangan attempt oraliq
+  // tugagach ham submit qilinaveradi (pastdagi submitAttempt'da tekshirilmaydi)
+  const now = new Date();
+  if (quiz.availableFrom && now < quiz.availableFrom) {
+    throw new ApiError(
+      400,
+      `Bu quiz hali boshlanmagan. Boshlanish vaqti: ${formatTashkentTime(quiz.availableFrom)} (Toshkent vaqti)`
+    );
+  }
+  if (quiz.availableUntil && now > quiz.availableUntil) {
+    throw new ApiError(
+      400,
+      `Bu quizni boshlash muddati tugagan. Muddat: ${formatTashkentTime(quiz.availableUntil)} (Toshkent vaqti)`
+    );
+  }
 
   // Necha marta uringan
   const attemptCount = await QuizAttempt.countDocuments({ quiz: quizId, student: studentId });
@@ -127,8 +168,46 @@ const submitAttempt = async (attemptId, studentId, answers) => {
   attempt.status = hasOpenEnded ? 'submitted' : 'reviewed';
   attempt.submittedAt = new Date();
 
+  const [student, teacher] = await Promise.all([
+    User.findById(studentId).select('name'),
+    User.findById(quiz.createdBy).select('name'),
+  ]);
+
+  const correctCount = evaluatedAnswers.filter((a) => a.isCorrect).length;
+  const totalQuestions = evaluatedAnswers.length;
+
   if (attempt.status === 'reviewed') {
-    await awardDiamondsIfPassed(attempt);
+    // Avtomatik baholangan (ochiq savolsiz) — natija darhol tayyor,
+    // shuning uchun ham studentga, ham testni tuzgan o'qituvchiga xabar boradi
+    await awardQuizDiamonds(attempt, quiz.title, teacher?.name);
+
+    await notificationService.createNotification({
+      userId: attempt.student,
+      type: 'quiz',
+      title: passed ? '🏆 Test yakunlandi — o\'tdingiz!' : '📊 Test yakunlandi',
+      message: `📚 Fan: "${quiz.title}"\n👨‍🏫 O'qituvchi: ${teacher?.name ?? "—"}\n✅ Natija: ${correctCount}/${totalQuestions} ta savolga to'g'ri javob berdingiz (${scorePercent}%)\n${passed ? "🎉 Tabriklaymiz, testdan muvaffaqiyatli o'tdingiz!" : "💪 O'tish balidan past natija — qayta urinib ko'ring!"}`,
+      meta: { quizId: quiz._id, attemptId: attempt._id },
+    });
+
+    await notificationService.createNotification({
+      userId: quiz.createdBy,
+      type: 'quiz',
+      title: '📥 Yangi natija',
+      message: `👤 O'quvchi: ${student?.name ?? 'Talaba'}\n📚 Fan: "${quiz.title}"\n✅ Natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n${passed ? "🟢 Holat: o'tdi" : "🔴 Holat: o'ta olmadi"}`,
+      meta: { quizId: quiz._id, attemptId: attempt._id, studentId },
+    });
+  } else {
+    // Ochiq savol bor — o'qituvchi tekshirgandan keyin (reviewOpenEnded) student
+    // xabar oladi, o'qituvchiga esa faqat "tekshirish kerak" xabari yetarli
+    const openEndedCount = questions.filter((q) => q.type === 'open_ended').length;
+
+    await notificationService.createNotification({
+      userId: quiz.createdBy,
+      type: 'quiz',
+      title: '📝 Tekshirish kerak',
+      message: `👤 O'quvchi: ${student?.name ?? 'Talaba'}\n📚 Fan: "${quiz.title}"\n❓ ${openEndedCount} ta ochiq savolga javob yubordi — tekshirib, baholab bering`,
+      meta: { quizId: quiz._id, attemptId: attempt._id, studentId },
+    });
   }
 
   await attempt.save();
@@ -182,12 +261,17 @@ const getQuizResults = async (quizId, teacherId, role) => {
 // REVIEW OPEN ENDED (teacher)
 // ─────────────────────────────────────────
 const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
-  // reviewedAnswers = [{ questionId, pointsEarned }]
+  // reviewedAnswers = [{ questionId, pointsEarned, isCorrect, feedback? }]
+  // isCorrect va pointsEarned bir-biridan mustaqil — ustoz qisman ball berib,
+  // baribir "to'liq to'g'ri emas" deb belgilashi mumkin (yoki aksincha)
 
-  const attempt = await QuizAttempt.findById(attemptId).populate('quiz');
+  const attempt = await QuizAttempt.findById(attemptId).populate({
+    path: 'quiz',
+    populate: { path: 'createdBy', select: 'name' },
+  });
   if (!attempt) throw new ApiError(404, 'Attempt topilmadi');
 
-  if (attempt.quiz.createdBy.toString() !== teacherId.toString()) {
+  if (attempt.quiz.createdBy._id.toString() !== teacherId.toString()) {
     throw new ApiError(403, 'Siz bu attemptni tekshira olmaysiz');
   }
 
@@ -200,7 +284,8 @@ const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
 
     if (reviewed) {
       ans.pointsEarned = reviewed.pointsEarned;
-      ans.isCorrect = reviewed.pointsEarned > 0;
+      ans.isCorrect = Boolean(reviewed.isCorrect);
+      ans.feedback = reviewed.feedback ?? null;
     }
 
     earnedPoints += ans.pointsEarned;
@@ -215,15 +300,18 @@ const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
   attempt.passed = scorePercent >= attempt.quiz.passingScore;
   attempt.status = 'reviewed';
 
-  await awardDiamondsIfPassed(attempt);
+  await awardQuizDiamonds(attempt, attempt.quiz.title, attempt.quiz.createdBy?.name);
 
   await attempt.save();
+
+  const correctCount = attempt.answers.filter((a) => a.isCorrect).length;
+  const totalQuestions = attempt.answers.length;
 
   await notificationService.createNotification({
     userId: attempt.student,
     type: 'quiz',
-    title: 'Natijangiz baholandi',
-    message: `"${attempt.quiz.title}" testidagi natijangiz tekshirildi: ${scorePercent}%`,
+    title: '✅ Natijangiz baholandi',
+    message: `📚 Fan: "${attempt.quiz.title}"\n👨‍🏫 O'qituvchi: ${attempt.quiz.createdBy?.name ?? '—'}\n📊 Yakuniy natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n${attempt.passed ? "🎉 Testdan muvaffaqiyatli o'tdingiz!" : "📌 Afsuski, testdan o'ta olmadingiz"}`,
     meta: { quizId: attempt.quiz._id, attemptId: attempt._id },
   });
 

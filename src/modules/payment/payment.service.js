@@ -15,6 +15,9 @@ const { PREMIUM_PRICE } = require('../../config/pricing');
 
 const MIN_WALLET_TOPUP = 1000; // tiyin
 
+// Bildirishnomalarda summani tiyindan so'mga, minglik ajratgich bilan ko'rsatish uchun
+const formatSom = (tiyin) => Math.round(tiyin / 100).toLocaleString('uz-UZ');
+
 // ─────────────────────────────────────────
 // TO'LOV YARATISH
 // ─────────────────────────────────────────
@@ -103,7 +106,10 @@ const isSignValid = ({ invoiceId, amount, sign }) => {
 // To'lov muvaffaqiyatli bo'lganda maqsadiga qarab natija yaratadi (idempotent)
 const grantPaymentOutcome = async (payment) => {
   if (payment.purpose === 'course' && payment.course) {
-    const existing = await Enrollment.findOne({ student: payment.user, course: payment.course });
+    const [existing, course] = await Promise.all([
+      Enrollment.findOne({ student: payment.user, course: payment.course }),
+      Course.findById(payment.course).select('title teacher').populate('teacher', 'name'),
+    ]);
 
     if (!existing || existing.status === 'cancelled') {
       await (existing
@@ -122,8 +128,8 @@ const grantPaymentOutcome = async (payment) => {
     await notificationService.createNotification({
       userId: payment.user,
       type: 'payment',
-      title: "To'lov muvaffaqiyatli",
-      message: "To'lovingiz qabul qilindi va kursga yozildingiz",
+      title: "✅ To'lov muvaffaqiyatli!",
+      message: `📚 Kurs: "${course?.title ?? '—'}"\n👨‍🏫 O'qituvchi: ${course?.teacher?.name ?? '—'}\n💳 To'langan summa: ${formatSom(payment.amount)} so'm\n🎓 Siz ushbu kursga muvaffaqiyatli yozildingiz!`,
       meta: { paymentId: payment._id, courseId: payment.course },
     });
   } else if (payment.purpose === 'premium') {
@@ -132,8 +138,8 @@ const grantPaymentOutcome = async (payment) => {
     await notificationService.createNotification({
       userId: payment.user,
       type: 'payment',
-      title: "To'lov muvaffaqiyatli",
-      message: 'Premium tarif faollashtirildi!',
+      title: '⭐ Premium faollashtirildi!',
+      message: `💳 To'langan summa: ${formatSom(payment.amount)} so'm\n⭐ Tarifingiz endi: Premium`,
       meta: { paymentId: payment._id },
     });
   } else if (payment.purpose === 'donation') {
@@ -141,8 +147,8 @@ const grantPaymentOutcome = async (payment) => {
     await notificationService.createNotification({
       userId: payment.user,
       type: 'payment',
-      title: 'Xayriya uchun rahmat!',
-      message: "Sizning xayriyangiz muvaffaqiyatli qabul qilindi",
+      title: '❤️ Xayriya uchun rahmat!',
+      message: `💳 Xayriya summasi: ${formatSom(payment.amount)} so'm\n🙏 Sizning hissangiz biz uchun juda muhim!`,
       meta: { paymentId: payment._id, amount: payment.amount },
     });
   } else {
@@ -151,8 +157,8 @@ const grantPaymentOutcome = async (payment) => {
     await notificationService.createNotification({
       userId: payment.user,
       type: 'payment',
-      title: "To'lov muvaffaqiyatli",
-      message: 'Hisobingiz balansi to\'ldirildi',
+      title: "💰 Hisobingiz to'ldirildi",
+      message: `💳 To'ldirilgan summa: ${formatSom(payment.amount)} so'm\n✅ Balansingizga muvaffaqiyatli qo'shildi`,
       meta: { paymentId: payment._id, amount: payment.amount },
     });
   }
