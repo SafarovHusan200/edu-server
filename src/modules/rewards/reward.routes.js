@@ -17,6 +17,29 @@ const STAFF_ROLES = ['admin', 'superadmin'];
 // "/redemptions" so'zi :id parametri sifatida ushlanib qoladi.
 // ───────────────────────────────────────────────────────
 
+/**
+ * @swagger
+ * /rewards/redemptions/my:
+ *   get:
+ *     summary: O'zining sovg'a almashtirishlarini olish
+ *     tags: [Rewards]
+ *     description: "Ruxsat: student"
+ *     responses:
+ *       200:
+ *         description: Almashtirishlar ro'yxati
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items: { $ref: '#/components/schemas/RewardRedemption' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
 // GET /api/v1/rewards/redemptions/my
 router.get(
   '/redemptions/my',
@@ -25,9 +48,69 @@ router.get(
   rewardController.getMyRedemptions
 );
 
+/**
+ * @swagger
+ * /rewards/redemptions:
+ *   get:
+ *     summary: Barcha sovg'a almashtirishlarini olish
+ *     tags: [Rewards]
+ *     description: "Ruxsat: admin, superadmin"
+ *     parameters:
+ *       - { name: status, in: query, schema: { type: string, enum: [pending, delivered, rejected] } }
+ *     responses:
+ *       200:
+ *         description: Almashtirishlar ro'yxati
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items: { $ref: '#/components/schemas/RewardRedemption' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
 // GET /api/v1/rewards/redemptions — admin
 router.get('/redemptions', authenticate, authorize(...STAFF_ROLES), rewardController.getAllRedemptions);
 
+/**
+ * @swagger
+ * /rewards/redemptions/{id}:
+ *   patch:
+ *     summary: Sovg'a almashtirish holatini yangilash
+ *     tags: [Rewards]
+ *     description: "Ruxsat: admin, superadmin"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status: { type: string, enum: [delivered, rejected] }
+ *               adminNote: { type: string, maxLength: 500 }
+ *     responses:
+ *       200:
+ *         description: Yangilandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/RewardRedemption' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
 // PATCH /api/v1/rewards/redemptions/:id — admin
 router.patch(
   '/redemptions/:id',
@@ -42,12 +125,89 @@ router.patch(
 // REWARD CRUD
 // ───────────────────────────────────────────────────────
 
+/**
+ * @swagger
+ * /rewards:
+ *   get:
+ *     summary: Barcha sovg'alarni olish
+ *     tags: [Rewards]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Sovg'alar ro'yxati
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items: { $ref: '#/components/schemas/Reward' }
+ */
 // GET /api/v1/rewards — public
 router.get('/', rewardController.getRewards);
 
+/**
+ * @swagger
+ * /rewards/{id}:
+ *   get:
+ *     summary: Sovg'ani ID bo'yicha olish
+ *     tags: [Rewards]
+ *     security: []
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     responses:
+ *       200:
+ *         description: Sovg'a
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Reward' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 // GET /api/v1/rewards/:id — public
 router.get('/:id', rewardController.getRewardById);
 
+/**
+ * @swagger
+ * /rewards:
+ *   post:
+ *     summary: Yangi sovg'a yaratish
+ *     tags: [Rewards]
+ *     description: "Ruxsat: admin, superadmin"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, cost]
+ *             properties:
+ *               title: { type: string, minLength: 2, maxLength: 100 }
+ *               description: { type: string, maxLength: 500 }
+ *               cost: { type: integer, minimum: 1, description: 'Diamonddagi narxi' }
+ *               stock: { type: integer, minimum: 0, nullable: true, description: 'null = cheksiz' }
+ *     responses:
+ *       201:
+ *         description: Yaratildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Reward' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
 // POST /api/v1/rewards — admin
 router.post(
   '/',
@@ -58,12 +218,98 @@ router.post(
   rewardController.createReward
 );
 
+/**
+ * @swagger
+ * /rewards/{id}:
+ *   patch:
+ *     summary: Sovg'ani yangilash
+ *     tags: [Rewards]
+ *     description: "Ruxsat: admin, superadmin"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title: { type: string }
+ *               description: { type: string }
+ *               cost: { type: integer, minimum: 1 }
+ *               stock: { type: integer, minimum: 0, nullable: true }
+ *               isActive: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Yangilandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Reward' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 // PATCH /api/v1/rewards/:id — admin
 router.patch('/:id', authenticate, authorize(...STAFF_ROLES), rewardController.updateReward);
 
+/**
+ * @swagger
+ * /rewards/{id}:
+ *   delete:
+ *     summary: Sovg'ani o'chirish
+ *     tags: [Rewards]
+ *     description: "Ruxsat: admin, superadmin"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     responses:
+ *       200:
+ *         description: O'chirildi
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/SuccessResponse' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 // DELETE /api/v1/rewards/:id — admin
 router.delete('/:id', authenticate, authorize(...STAFF_ROLES), rewardController.deleteReward);
 
+/**
+ * @swagger
+ * /rewards/{id}/image:
+ *   post:
+ *     summary: Sovg'a rasmini yuklash
+ *     tags: [Rewards]
+ *     description: "Ruxsat: admin, superadmin"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [image]
+ *             properties:
+ *               image: { type: string, format: binary }
+ *     responses:
+ *       200:
+ *         description: Rasm yuklandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Reward' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
 // POST /api/v1/rewards/:id/image — admin
 router.post(
   '/:id/image',
@@ -73,6 +319,30 @@ router.post(
   rewardController.uploadImage
 );
 
+/**
+ * @swagger
+ * /rewards/{id}/redeem:
+ *   post:
+ *     summary: Diamondlarga sovg'a almashtirish
+ *     tags: [Rewards]
+ *     description: "Ruxsat: student"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     responses:
+ *       201:
+ *         description: Sovg'a almashtirildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/RewardRedemption' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 // POST /api/v1/rewards/:id/redeem — student
 router.post('/:id/redeem', authenticate, authorize('student'), rewardController.redeemReward);
 

@@ -5,7 +5,9 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const swaggerUi = require('swagger-ui-express');
 
+const swaggerSpec = require('./config/swagger');
 const routes = require('./routes');
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
@@ -25,7 +27,13 @@ app.set('etag', false);
 // crossOriginResourcePolicy: default helmet "same-origin" bo'lganida frontend
 // (boshqa origin) /uploads dagi rasmlarni <img> orqali ko'rsata olmaydi —
 // bu API alohida frontend origin tomonidan iste'mol qilinishi uchun ochiladi.
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+// /api-docs ga helmet'ning standart Content-Security-Policy'si qo'llanmaydi —
+// aks holda swagger-ui-express o'zining inline script/style'lari brauzerda
+// bloklanib, sahifa ishlamay qoladi. Qolgan barcha route'lar odatdagidek himoyalangan.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api-docs')) return next();
+  helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } })(req, res, next);
+});
 app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
 app.use(express.json()); // JSON body parser
 app.use(express.urlencoded({ extended: true }));
@@ -36,6 +44,12 @@ if (process.env.NODE_ENV === 'development') {
 
 // Yuklangan fayllar (avatar, kurs muqovasi, dars materiali)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// ─────────────────────────────────────────
+// API hujjatlari (Swagger)
+// ─────────────────────────────────────────
+app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle: 'Edu Platform API' }));
 
 // ─────────────────────────────────────────
 // Routes

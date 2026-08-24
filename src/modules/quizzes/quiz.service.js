@@ -90,6 +90,29 @@ const getQuizzes = async ({ targetType, targetId, page, limit }) => {
 };
 
 // ─────────────────────────────────────────
+// GET QUIZZES — filter bo'yicha
+// ─────────────────────────────────────────
+const getQuizzesMy = async ({ id, targetType, targetId, page, limit }) => {
+  const filter = { createdBy: id };
+
+  if (targetType) filter.targetType = targetType;
+  if (targetType && targetId) filter.targetId = targetId;
+
+  const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
+
+  const [quizzes, total] = await Promise.all([
+    Quiz.find(filter)
+      .populate('createdBy', 'name phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit),
+    Quiz.countDocuments(filter),
+  ]);
+
+  return { quizzes, meta: buildMeta(total, currentPage, pageLimit) };
+};
+
+// ─────────────────────────────────────────
 // GET SINGLE QUIZ (studentga — javoblarsiz)
 // ─────────────────────────────────────────
 const getQuizById = async (quizId) => {
@@ -236,6 +259,7 @@ const deleteQuestion = async (questionId, userId) => {
 module.exports = {
   createQuiz,
   getQuizzes,
+  getQuizzesMy,
   getQuizById,
   getQuizByIdWithAnswers,
   updateQuiz,

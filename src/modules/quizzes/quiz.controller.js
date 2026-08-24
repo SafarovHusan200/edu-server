@@ -50,6 +50,24 @@ const getQuizzes = asyncHandler(async (req, res) => {
 });
 
 // ─────────────────────────────────────────
+// GET /api/v1/quizzes/my
+// ─────────────────────────────────────────
+const getQuizzesMy = asyncHandler(async (req, res) => {
+  const id = req.user._id;
+  const { targetType, targetId, page, limit } = req.query;
+
+  const { quizzes, meta } = await quizService.getQuizzesMy({
+    id,
+    targetType,
+    targetId,
+    page,
+    limit,
+  });
+
+  res.status(200).json(new ApiResponse(200, "Quizlar ro'yxati", { quizzes, meta }));
+});
+
+// ─────────────────────────────────────────
 // GET /api/v1/quizzes/:id  (student)
 // ─────────────────────────────────────────
 const getQuizById = asyncHandler(async (req, res) => {
@@ -125,6 +143,7 @@ const deleteQuestion = asyncHandler(async (req, res) => {
 module.exports = {
   createQuiz,
   getQuizzes,
+  getQuizzesMy,
   getQuizById,
   getQuizByIdWithAnswers,
   updateQuiz,

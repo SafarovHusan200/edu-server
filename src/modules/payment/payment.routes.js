@@ -8,6 +8,38 @@ const authenticate = require('../../middleware/authenticate');
 const validate = require('../../middleware/validate');
 const { createPaymentValidation } = require('./payment.validation');
 
+/**
+ * @swagger
+ * /payment/create:
+ *   post:
+ *     summary: Multicard orqali to'lov yaratish
+ *     tags: [Payment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               purpose: { type: string, enum: [wallet, course, premium, donation], default: wallet }
+ *               courseId: { type: string, description: "purpose='course' bo'lsa majburiy" }
+ *               amount: { type: integer, minimum: 1000, description: "Tiyinda; purpose 'course'/'premium' bo'lmasa majburiy" }
+ *               promoCode: { type: string, minLength: 3, maxLength: 30 }
+ *               returnUrl: { type: string, format: uri }
+ *     responses:
+ *       201:
+ *         description: To'lov yaratildi (to'lov sahifasi linki bilan)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Payment' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
 // POST /api/v1/payment/create — Private (foydalanuvchi login qilgan bo'lishi kerak)
 router.post(
   '/create',
@@ -17,11 +49,49 @@ router.post(
   paymentController.createPayment
 );
 
+/**
+ * @swagger
+ * /payment/callback:
+ *   post:
+ *     summary: Multicard webhook callback (tashqi, token'siz)
+ *     tags: [Payment]
+ *     security: []
+ *     description: "Bu endpoint Multicard server tomonidan chaqiriladi, frontend uchun emas."
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema: { type: object }
+ *     responses:
+ *       200:
+ *         description: Callback qabul qilindi
+ */
 // POST /api/v1/payment/callback — Public
 // DIQQAT: bu route auth/CSRF middleware'siz qoldirilishi SHART,
 // chunki Multicard server tashqi tomondan (token'siz) so'rov yuboradi.
 router.post('/callback', paymentController.handleCallback);
 
+/**
+ * @swagger
+ * /payment/status/{invoiceId}:
+ *   get:
+ *     summary: To'lov holatini olish
+ *     tags: [Payment]
+ *     parameters:
+ *       - { name: invoiceId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       200:
+ *         description: To'lov holati
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Payment' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 // GET /api/v1/payment/status/:invoiceId — Private
 router.get('/status/:invoiceId', authenticate, paymentController.getPaymentStatus);
 

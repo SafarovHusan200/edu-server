@@ -44,7 +44,9 @@
     "morgan": "^1.10.1",
     "multer": "^2.2.0",
     "node-telegram-bot-api": "^0.67.0",
-    "pdfkit": "^0.19.1"
+    "pdfkit": "^0.19.1",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "jest": "^30.4.2",
