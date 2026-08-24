@@ -11,6 +11,7 @@ const {
   MIN_QUESTIONS_MIDDLE,
   MIN_QUESTIONS_SENIOR,
 } = require('../../config/quizRules');
+const questionModel = require('../questions/question.model');
 
 // ─────────────────────────────────────────
 // CREATE QUIZ
@@ -109,7 +110,17 @@ const getQuizzesMy = async ({ id, targetType, targetId, page, limit }) => {
     Quiz.countDocuments(filter),
   ]);
 
-  return { quizzes, meta: buildMeta(total, currentPage, pageLimit) };
+  const quizzesWithCounts = await Promise.all(
+    quizzes.map(async (quiz) => {
+      const questionsCount = await Question.countDocuments({ quiz: quiz._id });
+      return { ...quiz.toObject(), questionsCount };
+    })
+  );
+
+  return {
+    quizzes: quizzesWithCounts,
+    meta: buildMeta(total, currentPage, pageLimit),
+  };
 };
 
 // ─────────────────────────────────────────
