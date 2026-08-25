@@ -26,6 +26,10 @@ const authenticate = asyncHandler(async (req, res, next) => {
     throw new ApiError(403, 'Sizning hisobingiz bloklangan');
   }
 
+  if (!user.isVerified) {
+    throw new ApiError(403, 'Hisobingiz hali administrator tomonidan tasdiqlanmagan');
+  }
+
   // Parol o'zgargan yoki logout qilingan bo'lsa, eski token shu yerda rad etiladi
   if (decoded.tokenVersion !== user.tokenVersion) {
     throw new ApiError(401, 'Token muddati tugagan, qayta kiring');
@@ -47,7 +51,7 @@ const optionalAuthenticate = asyncHandler(async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_TOKEN_SECRET);
     const user = await User.findById(decoded.id);
 
-    if (user && !user.isBlocked && decoded.tokenVersion === user.tokenVersion) {
+    if (user && !user.isBlocked && user.isVerified && decoded.tokenVersion === user.tokenVersion) {
       req.user = user;
     }
   } catch {

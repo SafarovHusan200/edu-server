@@ -64,9 +64,24 @@ const userSchema = new mongoose.Schema(
       default: 'standart',
     },
 
+    // Telefon+parol orqali ro'yxatdan o'tgan userlar admin/superadmin tasdiqlamaguncha
+    // login qila olmaydi (authenticate middleware va login servisida tekshiriladi).
+    // Telegram orqali ro'yxatdan o'tganlar va admin tomonidan yaratilganlar avtomatik true.
     isVerified: {
       type: Boolean,
       default: false,
+    },
+
+    // Qaysi admin/superadmin tasdiqlagani va qachon — auditlik uchun
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    verifiedAt: {
+      type: Date,
+      default: null,
     },
 
     isBlocked: {

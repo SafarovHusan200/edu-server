@@ -107,6 +107,18 @@ const definition = {
           role: { type: 'string', enum: ['student', 'teacher', 'admin', 'superadmin'] },
           tarif: { type: 'string', enum: ['standart', 'premium'] },
           isVerified: { type: 'boolean' },
+          verifiedBy: {
+            type: 'object',
+            nullable: true,
+            description: "Tasdiqlagan admin/superadmin (populate qilingan)",
+            properties: {
+              _id: idProp,
+              name: { type: 'string' },
+              phone: { type: 'string' },
+              role: { type: 'string' },
+            },
+          },
+          verifiedAt: { type: 'string', format: 'date-time', nullable: true },
           isBlocked: { type: 'boolean' },
           balance: { type: 'number', description: "So'mda, hisob balansi" },
           diamonds: { type: 'integer', description: "O'yin ichi valyuta" },

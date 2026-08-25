@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const User = require('./user.model');
 const Course = require('../courses/course.model');
 const TelegramLinkToken = require('../auth/telegramLinkToken.model');
+const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 
@@ -51,21 +52,59 @@ const setAvatar = async (userId, publicPath) => {
 };
 
 // POST /users — superadmin: istalgan roldagi (admin/superadmin ham) yangi foydalanuvchi yaratadi
-const createUser = async ({ name, phone, password, role, tarif, grade }) => {
+// Admin o'zi yaratganligi sababli qo'shimcha tasdiqlash shart emas — isVerified=true,
+// va shu amalni kim bajarganini ham saqlab qo'yamiz (verifiedBy/verifiedAt)
+const createUser = async ({ name, phone, password, role, tarif, grade }, createdById) => {
   const existingUser = await User.findOne({ phone });
   if (existingUser) {
     throw new ApiError(400, "Bu telefon raqam allaqachon ro'yxatdan o'tgan");
   }
 
-  const user = await User.create({ name, phone, password, role, tarif, grade });
+  const user = await User.create({
+    name,
+    phone,
+    password,
+    role,
+    tarif,
+    grade,
+    isVerified: true,
+    verifiedBy: createdById,
+    verifiedAt: new Date(),
+  });
   return user;
 };
 
-const getUsers = async ({ page, limit, role, search }) => {
+// PATCH /users/:id/verify — admin/superadmin: ro'yxatdan o'tgan userni tasdiqlaydi (login ochiladi)
+// Qaysi admin/superadmin tasdiqlaganini kelajakda audit qilish uchun verifiedBy/verifiedAt saqlanadi
+const verifyUser = async (id, verifiedById) => {
+  const user = await User.findById(id);
+  if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
+
+  if (user.isVerified) {
+    throw new ApiError(400, 'Foydalanuvchi allaqachon tasdiqlangan');
+  }
+
+  user.isVerified = true;
+  user.verifiedBy = verifiedById;
+  user.verifiedAt = new Date();
+  await user.save();
+
+  await notificationService.createNotification({
+    userId: user._id,
+    type: 'system',
+    title: 'Hisobingiz tasdiqlandi',
+    message: 'Administrator hisobingizni tasdiqladi. Endi tizimga kirishingiz mumkin',
+  });
+
+  return user.populate('verifiedBy', 'name phone role');
+};
+
+const getUsers = async ({ page, limit, role, search, isVerified }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
   const filter = {};
   if (role) filter.role = role;
+  if (isVerified !== undefined) filter.isVerified = isVerified === 'true' || isVerified === true;
   if (search) {
     filter.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -74,7 +113,11 @@ const getUsers = async ({ page, limit, role, search }) => {
   }
 
   const [users, total] = await Promise.all([
-    User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(pageLimit),
+    User.find(filter)
+      .populate('verifiedBy', 'name phone role')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit),
     User.countDocuments(filter),
   ]);
 
@@ -82,7 +125,7 @@ const getUsers = async ({ page, limit, role, search }) => {
 };
 
 const getUserById = async (id) => {
-  const user = await User.findById(id);
+  const user = await User.findById(id).populate('verifiedBy', 'name phone role');
   if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
   return user;
 };
@@ -204,6 +247,7 @@ module.exports = {
   changePassword,
   setAvatar,
   createUser,
+  verifyUser,
   getUsers,
   getUserById,
   setBlocked,

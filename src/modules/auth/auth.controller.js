@@ -8,7 +8,7 @@ const ApiResponse = require('../../utils/ApiResponse');
 const register = asyncHandler(async (req, res) => {
   const { name, phone, password, role, grade } = req.body;
 
-  const { user, token } = await authService.register({
+  const { user } = await authService.register({
     name,
     phone,
     password,
@@ -18,7 +18,13 @@ const register = asyncHandler(async (req, res) => {
 
   res
     .status(201)
-    .json(new ApiResponse(201, "Ro'yxatdan muvaffaqiyatli o'tdingiz", { user, token }));
+    .json(
+      new ApiResponse(
+        201,
+        "Ro'yxatdan o'tdingiz. Hisobingiz administrator tomonidan tasdiqlangach tizimga kira olasiz",
+        { user }
+      )
+    );
 });
 
 // ─────────────────────────────────────────

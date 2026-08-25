@@ -192,6 +192,7 @@ router.get('/leaderboard', userController.getLeaderboard);
  *     description: "Ruxsat: admin, superadmin"
  *     parameters:
  *       - { name: role, in: query, schema: { type: string, enum: [student, teacher, admin, superadmin] } }
+ *       - { name: isVerified, in: query, schema: { type: boolean }, description: "false — tasdiqlashni kutayotgan userlarni ko'rish uchun" }
  *       - { name: search, in: query, schema: { type: string } }
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
@@ -337,6 +338,37 @@ router.patch(
   validate,
   userController.setBlocked
 );
+
+/**
+ * @swagger
+ * /users/{id}/verify:
+ *   patch:
+ *     summary: Ro'yxatdan o'tgan foydalanuvchini tasdiqlash (shundan keyin login qila oladi)
+ *     tags: [Users]
+ *     description: "Ruxsat: admin, superadmin"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     responses:
+ *       200:
+ *         description: Tasdiqlandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user: { $ref: '#/components/schemas/User' }
+ *       400: { description: 'Foydalanuvchi allaqachon tasdiqlangan' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+// PATCH /api/v1/users/:id/verify — admin, superadmin
+router.patch('/:id/verify', authorize('admin', 'superadmin'), userController.verifyUser);
 
 /**
  * @swagger

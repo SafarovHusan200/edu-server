@@ -39,16 +39,16 @@ const uploadAvatar = asyncHandler(async (req, res) => {
 const createUser = asyncHandler(async (req, res) => {
   const { name, phone, password, role, tarif, grade } = req.body;
 
-  const user = await userService.createUser({ name, phone, password, role, tarif, grade });
+  const user = await userService.createUser({ name, phone, password, role, tarif, grade }, req.user.id);
 
   res.status(201).json(new ApiResponse(201, 'Foydalanuvchi yaratildi', { user }));
 });
 
 // GET /api/v1/users — admin
 const getUsers = asyncHandler(async (req, res) => {
-  const { page, limit, role, search } = req.query;
+  const { page, limit, role, search, isVerified } = req.query;
 
-  const { users, meta } = await userService.getUsers({ page, limit, role, search });
+  const { users, meta } = await userService.getUsers({ page, limit, role, search, isVerified });
 
   res.status(200).json(new ApiResponse(200, "Foydalanuvchilar ro'yxati", { users, meta }));
 });
@@ -58,6 +58,13 @@ const getUserById = asyncHandler(async (req, res) => {
   const user = await userService.getUserById(req.params.id);
 
   res.status(200).json(new ApiResponse(200, "Foydalanuvchi ma'lumotlari", { user }));
+});
+
+// PATCH /api/v1/users/:id/verify — admin, superadmin
+const verifyUser = asyncHandler(async (req, res) => {
+  const user = await userService.verifyUser(req.params.id, req.user.id);
+
+  res.status(200).json(new ApiResponse(200, 'Foydalanuvchi tasdiqlandi', { user }));
 });
 
 // PATCH /api/v1/users/:id/block — admin
@@ -117,6 +124,7 @@ module.exports = {
   changePassword,
   uploadAvatar,
   createUser,
+  verifyUser,
   getUsers,
   getUserById,
   setBlocked,

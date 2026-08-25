@@ -62,7 +62,9 @@ const validate = (req, res, next) => {
  *                   letter: { type: string, enum: [A, B, C, D, E] }
  *     responses:
  *       201:
- *         description: Muvaffaqiyatli ro'yxatdan o'tildi
+ *         description: >
+ *           Ro'yxatdan o'tildi, lekin hisob hali tasdiqlanmagan (isVerified=false).
+ *           Admin/superadmin tasdiqlaguncha login qilib bo'lmaydi — shuning uchun token qaytarilmaydi.
  *         content:
  *           application/json:
  *             schema:
@@ -70,7 +72,11 @@ const validate = (req, res, next) => {
  *                 - $ref: '#/components/schemas/SuccessResponse'
  *                 - type: object
  *                   properties:
- *                     data: { $ref: '#/components/schemas/AuthPayload' }
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user: { $ref: '#/components/schemas/User' }
+ *       400: { description: "Telefon raqam allaqachon ro'yxatdan o'tgan" }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
 // POST /api/v1/auth/register
@@ -105,6 +111,7 @@ router.post('/register', authLimiter, registerValidation, validate, authControll
  *                   properties:
  *                     data: { $ref: '#/components/schemas/AuthPayload' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { description: "Hisob bloklangan yoki hali admin tomonidan tasdiqlanmagan" }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
 // POST /api/v1/auth/login

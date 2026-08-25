@@ -1,6 +1,7 @@
 const User = require('../users/user.model');
 const ApiError = require('../../utils/ApiError');
 const Otp = require('./otp.model');
+const notificationService = require('../notifications/notification.service');
 
 // ─────────────────────────────────────────
 // TELEGRAM OTP VERIFY (To'g'rilangan variant)
@@ -45,6 +46,7 @@ const verifyTelegramOtp = async ({ code }) => {
 
 // ─────────────────────────────────────────
 // REGISTER (phone + password)
+// isVerified=false bilan yaratiladi — admin/superadmin tasdiqlamaguncha login qila olmaydi
 // ─────────────────────────────────────────
 const register = async ({ name, phone, password, role, grade }) => {
   const existingUser = await User.findOne({ phone });
@@ -53,8 +55,21 @@ const register = async ({ name, phone, password, role, grade }) => {
   }
 
   const user = await User.create({ name, phone, password, role, grade });
-  const token = user.generateJwtToken();
-  return { user, token };
+
+  const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id');
+  await Promise.all(
+    admins.map((admin) =>
+      notificationService.createNotification({
+        userId: admin._id,
+        type: 'system',
+        title: "Yangi foydalanuvchi tasdiqlashni kutmoqda",
+        message: `${name} (${phone}, ${role}) ro'yxatdan o'tdi va tasdiqlanishini kutmoqda`,
+        meta: { userId: user._id },
+      })
+    )
+  );
+
+  return { user };
 };
 
 // ─────────────────────────────────────────
@@ -72,6 +87,10 @@ const login = async ({ phone, password }) => {
 
   if (user.isBlocked) {
     throw new ApiError(403, 'Sizning hisobingiz bloklangan');
+  }
+
+  if (!user.isVerified) {
+    throw new ApiError(403, 'Hisobingiz hali administrator tomonidan tasdiqlanmagan');
   }
 
   const isMatch = await user.matchPassword(password);
