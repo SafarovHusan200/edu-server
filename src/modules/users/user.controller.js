@@ -35,6 +35,15 @@ const uploadAvatar = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, 'Avatar yuklandi', { user }));
 });
 
+// POST /api/v1/users — superadmin
+const createUser = asyncHandler(async (req, res) => {
+  const { name, phone, password, role, tarif, grade } = req.body;
+
+  const user = await userService.createUser({ name, phone, password, role, tarif, grade });
+
+  res.status(201).json(new ApiResponse(201, 'Foydalanuvchi yaratildi', { user }));
+});
+
 // GET /api/v1/users — admin
 const getUsers = asyncHandler(async (req, res) => {
   const { page, limit, role, search } = req.query;
@@ -107,6 +116,7 @@ module.exports = {
   updateMe,
   changePassword,
   uploadAvatar,
+  createUser,
   getUsers,
   getUserById,
   setBlocked,

@@ -40,6 +40,40 @@ const validate = require('../../middleware/validate');
  */
 // Barcha quizlar (public)
 router.get('/', quizController.getQuizzes);
+
+/**
+ * @swagger
+ * /quizzes/my:
+ *   get:
+ *     summary: O'qituvchining o'zi yaratgan testlari
+ *     tags: [Quizzes]
+ *     description: "Ruxsat: login qilingan foydalanuvchi (odatda teacher/admin/superadmin)"
+ *     parameters:
+ *       - { name: targetType, in: query, schema: { type: string, enum: [course, lesson, standalone] } }
+ *       - { name: targetId, in: query, schema: { type: string } }
+ *       - { name: page, in: query, schema: { type: integer, default: 1 } }
+ *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
+ *     responses:
+ *       200:
+ *         description: Testlar ro'yxati (har birida questionsCount bilan)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         allOf:
+ *                           - $ref: '#/components/schemas/Quiz'
+ *                           - type: object
+ *                             properties:
+ *                               questionsCount: { type: integer }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+// O'qituvchining o'z testlari
 router.get('/my', authenticate, quizController.getQuizzesMy);
 
 /**

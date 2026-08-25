@@ -11,6 +11,7 @@ const { uploadImage } = require('../../middleware/upload');
 const {
   updateMeValidation,
   changePasswordValidation,
+  createUserValidation,
   setBlockedValidation,
   updateUserValidation,
 } = require('./user.validation');
@@ -210,6 +211,60 @@ router.get('/leaderboard', userController.getLeaderboard);
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  */
+/**
+ * @swagger
+ * /users:
+ *   post:
+ *     summary: Yangi foydalanuvchi yaratish (istalgan rolda, admin/superadmin ham)
+ *     tags: [Users]
+ *     description: "Ruxsat: superadmin"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, phone, password, role]
+ *             properties:
+ *               name: { type: string, minLength: 2, maxLength: 50 }
+ *               phone: { type: string }
+ *               password: { type: string, format: password, minLength: 6 }
+ *               role: { type: string, enum: [student, teacher, admin, superadmin] }
+ *               tarif: { type: string, enum: [standart, premium] }
+ *               grade:
+ *                 type: object
+ *                 description: "role='student' bo'lsa majburiy"
+ *                 properties:
+ *                   number: { type: integer, minimum: 1, maximum: 11 }
+ *                   letter: { type: string, enum: [A, B, C, D, E] }
+ *     responses:
+ *       201:
+ *         description: Yaratildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user: { $ref: '#/components/schemas/User' }
+ *       400: { description: "Telefon raqam allaqachon ro'yxatdan o'tgan" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+// POST /api/v1/users — superadmin
+router.post(
+  '/',
+  authorize('superadmin'),
+  createUserValidation,
+  validate,
+  userController.createUser
+);
+
 // GET /api/v1/users — admin
 router.get('/', authorize('admin', 'superadmin'), userController.getUsers);
 

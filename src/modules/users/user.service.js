@@ -50,6 +50,17 @@ const setAvatar = async (userId, publicPath) => {
   return user;
 };
 
+// POST /users — superadmin: istalgan roldagi (admin/superadmin ham) yangi foydalanuvchi yaratadi
+const createUser = async ({ name, phone, password, role, tarif, grade }) => {
+  const existingUser = await User.findOne({ phone });
+  if (existingUser) {
+    throw new ApiError(400, "Bu telefon raqam allaqachon ro'yxatdan o'tgan");
+  }
+
+  const user = await User.create({ name, phone, password, role, tarif, grade });
+  return user;
+};
+
 const getUsers = async ({ page, limit, role, search }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
@@ -192,6 +203,7 @@ module.exports = {
   updateMe,
   changePassword,
   setAvatar,
+  createUser,
   getUsers,
   getUserById,
   setBlocked,

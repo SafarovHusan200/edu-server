@@ -91,7 +91,7 @@ const getQuizzes = async ({ targetType, targetId, page, limit }) => {
 };
 
 // ─────────────────────────────────────────
-// GET QUIZZES — filter bo'yicha
+// GET QUIZZES MY — filter bo'yicha o'qituvchini o'zini testlarini ko'rsatadi
 // ─────────────────────────────────────────
 const getQuizzesMy = async ({ id, targetType, targetId, page, limit }) => {
   const filter = { createdBy: id };
