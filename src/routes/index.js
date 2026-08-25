@@ -19,6 +19,7 @@ const rewardRoutes = require('../modules/rewards/reward.routes');
 const certificateRoutes = require('../modules/certificates/certificate.routes');
 const statsRoutes = require('../modules/stats/stats.routes');
 const promoCodeRoutes = require('../modules/promocodes/promocode.routes');
+const dailySpinRoutes = require('../modules/daily-spin/dailySpin.routes');
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -36,5 +37,6 @@ router.use('/rewards', rewardRoutes);
 router.use('/certificates', certificateRoutes);
 router.use('/stats', statsRoutes);
 router.use('/promo-codes', promoCodeRoutes);
+router.use('/daily-spin', dailySpinRoutes);
 
 module.exports = router;

@@ -26,17 +26,23 @@ const rewardValidation = [
     .optional({ values: 'falsy' })
     .isInt({ min: 0 })
     .withMessage("stock manfiy bo'lmagan son bo'lishi kerak"),
+
+  body('premiumOnly')
+    .optional()
+    .isBoolean()
+    .withMessage("premiumOnly true yoki false bo'lishi kerak"),
 ];
 
-const updateRedemptionValidation = [
-  body('status')
-    .notEmpty()
-    .withMessage('status kiritilishi shart')
-    .bail()
-    .isIn(['delivered', 'rejected'])
-    .withMessage("status 'delivered' yoki 'rejected' bo'lishi kerak"),
-
-  body('adminNote').optional().trim().isLength({ max: 500 }),
+const rejectRedemptionValidation = [
+  body('reason').optional().trim().isLength({ max: 500 }).withMessage("Sabab 500 ta belgidan oshmasligi kerak"),
 ];
 
-module.exports = { rewardValidation, updateRedemptionValidation };
+const deliverRedemptionValidation = [
+  body('note').optional().trim().isLength({ max: 500 }).withMessage("Izoh 500 ta belgidan oshmasligi kerak"),
+];
+
+module.exports = {
+  rewardValidation,
+  rejectRedemptionValidation,
+  deliverRedemptionValidation,
+};

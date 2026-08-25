@@ -8,7 +8,11 @@ const authenticate = require('../../middleware/authenticate');
 const authorize = require('../../middleware/authorize');
 const validate = require('../../middleware/validate');
 const { uploadImage } = require('../../middleware/upload');
-const { rewardValidation, updateRedemptionValidation } = require('./reward.validation');
+const {
+  rewardValidation,
+  rejectRedemptionValidation,
+  deliverRedemptionValidation,
+} = require('./reward.validation');
 
 const STAFF_ROLES = ['admin', 'superadmin'];
 
@@ -78,26 +82,16 @@ router.get('/redemptions', authenticate, authorize(...STAFF_ROLES), rewardContro
 
 /**
  * @swagger
- * /rewards/redemptions/{id}:
+ * /rewards/redemptions/{id}/approve:
  *   patch:
- *     summary: Sovg'a almashtirish holatini yangilash
+ *     summary: "Bosqich 1: so'rovni ko'rib chiqib tasdiqlash (hali topshirilmagan)"
  *     tags: [Rewards]
- *     description: "Ruxsat: admin, superadmin"
+ *     description: "Ruxsat: admin, superadmin. Faqat 'pending' holatidan chaqiriladi."
  *     parameters:
  *       - { $ref: '#/components/parameters/IdParam' }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [status]
- *             properties:
- *               status: { type: string, enum: [delivered, rejected] }
- *               adminNote: { type: string, maxLength: 500 }
  *     responses:
  *       200:
- *         description: Yangilandi
+ *         description: Tasdiqlandi
  *         content:
  *           application/json:
  *             schema:
@@ -106,19 +100,103 @@ router.get('/redemptions', authenticate, authorize(...STAFF_ROLES), rewardContro
  *                 - type: object
  *                   properties:
  *                     data: { $ref: '#/components/schemas/RewardRedemption' }
+ *       400: { description: "So'rov ko'rib chiqish bosqichida emas" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+// PATCH /api/v1/rewards/redemptions/:id/approve — admin
+router.patch(
+  '/redemptions/:id/approve',
+  authenticate,
+  authorize(...STAFF_ROLES),
+  rewardController.approveRedemption
+);
+
+/**
+ * @swagger
+ * /rewards/redemptions/{id}/reject:
+ *   patch:
+ *     summary: "So'rovni rad etish ('pending' yoki 'approved' holatidan) — diamond va stock qaytariladi"
+ *     tags: [Rewards]
+ *     description: "Ruxsat: admin, superadmin"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason: { type: string, maxLength: 500 }
+ *     responses:
+ *       200:
+ *         description: Rad etildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/RewardRedemption' }
+ *       400: { description: "So'rovni endi rad etib bo'lmaydi (allaqachon yakunlangan)" }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-// PATCH /api/v1/rewards/redemptions/:id — admin
+// PATCH /api/v1/rewards/redemptions/:id/reject — admin
 router.patch(
-  '/redemptions/:id',
+  '/redemptions/:id/reject',
   authenticate,
   authorize(...STAFF_ROLES),
-  updateRedemptionValidation,
+  rejectRedemptionValidation,
   validate,
-  rewardController.updateRedemptionStatus
+  rewardController.rejectRedemption
+);
+
+/**
+ * @swagger
+ * /rewards/redemptions/{id}/deliver:
+ *   patch:
+ *     summary: "Bosqich 2 (yakuniy): mukofot studentga jismonan topshirilgani belgilanadi"
+ *     tags: [Rewards]
+ *     description: "Ruxsat: admin, superadmin. Faqat 'approved' holatidan chaqiriladi."
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               note: { type: string, maxLength: 500 }
+ *     responses:
+ *       200:
+ *         description: Yetkazildi deb belgilandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/RewardRedemption' }
+ *       400: { description: "Avval so'rov tasdiqlangan (approved) bo'lishi kerak" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+// PATCH /api/v1/rewards/redemptions/:id/deliver — admin
+router.patch(
+  '/redemptions/:id/deliver',
+  authenticate,
+  authorize(...STAFF_ROLES),
+  deliverRedemptionValidation,
+  validate,
+  rewardController.deliverRedemption
 );
 
 // ───────────────────────────────────────────────────────
@@ -193,6 +271,7 @@ router.get('/:id', rewardController.getRewardById);
  *               description: { type: string, maxLength: 500 }
  *               cost: { type: integer, minimum: 1, description: 'Diamonddagi narxi' }
  *               stock: { type: integer, minimum: 0, nullable: true, description: 'null = cheksiz' }
+ *               premiumOnly: { type: boolean, default: false, description: "true bo'lsa faqat premium studentlar almashtira oladi" }
  *     responses:
  *       201:
  *         description: Yaratildi
@@ -238,6 +317,7 @@ router.post(
  *               cost: { type: integer, minimum: 1 }
  *               stock: { type: integer, minimum: 0, nullable: true }
  *               isActive: { type: boolean }
+ *               premiumOnly: { type: boolean }
  *     responses:
  *       200:
  *         description: Yangilandi
@@ -340,7 +420,7 @@ router.post(
  *                   properties:
  *                     data: { $ref: '#/components/schemas/RewardRedemption' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { description: "Rol 'student' emas, yoki sovg'a premiumOnly va foydalanuvchi premium emas" }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
 // POST /api/v1/rewards/:id/redeem — student

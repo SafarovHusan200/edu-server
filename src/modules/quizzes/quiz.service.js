@@ -13,6 +13,17 @@ const {
 } = require('../../config/quizRules');
 const questionModel = require('../questions/question.model');
 
+// Standart tarifdagi o'qituvchining testlarida studentlar faqat 1 marta urina oladi —
+// ko'proq urinish (quiz.maxAttempts) faqat o'qituvchi premium tarifga o'tgandan keyin ishlaydi.
+// Bu yerda hisoblanadi (saqlanmaydi), shuning uchun o'qituvchi keyin premium olsa,
+// mavjud quizlarni qayta sozlamasdan avtomatik ko'proq urinish ochiladi.
+const STANDARD_MAX_ATTEMPTS = 1;
+
+const getEffectiveMaxAttempts = (quiz, teacherTarif) => {
+  if (teacherTarif === 'premium') return quiz.maxAttempts;
+  return Math.min(quiz.maxAttempts, STANDARD_MAX_ATTEMPTS);
+};
+
 // ─────────────────────────────────────────
 // CREATE QUIZ
 // ─────────────────────────────────────────
@@ -103,7 +114,7 @@ const getQuizzesMy = async ({ id, targetType, targetId, page, limit }) => {
 
   const [quizzes, total] = await Promise.all([
     Quiz.find(filter)
-      .populate('createdBy', 'name phone')
+      .populate('createdBy', 'name phone tarif')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageLimit),
@@ -113,7 +124,8 @@ const getQuizzesMy = async ({ id, targetType, targetId, page, limit }) => {
   const quizzesWithCounts = await Promise.all(
     quizzes.map(async (quiz) => {
       const questionsCount = await Question.countDocuments({ quiz: quiz._id });
-      return { ...quiz.toObject(), questionsCount };
+      const effectiveMaxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif);
+      return { ...quiz.toObject(), questionsCount, effectiveMaxAttempts };
     })
   );
 
@@ -127,26 +139,30 @@ const getQuizzesMy = async ({ id, targetType, targetId, page, limit }) => {
 // GET SINGLE QUIZ (studentga — javoblarsiz)
 // ─────────────────────────────────────────
 const getQuizById = async (quizId) => {
-  const quiz = await Quiz.findById(quizId).populate('createdBy', 'name phone');
+  const quiz = await Quiz.findById(quizId).populate('createdBy', 'name phone tarif');
   if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
 
   const questions = await Question.find({ quiz: quizId })
     .select('-correctAnswer')
     .sort({ order: 1 });
 
-  return { quiz, questions };
+  const effectiveMaxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif);
+
+  return { quiz: { ...quiz.toObject(), effectiveMaxAttempts }, questions };
 };
 
 // ─────────────────────────────────────────
 // GET SINGLE QUIZ (teacherga — javoblar bilan)
 // ─────────────────────────────────────────
 const getQuizByIdWithAnswers = async (quizId) => {
-  const quiz = await Quiz.findById(quizId).populate('createdBy', 'name phone');
+  const quiz = await Quiz.findById(quizId).populate('createdBy', 'name phone tarif');
   if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
 
   const questions = await Question.find({ quiz: quizId }).sort({ order: 1 });
 
-  return { quiz, questions };
+  const effectiveMaxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif);
+
+  return { quiz: { ...quiz.toObject(), effectiveMaxAttempts }, questions };
 };
 
 // ─────────────────────────────────────────
@@ -278,4 +294,5 @@ module.exports = {
   addQuestion,
   updateQuestion,
   deleteQuestion,
+  getEffectiveMaxAttempts,
 };

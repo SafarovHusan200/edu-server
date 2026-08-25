@@ -9,6 +9,7 @@ const notificationService = require('../notifications/notification.service');
 const certificateService = require('../certificates/certificate.service');
 const ApiError = require('../../utils/ApiError');
 const { LESSON_COMPLETE_REWARD } = require('../../config/gamification');
+const { applyDiamondMultiplier } = require('../../utils/diamonds');
 
 const findCourseOrThrow = async (courseId) => {
   const course = await Course.findById(courseId);
@@ -129,14 +130,17 @@ const completeLesson = async (lessonId, studentId) => {
   }
 
   await enrollment.save();
-  await User.findByIdAndUpdate(studentId, { $inc: { diamonds: LESSON_COMPLETE_REWARD } });
+
+  const student = await User.findById(studentId).select('tarif');
+  const diamondAmount = applyDiamondMultiplier(LESSON_COMPLETE_REWARD, student?.tarif);
+  await User.findByIdAndUpdate(studentId, { $inc: { diamonds: diamondAmount } });
 
   await notificationService.createNotification({
     userId: studentId,
     type: 'lesson',
     title: '💎 Diamond qo\'lga kiritdingiz!',
-    message: `📖 Kurs: "${course.title}"\n✅ Dars: "${lesson.title}"\n💎 Mukofot: ${LESSON_COMPLETE_REWARD} diamond`,
-    meta: { lessonId: lesson._id, courseId: course._id, diamonds: LESSON_COMPLETE_REWARD },
+    message: `📖 Kurs: "${course.title}"\n✅ Dars: "${lesson.title}"\n💎 Mukofot: ${diamondAmount} diamond`,
+    meta: { lessonId: lesson._id, courseId: course._id, diamonds: diamondAmount },
   });
 
   if (justCompletedCourse) {

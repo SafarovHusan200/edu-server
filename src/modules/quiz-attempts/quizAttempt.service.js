@@ -2,11 +2,13 @@
 
 const QuizAttempt = require('./quizAttempt.model');
 const Quiz = require('../quizzes/quiz.model');
+const { getEffectiveMaxAttempts } = require('../quizzes/quiz.service');
 const Question = require('../questions/question.model');
 const User = require('../users/user.model');
 const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { QUIZ_MAX_REWARD } = require('../../config/gamification');
+const { applyDiamondMultiplier } = require('../../utils/diamonds');
 
 // Xato xabarlarida vaqtni har doim Toshkent vaqti bilan, "10:10 01.01.2026"
 // shaklida ko'rsatish uchun (server qaysi timezone'da ishlashidan qat'i nazar)
@@ -34,7 +36,9 @@ const formatTashkentTime = (date) => {
 const awardQuizDiamonds = async (attempt, quizTitle, teacherName) => {
   if (attempt.diamondsAwarded || attempt.attemptNumber !== 1) return;
 
-  const diamondAmount = Math.round((attempt.scorePercent / 100) * QUIZ_MAX_REWARD * 100) / 100;
+  const student = await User.findById(attempt.student).select('tarif');
+  const baseAmount = Math.round((attempt.scorePercent / 100) * QUIZ_MAX_REWARD * 100) / 100;
+  const diamondAmount = applyDiamondMultiplier(baseAmount, student?.tarif);
   attempt.diamondsAwarded = true;
 
   if (diamondAmount <= 0) return;
@@ -54,7 +58,7 @@ const awardQuizDiamonds = async (attempt, quizTitle, teacherName) => {
 // START ATTEMPT
 // ─────────────────────────────────────────
 const startAttempt = async (quizId, studentId) => {
-  const quiz = await Quiz.findById(quizId);
+  const quiz = await Quiz.findById(quizId).populate('createdBy', 'tarif');
   if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
   if (!quiz.isActive) throw new ApiError(400, 'Bu quiz faol emas');
 
@@ -77,8 +81,18 @@ const startAttempt = async (quizId, studentId) => {
   // Necha marta uringan
   const attemptCount = await QuizAttempt.countDocuments({ quiz: quizId, student: studentId });
 
-  if (attemptCount >= quiz.maxAttempts) {
-    throw new ApiError(400, `Siz bu quizga ${quiz.maxAttempts} martadan ko\'p urina olmaysiz`);
+  // Standart tarifdagi o'qituvchining testida 1 martagacha, premiumda quiz.maxAttempts'gacha
+  const effectiveMaxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif);
+
+  if (attemptCount >= effectiveMaxAttempts) {
+    const premiumHint =
+      effectiveMaxAttempts < quiz.maxAttempts
+        ? " (ko'proq urinish uchun o'qituvchi premium tarifga o'tishi kerak)"
+        : '';
+    throw new ApiError(
+      400,
+      `Siz bu quizga ${effectiveMaxAttempts} martadan ko'p urina olmaysiz${premiumHint}`
+    );
   }
 
   // Tugallanmagan attempt bormi
@@ -223,13 +237,14 @@ const getMyAttempts = async (quizId, studentId) => {
     attemptNumber: 1,
   });
 
-  const quiz = await Quiz.findById(quizId);
+  const quiz = await Quiz.findById(quizId).populate('createdBy', 'tarif');
+  const maxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif);
 
   return {
     attempts,
     attemptsUsed: attempts.length,
-    attemptsRemaining: quiz.maxAttempts - attempts.length,
-    maxAttempts: quiz.maxAttempts,
+    attemptsRemaining: maxAttempts - attempts.length,
+    maxAttempts,
   };
 };
 

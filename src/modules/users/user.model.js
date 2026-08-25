@@ -101,6 +101,24 @@ const userSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // Kunlik barabon (daily-spin) uchun holat — ketma-ket kunlar va kunlik limit shu yerda saqlanadi
+    streakCount: {
+      type: Number,
+      default: 0,
+    },
+
+    // 'YYYY-MM-DD' (Toshkent kalendar kuni) — oxirgi marta aylantirilgan kun
+    lastSpinDate: {
+      type: String,
+      default: null,
+    },
+
+    // lastSpinDate kuni uchun ishlatilgan aylantirishlar soni — kun almashganda 0'ga tushadi
+    spinsUsedToday: {
+      type: Number,
+      default: 0,
+    },
+
     lastLogin: {
       type: Date,
       default: null,

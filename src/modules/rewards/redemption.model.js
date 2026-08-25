@@ -22,13 +22,52 @@ const redemptionSchema = new mongoose.Schema(
       required: true,
     },
 
+    // pending → (admin ko'rib chiqadi) → approved → (mukofot qo'lga topshiriladi) → delivered
+    // pending yoki approved holatidan rejected'ga o'tishi ham mumkin
     status: {
       type: String,
-      enum: ['pending', 'delivered', 'rejected'],
+      enum: ['pending', 'approved', 'rejected', 'delivered'],
       default: 'pending',
     },
 
-    adminNote: {
+    // Bosqich 1: ko'rib chiqib tasdiqlash — qaysi admin, qachon
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Rad etish (pending yoki approved holatidan) — qaysi admin, qachon, sababi
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    rejectedAt: {
+      type: Date,
+      default: null,
+    },
+    rejectReason: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+
+    // Bosqich 2 (yakuniy): mukofot studentga jismonan topshirilgani — qaysi admin, qachon
+    deliveredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    deliveredAt: {
+      type: Date,
+      default: null,
+    },
+    deliveryNote: {
       type: String,
       trim: true,
       default: '',

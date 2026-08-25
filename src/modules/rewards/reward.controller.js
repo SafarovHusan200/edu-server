@@ -8,9 +8,9 @@ const { toPublicPath } = require('../../middleware/upload');
 
 // POST /api/v1/rewards
 const createReward = asyncHandler(async (req, res) => {
-  const { title, description, cost, stock } = req.body;
+  const { title, description, cost, stock, premiumOnly } = req.body;
 
-  const reward = await rewardService.createReward({ title, description, cost, stock });
+  const reward = await rewardService.createReward({ title, description, cost, stock, premiumOnly });
 
   res.status(201).json(new ApiResponse(201, "Sovg'a yaratildi", { reward }));
 });
@@ -79,16 +79,29 @@ const getAllRedemptions = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, "Barcha so'rovlar", { redemptions, meta }));
 });
 
-// PATCH /api/v1/rewards/redemptions/:id — admin
-const updateRedemptionStatus = asyncHandler(async (req, res) => {
-  const { status, adminNote } = req.body;
+// PATCH /api/v1/rewards/redemptions/:id/approve — admin
+const approveRedemption = asyncHandler(async (req, res) => {
+  const redemption = await rewardService.approveRedemption(req.params.id, req.user.id);
 
-  const redemption = await rewardService.updateRedemptionStatus(req.params.id, {
-    status,
-    adminNote,
-  });
+  res.status(200).json(new ApiResponse(200, "So'rov tasdiqlandi", { redemption }));
+});
 
-  res.status(200).json(new ApiResponse(200, "So'rov holati yangilandi", { redemption }));
+// PATCH /api/v1/rewards/redemptions/:id/reject — admin
+const rejectRedemption = asyncHandler(async (req, res) => {
+  const { reason } = req.body;
+
+  const redemption = await rewardService.rejectRedemption(req.params.id, req.user.id, reason);
+
+  res.status(200).json(new ApiResponse(200, "So'rov rad etildi", { redemption }));
+});
+
+// PATCH /api/v1/rewards/redemptions/:id/deliver — admin
+const deliverRedemption = asyncHandler(async (req, res) => {
+  const { note } = req.body;
+
+  const redemption = await rewardService.deliverRedemption(req.params.id, req.user.id, note);
+
+  res.status(200).json(new ApiResponse(200, "Sovg'a yetkazildi deb belgilandi", { redemption }));
 });
 
 module.exports = {
@@ -101,5 +114,7 @@ module.exports = {
   redeemReward,
   getMyRedemptions,
   getAllRedemptions,
-  updateRedemptionStatus,
+  approveRedemption,
+  rejectRedemption,
+  deliverRedemption,
 };

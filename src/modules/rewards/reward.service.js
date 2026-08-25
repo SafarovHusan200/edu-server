@@ -7,8 +7,8 @@ const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 
-const createReward = async ({ title, description, cost, stock }) => {
-  return Reward.create({ title, description, cost, stock: stock ?? null });
+const createReward = async ({ title, description, cost, stock, premiumOnly }) => {
+  return Reward.create({ title, description, cost, stock: stock ?? null, premiumOnly: premiumOnly ?? false });
 };
 
 const getRewards = async ({ page, limit }) => {
@@ -51,7 +51,10 @@ const deleteReward = async (id) => {
   const reward = await Reward.findById(id);
   if (!reward) throw new ApiError(404, "Sovg'a topilmadi");
 
-  const pendingCount = await RewardRedemption.countDocuments({ reward: id, status: 'pending' });
+  const pendingCount = await RewardRedemption.countDocuments({
+    reward: id,
+    status: { $in: ['pending', 'approved'] },
+  });
   if (pendingCount > 0) {
     throw new ApiError(400, "Bu sovg'a bo'yicha kutilayotgan so'rovlar bor, avval ularni yakunlang");
   }
@@ -66,6 +69,13 @@ const redeemReward = async (studentId, rewardId) => {
 
   if (reward.stock !== null && reward.stock <= 0) {
     throw new ApiError(400, "Bu sovg'a tugagan");
+  }
+
+  if (reward.premiumOnly) {
+    const student = await User.findById(studentId).select('tarif');
+    if (student?.tarif !== 'premium') {
+      throw new ApiError(403, "Bu sovg'a faqat premium foydalanuvchilar uchun mo'ljallangan");
+    }
   }
 
   const updatedUser = await User.findOneAndUpdate(
@@ -124,6 +134,9 @@ const getAllRedemptions = async ({ page, limit, status }) => {
     RewardRedemption.find(filter)
       .populate('reward', 'title image cost')
       .populate('student', 'name phone')
+      .populate('approvedBy', 'name phone')
+      .populate('rejectedBy', 'name phone')
+      .populate('deliveredBy', 'name phone')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageLimit),
@@ -133,41 +146,93 @@ const getAllRedemptions = async ({ page, limit, status }) => {
   return { redemptions, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
-// PATCH /rewards/redemptions/:id — admin: 'delivered' yoki 'rejected'
-const updateRedemptionStatus = async (redemptionId, { status, adminNote }) => {
+// PATCH /rewards/redemptions/:id/approve — admin: bosqich 1, so'rovni ko'rib chiqib tasdiqlaydi
+// (mukofot hali qo'lga topshirilmagan — haftalik/oylik yetkazish navbatiga qo'yiladi)
+const approveRedemption = async (redemptionId, adminId) => {
   const redemption = await RewardRedemption.findById(redemptionId);
   if (!redemption) throw new ApiError(404, "So'rov topilmadi");
 
   if (redemption.status !== 'pending') {
-    throw new ApiError(400, "Bu so'rov allaqachon yakunlangan");
+    throw new ApiError(400, "Bu so'rov ko'rib chiqish bosqichida emas");
   }
 
-  redemption.status = status;
-  redemption.adminNote = adminNote ?? redemption.adminNote;
+  redemption.status = 'approved';
+  redemption.approvedBy = adminId;
+  redemption.approvedAt = new Date();
   await redemption.save();
 
-  let reward = await Reward.findById(redemption.reward).select('title stock');
-
-  if (status === 'rejected') {
-    await User.findByIdAndUpdate(redemption.student, {
-      $inc: { diamonds: redemption.diamondsSpent },
-    });
-
-    if (reward && reward.stock !== null) {
-      await Reward.findByIdAndUpdate(redemption.reward, { $inc: { stock: 1 } });
-    }
-  }
-
-  const rewardTitle = reward?.title ?? "Noma'lum sovg'a";
+  const reward = await Reward.findById(redemption.reward).select('title');
 
   await notificationService.createNotification({
     userId: redemption.student,
     type: 'reward',
-    title: status === 'delivered' ? "📦 Sovg'angiz yetkazildi!" : "❌ So'rovingiz rad etildi",
-    message:
-      status === 'delivered'
-        ? `🎁 Sovg'a: "${rewardTitle}"\n✅ So'rovingiz tasdiqlandi va yetkazib berildi`
-        : `🎁 Sovg'a: "${rewardTitle}"\n💎 ${redemption.diamondsSpent} diamond hisobingizga qaytarildi${adminNote ? `\n📝 Sabab: ${adminNote}` : ''}`,
+    title: "✅ So'rovingiz tasdiqlandi",
+    message: `🎁 Sovg'a: "${reward?.title ?? "Noma'lum sovg'a"}"\n✅ So'rovingiz admin tomonidan tasdiqlandi, yetkazib berilishini kuting`,
+    meta: { redemptionId: redemption._id },
+  });
+
+  return redemption;
+};
+
+// PATCH /rewards/redemptions/:id/reject — admin: pending yoki approved holatidan rad etadi,
+// diamond va (agar cheklangan bo'lsa) stock studentga/omborga qaytariladi
+const rejectRedemption = async (redemptionId, adminId, reason) => {
+  const redemption = await RewardRedemption.findById(redemptionId);
+  if (!redemption) throw new ApiError(404, "So'rov topilmadi");
+
+  if (!['pending', 'approved'].includes(redemption.status)) {
+    throw new ApiError(400, "Bu so'rovni endi rad etib bo'lmaydi");
+  }
+
+  redemption.status = 'rejected';
+  redemption.rejectedBy = adminId;
+  redemption.rejectedAt = new Date();
+  redemption.rejectReason = reason ?? '';
+  await redemption.save();
+
+  await User.findByIdAndUpdate(redemption.student, {
+    $inc: { diamonds: redemption.diamondsSpent },
+  });
+
+  const reward = await Reward.findById(redemption.reward).select('title stock');
+  if (reward && reward.stock !== null) {
+    await Reward.findByIdAndUpdate(redemption.reward, { $inc: { stock: 1 } });
+  }
+
+  await notificationService.createNotification({
+    userId: redemption.student,
+    type: 'reward',
+    title: "❌ So'rovingiz rad etildi",
+    message: `🎁 Sovg'a: "${reward?.title ?? "Noma'lum sovg'a"}"\n💎 ${redemption.diamondsSpent} diamond hisobingizga qaytarildi${reason ? `\n📝 Sabab: ${reason}` : ''}`,
+    meta: { redemptionId: redemption._id },
+  });
+
+  return redemption;
+};
+
+// PATCH /rewards/redemptions/:id/deliver — admin: bosqich 2 (yakuniy), faqat 'approved'
+// holatidan — mukofot studentga jismonan topshirilgandan so'ng chaqiriladi
+const deliverRedemption = async (redemptionId, adminId, note) => {
+  const redemption = await RewardRedemption.findById(redemptionId);
+  if (!redemption) throw new ApiError(404, "So'rov topilmadi");
+
+  if (redemption.status !== 'approved') {
+    throw new ApiError(400, "Avval so'rov tasdiqlangan (approved) bo'lishi kerak");
+  }
+
+  redemption.status = 'delivered';
+  redemption.deliveredBy = adminId;
+  redemption.deliveredAt = new Date();
+  redemption.deliveryNote = note ?? '';
+  await redemption.save();
+
+  const reward = await Reward.findById(redemption.reward).select('title');
+
+  await notificationService.createNotification({
+    userId: redemption.student,
+    type: 'reward',
+    title: "📦 Sovg'angiz yetkazildi!",
+    message: `🎁 Sovg'a: "${reward?.title ?? "Noma'lum sovg'a"}"\n✅ Sizga topshirildi`,
     meta: { redemptionId: redemption._id },
   });
 
@@ -184,5 +249,7 @@ module.exports = {
   redeemReward,
   getMyRedemptions,
   getAllRedemptions,
-  updateRedemptionStatus,
+  approveRedemption,
+  rejectRedemption,
+  deliverRedemption,
 };
