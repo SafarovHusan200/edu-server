@@ -18,7 +18,7 @@ const createQuiz = asyncHandler(async (req, res) => {
     timeLimit,
     availableFrom,
     availableUntil,
-    grade,
+    targetGrades,
   } = req.body;
 
   const quiz = await quizService.createQuiz({
@@ -31,7 +31,7 @@ const createQuiz = asyncHandler(async (req, res) => {
     timeLimit,
     availableFrom,
     availableUntil,
-    grade,
+    targetGrades,
     createdBy: req.user.id,
   });
 

@@ -19,10 +19,48 @@ const questionModel = require('../questions/question.model');
 // mavjud quizlarni qayta sozlamasdan avtomatik ko'proq urinish ochiladi.
 const STANDARD_MAX_ATTEMPTS = 1;
 
-const getEffectiveMaxAttempts = (quiz, teacherTarif) => {
-  if (teacherTarif === 'premium') return quiz.maxAttempts;
-  return Math.min(quiz.maxAttempts, STANDARD_MAX_ATTEMPTS);
+// matchedGrade — shu sinf uchun targetGrades'dagi mos yozuv (bo'lishi yoki bo'lmasligi
+// mumkin); uning maxAttempts override'i bo'lsa o'shani, aks holda quiz.maxAttempts'ni
+// "so'ralgan" qiymat sifatida oladi, so'ng standart/premium chegarasi qo'llaniladi
+const getEffectiveMaxAttempts = (quiz, teacherTarif, matchedGrade) => {
+  const requested = matchedGrade?.maxAttempts ?? quiz.maxAttempts;
+  if (teacherTarif === 'premium') return requested;
+  return Math.min(requested, STANDARD_MAX_ATTEMPTS);
 };
+
+// Shu sinf uchun amal qiladigan test ishlash vaqti (daqiqada) — targetGrades
+// yozuvida alohida ko'rsatilmagan bo'lsa quiz darajasidagi umumiy qiymat qaytadi
+const getEffectiveTimeLimit = (quiz, matchedGrade) => matchedGrade?.timeLimit ?? quiz.timeLimit;
+
+// Studentning grade.number/letter'i quiz.targetGrades'dagi biror yozuvga mos keladimi —
+// mos kelsa o'sha yozuvni qaytaradi (aks holda null — student bu testga kira olmaydi).
+// letter=null bo'lgan yozuv shu grade raqamining barcha parallellarini qamrab oladi.
+const findMatchingTargetGrade = (quiz, studentGrade) => {
+  if (!studentGrade?.number) return null;
+  return (
+    quiz.targetGrades.find(
+      (g) => g.number === studentGrade.number && (!g.letter || g.letter === studentGrade.letter)
+    ) ?? null
+  );
+};
+
+// Shu student uchun amal qiladigan boshlash oralig'i — mos kelgan targetGrade
+// yozuvida alohida belgilangan bo'lsa o'shani, aks holda quiz darajasidagi
+// umumiy availableFrom/availableUntil'ni qaytaradi
+const getEffectiveAvailability = (quiz, matchedGrade) => ({
+  availableFrom: matchedGrade?.availableFrom ?? quiz.availableFrom,
+  availableUntil: matchedGrade?.availableUntil ?? quiz.availableUntil,
+});
+
+// Har bir targetGrades yozuvini o'zining effektiv (haqiqiy) maxAttempts/timeLimit
+// qiymatlari bilan boyitadi — GET javoblarida ko'rsatish uchun (har bir sinf
+// boshqacha bo'lishi mumkinligi sababli, yagona umumiy qiymat yetarli emas)
+const enrichTargetGrades = (quiz, teacherTarif) =>
+  quiz.targetGrades.map((g) => ({
+    ...(g.toObject ? g.toObject() : g),
+    effectiveMaxAttempts: getEffectiveMaxAttempts(quiz, teacherTarif, g),
+    effectiveTimeLimit: getEffectiveTimeLimit(quiz, g),
+  }));
 
 // ─────────────────────────────────────────
 // CREATE QUIZ
@@ -37,15 +75,28 @@ const createQuiz = async ({
   timeLimit,
   availableFrom,
   availableUntil,
-  grade,
+  targetGrades,
   createdBy,
 }) => {
   if (targetType !== 'standalone' && !targetId) {
     throw new ApiError(400, 'Course yoki Lesson uchun targetId kiritilishi shart');
   }
 
+  if (!Array.isArray(targetGrades) || targetGrades.length === 0) {
+    throw new ApiError(400, 'Kamida 1 ta sinf (masalan 3-A) tanlanishi shart');
+  }
+
   if (availableFrom && availableUntil && new Date(availableUntil) <= new Date(availableFrom)) {
     throw new ApiError(400, "availableUntil availableFrom dan keyin bo'lishi kerak");
+  }
+
+  for (const g of targetGrades) {
+    if (g.availableFrom && g.availableUntil && new Date(g.availableUntil) <= new Date(g.availableFrom)) {
+      throw new ApiError(
+        400,
+        `${g.number}${g.letter ? `-${g.letter}` : ''}-sinf uchun availableUntil availableFrom dan keyin bo'lishi kerak`
+      );
+    }
   }
 
   const quiz = await Quiz.create({
@@ -58,24 +109,36 @@ const createQuiz = async ({
     timeLimit,
     availableFrom: availableFrom ?? null,
     availableUntil: availableUntil ?? null,
-    grade,
+    targetGrades,
     createdBy,
   });
 
   return quiz;
 };
 
-// Grade bo'yicha minimal savol soni — uch bosqich: 1-4 (boshlang'ich), 5-8 (o'rta), 9-11 (yuqori)
-const getMinQuestions = (grade) => {
-  if (grade <= ELEMENTARY_MAX_GRADE) return MIN_QUESTIONS_ELEMENTARY;
-  if (grade <= MIDDLE_MAX_GRADE) return MIN_QUESTIONS_MIDDLE;
+// Bitta sinf raqami bo'yicha minimal savol soni — uch bosqich: 1-4 (boshlang'ich), 5-8 (o'rta), 9-11 (yuqori)
+const getMinQuestions = (gradeNumber) => {
+  if (gradeNumber <= ELEMENTARY_MAX_GRADE) return MIN_QUESTIONS_ELEMENTARY;
+  if (gradeNumber <= MIDDLE_MAX_GRADE) return MIN_QUESTIONS_MIDDLE;
   return MIN_QUESTIONS_SENIOR;
 };
 
-const getGradeTierLabel = (grade) => {
-  if (grade <= ELEMENTARY_MAX_GRADE) return "boshlang'ich sinflar";
-  if (grade <= MIDDLE_MAX_GRADE) return '5-8-sinflar';
+const getGradeTierLabel = (gradeNumber) => {
+  if (gradeNumber <= ELEMENTARY_MAX_GRADE) return "boshlang'ich sinflar";
+  if (gradeNumber <= MIDDLE_MAX_GRADE) return '5-8-sinflar';
   return '9-sinf va undan yuqori sinflar';
+};
+
+// "3-A, 3-B, 4-A" ko'rinishida — xato xabarlarida va bildirishnomalarda ishlatiladi
+const formatTargetGrades = (targetGrades) =>
+  targetGrades.map((g) => (g.letter ? `${g.number}-${g.letter}` : `${g.number}-sinf`)).join(', ');
+
+// Bir nechta sinf tanlangan bo'lsa (masalan 3 va 4-sinf aralash), eng "og'ir"
+// (ko'proq savol talab qiladigan) sinfga qarab minimal savol soni belgilanadi —
+// shunda quiz har qanday tanlangan sinf uchun yetarlicha chuqur bo'ladi
+const getStrictestGradeNumber = (targetGrades) => {
+  const uniqueNumbers = [...new Set(targetGrades.map((g) => g.number))];
+  return uniqueNumbers.reduce((max, n) => (getMinQuestions(n) > getMinQuestions(max) ? n : max));
 };
 
 // ─────────────────────────────────────────
@@ -124,8 +187,8 @@ const getQuizzesMy = async ({ id, targetType, targetId, page, limit }) => {
   const quizzesWithCounts = await Promise.all(
     quizzes.map(async (quiz) => {
       const questionsCount = await Question.countDocuments({ quiz: quiz._id });
-      const effectiveMaxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif);
-      return { ...quiz.toObject(), questionsCount, effectiveMaxAttempts };
+      const targetGrades = enrichTargetGrades(quiz, quiz.createdBy?.tarif);
+      return { ...quiz.toObject(), questionsCount, targetGrades };
     })
   );
 
@@ -146,9 +209,9 @@ const getQuizById = async (quizId) => {
     .select('-correctAnswer')
     .sort({ order: 1 });
 
-  const effectiveMaxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif);
+  const targetGrades = enrichTargetGrades(quiz, quiz.createdBy?.tarif);
 
-  return { quiz: { ...quiz.toObject(), effectiveMaxAttempts }, questions };
+  return { quiz: { ...quiz.toObject(), targetGrades }, questions };
 };
 
 // ─────────────────────────────────────────
@@ -160,9 +223,9 @@ const getQuizByIdWithAnswers = async (quizId) => {
 
   const questions = await Question.find({ quiz: quizId }).sort({ order: 1 });
 
-  const effectiveMaxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif);
+  const targetGrades = enrichTargetGrades(quiz, quiz.createdBy?.tarif);
 
-  return { quiz: { ...quiz.toObject(), effectiveMaxAttempts }, questions };
+  return { quiz: { ...quiz.toObject(), targetGrades }, questions };
 };
 
 // ─────────────────────────────────────────
@@ -176,16 +239,21 @@ const updateQuiz = async (quizId, userId, updateData) => {
     throw new ApiError(403, 'Siz bu quizni tahrirlay olmaysiz');
   }
 
+  if (updateData.targetGrades !== undefined && updateData.targetGrades.length === 0) {
+    throw new ApiError(400, 'Kamida 1 ta sinf (masalan 3-A) tanlanishi shart');
+  }
+
   if (updateData.isActive) {
-    const grade = updateData.grade ?? quiz.grade;
-    const minQuestions = getMinQuestions(grade);
+    const targetGrades = updateData.targetGrades ?? quiz.targetGrades;
+    const strictestNumber = getStrictestGradeNumber(targetGrades);
+    const minQuestions = getMinQuestions(strictestNumber);
     const questionCount = await Question.countDocuments({ quiz: quizId });
 
     if (questionCount < minQuestions) {
-      const tier = getGradeTierLabel(grade);
+      const tier = getGradeTierLabel(strictestNumber);
       throw new ApiError(
         400,
-        `Quizni faollashtirish uchun ${tier} (${grade}-sinf) uchun kamida ${minQuestions} ta savol bo'lishi kerak, hozir ${questionCount} ta`
+        `Quizni faollashtirish uchun ${tier} (${formatTargetGrades(targetGrades)}) uchun kamida ${minQuestions} ta savol bo'lishi kerak, hozir ${questionCount} ta`
       );
     }
   }
@@ -295,4 +363,9 @@ module.exports = {
   updateQuestion,
   deleteQuestion,
   getEffectiveMaxAttempts,
+  getEffectiveTimeLimit,
+  findMatchingTargetGrade,
+  getEffectiveAvailability,
+  enrichTargetGrades,
+  formatTargetGrades,
 };

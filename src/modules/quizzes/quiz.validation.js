@@ -43,12 +43,41 @@ const quizValidation = [
     .isInt({ min: 1 })
     .withMessage("timeLimit kamida 1 daqiqa bo'lishi kerak"),
 
-  body('grade')
+  body('targetGrades')
+    .isArray({ min: 1 })
+    .withMessage("Kamida 1 ta sinf (masalan 3-A) tanlanishi shart"),
+
+  body('targetGrades.*.number')
     .notEmpty()
-    .withMessage('grade (sinf) kiritilishi shart')
+    .withMessage('Sinf raqami kiritilishi shart')
     .bail()
     .isInt({ min: 1, max: 11 })
-    .withMessage("grade 1-11 oralig'ida bo'lishi kerak"),
+    .withMessage("Sinf raqami 1-11 oralig'ida bo'lishi kerak"),
+
+  body('targetGrades.*.letter')
+    .optional({ values: 'falsy' })
+    .isIn(['A', 'B', 'C', 'D', 'E'])
+    .withMessage("Sinf harfi A-E oralig'ida bo'lishi kerak (bo'sh qoldirilsa — shu raqamdagi barcha parallel sinflar)"),
+
+  body('targetGrades.*.availableFrom')
+    .optional()
+    .isISO8601()
+    .withMessage("targetGrades.availableFrom sana-vaqt formatida bo'lishi kerak"),
+
+  body('targetGrades.*.availableUntil')
+    .optional()
+    .isISO8601()
+    .withMessage("targetGrades.availableUntil sana-vaqt formatida bo'lishi kerak"),
+
+  body('targetGrades.*.maxAttempts')
+    .optional({ values: 'falsy' })
+    .isInt({ min: 1 })
+    .withMessage("targetGrades.maxAttempts kamida 1 bo'lishi kerak"),
+
+  body('targetGrades.*.timeLimit')
+    .optional({ values: 'falsy' })
+    .isInt({ min: 1 })
+    .withMessage("targetGrades.timeLimit kamida 1 daqiqa bo'lishi kerak"),
 
   // Masalan: "2026-08-10T09:00:00+05:00" (Toshkent vaqti bilan, offset ko'rsatilgan holda)
   body('availableFrom')

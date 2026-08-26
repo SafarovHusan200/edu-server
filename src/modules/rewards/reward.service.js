@@ -8,7 +8,13 @@ const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 
 const createReward = async ({ title, description, cost, stock, premiumOnly }) => {
-  return Reward.create({ title, description, cost, stock: stock ?? null, premiumOnly: premiumOnly ?? false });
+  return Reward.create({
+    title,
+    description,
+    cost,
+    stock: stock ?? null,
+    premiumOnly: premiumOnly ?? false,
+  });
 };
 
 const getRewards = async ({ page, limit }) => {
@@ -56,7 +62,10 @@ const deleteReward = async (id) => {
     status: { $in: ['pending', 'approved'] },
   });
   if (pendingCount > 0) {
-    throw new ApiError(400, "Bu sovg'a bo'yicha kutilayotgan so'rovlar bor, avval ularni yakunlang");
+    throw new ApiError(
+      400,
+      "Bu sovg'a bo'yicha kutilayotgan so'rovlar bor, avval ularni yakunlang"
+    );
   }
 
   await reward.deleteOne();
@@ -166,8 +175,8 @@ const approveRedemption = async (redemptionId, adminId) => {
   await notificationService.createNotification({
     userId: redemption.student,
     type: 'reward',
-    title: "✅ So'rovingiz tasdiqlandi",
-    message: `🎁 Sovg'a: "${reward?.title ?? "Noma'lum sovg'a"}"\n✅ So'rovingiz admin tomonidan tasdiqlandi, yetkazib berilishini kuting`,
+    title: "Tabriklaymiz, so'rovingiz tasdiqlandi✅",
+    message: `🎁 Sovg'a: "${reward?.title ?? "Noma'lum sovg'a"}"\n So'rovingiz admin tomonidan tasdiqlandi, yetkazib berilishini kuting`,
     meta: { redemptionId: redemption._id },
   });
 

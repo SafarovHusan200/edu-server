@@ -44,29 +44,47 @@ const quizSchema = new mongoose.Schema(
       max: 100,
     },
 
+    // targetGrades ichidagi biror yozuvda alohida maxAttempts ko'rsatilmagan bo'lsa,
+    // shu sinf uchun qo'llaniladigan standart (fallback) qiymat
     maxAttempts: {
       type: Number,
       default: 3,
       min: 1,
     },
 
-    // Vaqt limiti (daqiqada) — majburiy
+    // Vaqt limiti (daqiqada) — majburiy. targetGrades ichidagi biror yozuvda
+    // alohida timeLimit ko'rsatilmagan bo'lsa, shu sinf uchun standart (fallback) qiymat
     timeLimit: {
       type: Number,
       required: true,
       min: 1,
     },
 
-    // Qaysi sinf uchun (1-11) — faollashtirishda minimal savol sonini
-    // aniqlash uchun ishlatiladi (boshlang'ich vs katta sinflar)
-    grade: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 11,
+    // Quiz qaysi sinf(lar) uchun mo'ljallangan — bir nechta sinf/parallel bo'lishi mumkin
+    // (masalan 3-A, 3-B, 4-A). letter bo'sh bo'lsa — shu grade raqamining BARCHA
+    // parallellari nazarda tutiladi. Har bir yozuv o'zining availableFrom/availableUntil,
+    // maxAttempts va timeLimit'iga ega bo'lishi mumkin (masalan 3-A soat 9:00da 30 daqiqa,
+    // 2 marta; 3-B soat 10:00da 45 daqiqa, 1 marta) — yozuvda ko'rsatilmagan maydon uchun
+    // pastdagi quiz darajasidagi umumiy qiymat qo'llaniladi.
+    targetGrades: {
+      type: [
+        {
+          number: { type: Number, required: true, min: 1, max: 11 },
+          letter: { type: String, enum: ['A', 'B', 'C', 'D', 'E', null], default: null },
+          availableFrom: { type: Date, default: null },
+          availableUntil: { type: Date, default: null },
+          maxAttempts: { type: Number, default: null, min: 1 },
+          timeLimit: { type: Number, default: null, min: 1 },
+        },
+      ],
+      validate: {
+        validator: (arr) => Array.isArray(arr) && arr.length > 0,
+        message: 'Kamida 1 ta sinf tanlanishi shart',
+      },
     },
 
-    // Quizni boshlash mumkin bo'lgan sana-vaqt oralig'i (bir martalik, aniq muddat).
+    // Quiz darajasidagi umumiy sana-vaqt oralig'i — targetGrades ichidagi biror
+    // yozuvda o'zining availableFrom/availableUntil'i bo'lmasa, shu oraliq qo'llaniladi.
     // Ikkalasi ham ixtiyoriy — bo'sh bo'lsa cheklov yo'q. Faqat "boshlash" (start)
     // amalini cheklaydi, allaqachon boshlangan attempt oraliq tugagach ham submit qilinaveradi.
     availableFrom: {

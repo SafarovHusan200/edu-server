@@ -2,7 +2,11 @@
 
 const QuizAttempt = require('./quizAttempt.model');
 const Quiz = require('../quizzes/quiz.model');
-const { getEffectiveMaxAttempts } = require('../quizzes/quiz.service');
+const {
+  getEffectiveMaxAttempts,
+  findMatchingTargetGrade,
+  getEffectiveAvailability,
+} = require('../quizzes/quiz.service');
 const Question = require('../questions/question.model');
 const User = require('../users/user.model');
 const notificationService = require('../notifications/notification.service');
@@ -62,31 +66,45 @@ const startAttempt = async (quizId, studentId) => {
   if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
   if (!quiz.isActive) throw new ApiError(400, 'Bu quiz faol emas');
 
+  // Bu quiz studentning sinfi (grade.number/letter) uchun mo'ljallanganmi —
+  // bir nechta sinf (masalan 3-A, 3-B, 4-A) tanlangan bo'lishi mumkin
+  const student = await User.findById(studentId).select('grade');
+  const matchedGrade = findMatchingTargetGrade(quiz, student?.grade);
+  if (!matchedGrade) {
+    throw new ApiError(403, "Bu test sizning sinfingiz uchun mo'ljallanmagan");
+  }
+
+  // Har bir sinf (masalan 3-A va 3-B) o'zining alohida boshlash oralig'iga ega
+  // bo'lishi mumkin — belgilanmagan bo'lsa quiz darajasidagi umumiy oraliq qo'llaniladi
+  const { availableFrom, availableUntil } = getEffectiveAvailability(quiz, matchedGrade);
+
   // Faqat "boshlash"ni cheklaydi — allaqachon boshlangan attempt oraliq
   // tugagach ham submit qilinaveradi (pastdagi submitAttempt'da tekshirilmaydi)
   const now = new Date();
-  if (quiz.availableFrom && now < quiz.availableFrom) {
+  if (availableFrom && now < availableFrom) {
     throw new ApiError(
       400,
-      `Bu quiz hali boshlanmagan. Boshlanish vaqti: ${formatTashkentTime(quiz.availableFrom)} (Toshkent vaqti)`
+      `Bu quiz hali boshlanmagan. Boshlanish vaqti: ${formatTashkentTime(availableFrom)} (Toshkent vaqti)`
     );
   }
-  if (quiz.availableUntil && now > quiz.availableUntil) {
+  if (availableUntil && now > availableUntil) {
     throw new ApiError(
       400,
-      `Bu quizni boshlash muddati tugagan. Muddat: ${formatTashkentTime(quiz.availableUntil)} (Toshkent vaqti)`
+      `Bu quizni boshlash muddati tugagan. Muddat: ${formatTashkentTime(availableUntil)} (Toshkent vaqti)`
     );
   }
 
   // Necha marta uringan
   const attemptCount = await QuizAttempt.countDocuments({ quiz: quizId, student: studentId });
 
-  // Standart tarifdagi o'qituvchining testida 1 martagacha, premiumda quiz.maxAttempts'gacha
-  const effectiveMaxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif);
+  // Standart tarifdagi o'qituvchining testida 1 martagacha, premiumda so'ralgan
+  // qiymatgacha (matchedGrade'da alohida ko'rsatilgan bo'lsa o'sha, aks holda quiz.maxAttempts)
+  const requestedMaxAttempts = matchedGrade.maxAttempts ?? quiz.maxAttempts;
+  const effectiveMaxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif, matchedGrade);
 
   if (attemptCount >= effectiveMaxAttempts) {
     const premiumHint =
-      effectiveMaxAttempts < quiz.maxAttempts
+      effectiveMaxAttempts < requestedMaxAttempts
         ? " (ko'proq urinish uchun o'qituvchi premium tarifga o'tishi kerak)"
         : '';
     throw new ApiError(
@@ -237,8 +255,12 @@ const getMyAttempts = async (quizId, studentId) => {
     attemptNumber: 1,
   });
 
-  const quiz = await Quiz.findById(quizId).populate('createdBy', 'tarif');
-  const maxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif);
+  const [quiz, student] = await Promise.all([
+    Quiz.findById(quizId).populate('createdBy', 'tarif'),
+    User.findById(studentId).select('grade'),
+  ]);
+  const matchedGrade = findMatchingTargetGrade(quiz, student?.grade);
+  const maxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif, matchedGrade);
 
   return {
     attempts,

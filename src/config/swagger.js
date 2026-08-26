@@ -264,16 +264,36 @@ const definition = {
           maxAttempts: {
             type: 'integer',
             minimum: 1,
-            description: "O'qituvchi so'ragan qiymat — haqiqiy limit uchun effectiveMaxAttempts'ga qarang",
+            description: "Standart (fallback) qiymat — targetGrades'da alohida override qilinmagan sinflar uchun. Haqiqiy limit uchun targetGrades[].effectiveMaxAttempts'ga qarang",
           },
-          effectiveMaxAttempts: {
+          timeLimit: {
             type: 'integer',
-            description:
-              "Haqiqiy ruxsat etilgan urinishlar soni: o'qituvchi tarif='standart' bo'lsa har doim 1, tarif='premium' bo'lsa maxAttempts qiymati. Faqat GET javoblarida hisoblanib qo'shiladi.",
+            description: "Standart (fallback) qiymat (daqiqada) — targetGrades'da alohida override qilinmagan sinflar uchun. Haqiqiysi uchun targetGrades[].effectiveTimeLimit'ga qarang",
           },
-          timeLimit: { type: 'integer', description: 'Daqiqada' },
-          grade: { type: 'integer', minimum: 1, maximum: 11 },
-          availableFrom: { type: 'string', format: 'date-time', nullable: true },
+          targetGrades: {
+            type: 'array',
+            description: "Quiz yechishi mumkin bo'lgan sinflar (bir nechtasi bo'lishi mumkin, masalan 3-A, 3-B, 4-A). Har birining o'z availableFrom/availableUntil, maxAttempts, timeLimit override'i bo'lishi mumkin.",
+            items: {
+              type: 'object',
+              properties: {
+                number: { type: 'integer', minimum: 1, maximum: 11 },
+                letter: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E'], nullable: true, description: "null — shu raqamdagi barcha parallel sinflar" },
+                availableFrom: { type: 'string', format: 'date-time', nullable: true, description: "Shu sinf uchun alohida boshlanish vaqti" },
+                availableUntil: { type: 'string', format: 'date-time', nullable: true },
+                maxAttempts: { type: 'integer', nullable: true, description: "Shu sinf uchun alohida urinishlar soni (bo'sh — quiz.maxAttempts ishlaydi)" },
+                timeLimit: { type: 'integer', nullable: true, description: "Shu sinf uchun alohida ishlash vaqti, daqiqada (bo'sh — quiz.timeLimit ishlaydi)" },
+                effectiveMaxAttempts: {
+                  type: 'integer',
+                  description: "Haqiqiy ruxsat etilgan urinishlar soni (standart tarif — har doim 1, premium — so'ralgan qiymat). Faqat GET javoblarida hisoblanib qo'shiladi.",
+                },
+                effectiveTimeLimit: {
+                  type: 'integer',
+                  description: "Shu sinf uchun haqiqiy ishlash vaqti, daqiqada. Faqat GET javoblarida hisoblanib qo'shiladi.",
+                },
+              },
+            },
+          },
+          availableFrom: { type: 'string', format: 'date-time', nullable: true, description: "targetGrades'da alohida ko'rsatilmagan sinflar uchun umumiy standart" },
           availableUntil: { type: 'string', format: 'date-time', nullable: true },
           isActive: { type: 'boolean' },
           ...timestamps,

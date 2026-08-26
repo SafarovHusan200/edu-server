@@ -22,7 +22,6 @@ const validate = require('../../middleware/validate');
  *     tags: [Quizzes]
  *     security: []
  *     parameters:
- *       - { name: grade, in: query, schema: { type: integer, minimum: 1, maximum: 11 } }
  *       - { name: targetType, in: query, schema: { type: string, enum: [course, lesson, standalone] } }
  *     responses:
  *       200:
@@ -146,7 +145,7 @@ router.get(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [title, targetType, timeLimit, grade]
+ *             required: [title, targetType, timeLimit, targetGrades]
  *             properties:
  *               title: { type: string, minLength: 3, maxLength: 100 }
  *               targetType: { type: string, enum: [course, lesson, standalone] }
@@ -154,8 +153,21 @@ router.get(
  *               passingScore: { type: integer, minimum: 0, maximum: 100, default: 60 }
  *               maxAttempts: { type: integer, minimum: 1, default: 3 }
  *               timeLimit: { type: integer, minimum: 1, description: 'Daqiqada' }
- *               grade: { type: integer, minimum: 1, maximum: 11 }
- *               availableFrom: { type: string, format: date-time }
+ *               targetGrades:
+ *                 type: array
+ *                 minItems: 1
+ *                 description: "Quiz yechishi mumkin bo'lgan sinflar (bir nechtasi bo'lishi mumkin, masalan 3-A, 3-B, 4-A)"
+ *                 items:
+ *                   type: object
+ *                   required: [number]
+ *                   properties:
+ *                     number: { type: integer, minimum: 1, maximum: 11, example: 3 }
+ *                     letter: { type: string, enum: [A, B, C, D, E], nullable: true, description: "Bo'sh qoldirilsa — shu raqamdagi barcha parallel sinflar" }
+ *                     availableFrom: { type: string, format: date-time, description: "Shu sinf uchun alohida boshlanish vaqti (ixtiyoriy — berilmasa quiz darajasidagi umumiy availableFrom ishlaydi)" }
+ *                     availableUntil: { type: string, format: date-time, description: "Shu sinf uchun alohida tugash vaqti (ixtiyoriy)" }
+ *                     maxAttempts: { type: integer, minimum: 1, description: "Shu sinf uchun alohida urinishlar soni (ixtiyoriy — berilmasa quiz.maxAttempts ishlaydi)" }
+ *                     timeLimit: { type: integer, minimum: 1, description: "Shu sinf uchun alohida ishlash vaqti, daqiqada (ixtiyoriy — berilmasa quiz.timeLimit ishlaydi)" }
+ *               availableFrom: { type: string, format: date-time, description: "Barcha sinflar uchun umumiy standart oraliq (targetGrades'da alohida ko'rsatilmagan bo'lsa ishlatiladi)" }
  *               availableUntil: { type: string, format: date-time }
  *     responses:
  *       201:
@@ -405,7 +417,7 @@ router.delete(
  *                   properties:
  *                     data: { $ref: '#/components/schemas/QuizAttempt' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { description: "Rol 'student' emas, yoki bu test studentning sinfi uchun mo'ljallanmagan (targetGrades'da yo'q)" }
  */
 // Boshlash
 router.post('/:quizId/start', authenticate, authorize('student'), attemptController.startAttempt);
