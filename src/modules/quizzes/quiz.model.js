@@ -83,6 +83,7 @@ const quizSchema = new mongoose.Schema(
       },
     },
 
+    //comments
     // Quiz darajasidagi umumiy sana-vaqt oralig'i — targetGrades ichidagi biror
     // yozuvda o'zining availableFrom/availableUntil'i bo'lmasa, shu oraliq qo'llaniladi.
     // Ikkalasi ham ixtiyoriy — bo'sh bo'lsa cheklov yo'q. Faqat "boshlash" (start)
