@@ -12,6 +12,7 @@ const notificationService = require('../notifications/notification.service');
 const multicardService = require('./multicard.service');
 const ApiError = require('../../utils/ApiError');
 const { PREMIUM_PLANS } = require('../../config/pricing');
+const { getPagination, buildMeta } = require('../../utils/paginate');
 
 const MIN_WALLET_TOPUP = 1000; // tiyin
 
@@ -321,9 +322,54 @@ const getStatusByInvoiceId = async (invoiceId, userId, role) => {
 // GET /payment/premium-plans — frontend narxlar jadvalini shu yerdan oladi
 const getPremiumPlans = () => PREMIUM_PLANS;
 
+// GET /payment/my — foydalanuvchining o'z to'lovlar tarixi
+const getMyPayments = async (userId, { page, limit, purpose, status }) => {
+  const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
+
+  const filter = { user: userId };
+  if (purpose) filter.purpose = purpose;
+  if (status) filter.status = status;
+
+  const [payments, total] = await Promise.all([
+    Payment.find(filter)
+      .populate('course', 'title')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit),
+    Payment.countDocuments(filter),
+  ]);
+
+  return { payments, meta: buildMeta(total, currentPage, pageLimit) };
+};
+
+// GET /payment — admin/superadmin: barcha to'lovlar (masalan "draft" holatida
+// tiqilib qolganlarni topish uchun ham foydali)
+const getAllPayments = async ({ page, limit, purpose, status, userId }) => {
+  const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
+
+  const filter = {};
+  if (purpose) filter.purpose = purpose;
+  if (status) filter.status = status;
+  if (userId) filter.user = userId;
+
+  const [payments, total] = await Promise.all([
+    Payment.find(filter)
+      .populate('user', 'name phone')
+      .populate('course', 'title')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit),
+    Payment.countDocuments(filter),
+  ]);
+
+  return { payments, meta: buildMeta(total, currentPage, pageLimit) };
+};
+
 module.exports = {
   createPayment,
   applyCallback,
   getStatusByInvoiceId,
   getPremiumPlans,
+  getMyPayments,
+  getAllPayments,
 };

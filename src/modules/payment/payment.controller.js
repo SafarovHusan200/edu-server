@@ -88,9 +88,44 @@ const getPremiumPlans = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, 'Premium rejalar', { plans }));
 });
 
+// ─────────────────────────────────────────
+// GET /api/v1/payment/my — Private (o'zining to'lovlar tarixi)
+// ─────────────────────────────────────────
+const getMyPayments = asyncHandler(async (req, res) => {
+  const { page, limit, purpose, status } = req.query;
+
+  const { payments, meta } = await paymentService.getMyPayments(req.user.id, {
+    page,
+    limit,
+    purpose,
+    status,
+  });
+
+  res.status(200).json(new ApiResponse(200, "To'lovlar tarixi", { payments, meta }));
+});
+
+// ─────────────────────────────────────────
+// GET /api/v1/payment — Private, admin/superadmin (barcha to'lovlar)
+// ─────────────────────────────────────────
+const getAllPayments = asyncHandler(async (req, res) => {
+  const { page, limit, purpose, status, userId } = req.query;
+
+  const { payments, meta } = await paymentService.getAllPayments({
+    page,
+    limit,
+    purpose,
+    status,
+    userId,
+  });
+
+  res.status(200).json(new ApiResponse(200, "Barcha to'lovlar", { payments, meta }));
+});
+
 module.exports = {
   createPayment,
   handleCallback,
   getPaymentStatus,
   getPremiumPlans,
+  getMyPayments,
+  getAllPayments,
 };
