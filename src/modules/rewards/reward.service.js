@@ -6,6 +6,7 @@ const User = require('../users/user.model');
 const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
+const { frontendLinks } = require('../../config/frontendLinks');
 
 const createReward = async ({ title, description, cost, stock, premiumOnly }) => {
   return Reward.create({
@@ -111,8 +112,10 @@ const redeemReward = async (studentId, rewardId) => {
     userId: studentId,
     type: 'reward',
     title: "🎁 Sovg'a so'rovi yuborildi",
-    message: `🎁 Sovg'a: "${reward.title}"\n💎 Sarflangan diamond: ${reward.cost}\n⏳ Holat: admin tasdig'ini kutmoqda`,
+    message: `Nomi: "${reward.title}"\n💎 Sarflangan diamond: ${reward.cost}\n⏳ Holat: admin tasdig'ini kutmoqda`,
     meta: { rewardId: reward._id, redemptionId: redemption._id },
+    url: frontendLinks.myRedemptions(),
+    buttonText: '📦 Holatni kuzatish',
   });
 
   return redemption;
@@ -178,6 +181,8 @@ const approveRedemption = async (redemptionId, adminId) => {
     title: "Tabriklaymiz, so'rovingiz tasdiqlandi✅",
     message: `🎁 Sovg'a: "${reward?.title ?? "Noma'lum sovg'a"}"\n So'rovingiz admin tomonidan tasdiqlandi, yetkazib berilishini kuting`,
     meta: { redemptionId: redemption._id },
+    url: frontendLinks.myRedemptions(),
+    buttonText: '📦 Holatni ko\'rish',
   });
 
   return redemption;
@@ -214,6 +219,8 @@ const rejectRedemption = async (redemptionId, adminId, reason) => {
     title: "❌ So'rovingiz rad etildi",
     message: `🎁 Sovg'a: "${reward?.title ?? "Noma'lum sovg'a"}"\n💎 ${redemption.diamondsSpent} diamond hisobingizga qaytarildi${reason ? `\n📝 Sabab: ${reason}` : ''}`,
     meta: { redemptionId: redemption._id },
+    url: frontendLinks.rewards(),
+    buttonText: "🎁 Boshqa sovg'alarni ko'rish",
   });
 
   return redemption;
@@ -243,6 +250,8 @@ const deliverRedemption = async (redemptionId, adminId, note) => {
     title: "📦 Sovg'angiz yetkazildi!",
     message: `🎁 Sovg'a: "${reward?.title ?? "Noma'lum sovg'a"}"\n✅ Sizga topshirildi`,
     meta: { redemptionId: redemption._id },
+    url: frontendLinks.myRedemptions(),
+    buttonText: '📦 Yutuqlarim',
   });
 
   return redemption;

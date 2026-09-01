@@ -38,6 +38,15 @@ app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
 app.use(express.json()); // JSON body parser
 app.use(express.urlencoded({ extended: true }));
 
+// So'rov gavdasi (Content-Type: application/json) umuman yuborilmasa, Express 5'da
+// req.body {} emas, undefined bo'lib qoladi — bu esa "const { x } = req.body" kabi
+// destructuring qiluvchi controllerlarni (masalan ixtiyoriy maydonlar bilan) 500
+// xato bilan qulatib qo'yishi mumkin. Shu yerda global qilib to'g'irlab qo'yamiz.
+app.use((req, res, next) => {
+  if (req.body === undefined) req.body = {};
+  next();
+});
+
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev')); // Request logger
 }

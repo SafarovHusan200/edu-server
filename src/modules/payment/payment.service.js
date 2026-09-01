@@ -13,6 +13,7 @@ const multicardService = require('./multicard.service');
 const ApiError = require('../../utils/ApiError');
 const { PREMIUM_PLANS } = require('../../config/pricing');
 const { getPagination, buildMeta } = require('../../utils/paginate');
+const { frontendLinks } = require('../../config/frontendLinks');
 
 const MIN_WALLET_TOPUP = 1000; // tiyin
 
@@ -26,7 +27,21 @@ const formatSomDate = (date) =>
 // ─────────────────────────────────────────
 // TO'LOV YARATISH
 // ─────────────────────────────────────────
-const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, promoCode, returnUrl, ofd, plan }) => {
+const createPayment = async ({
+  userId,
+  purpose = 'wallet',
+  courseId,
+  amount,
+  promoCode,
+  returnUrl,
+  ofd,
+  plan,
+  useBalance,
+}) => {
+  if (useBalance && purpose === 'wallet') {
+    throw new ApiError(400, "Hamyonni hamyonning o'zidan to'ldirib bo'lmaydi");
+  }
+
   let finalAmount = amount;
   let course = null;
 
@@ -87,6 +102,40 @@ const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, pro
   // Har bir to'lov uchun o'ziga xos invoiceId generatsiya qilamiz
   const invoiceId = `ord_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
 
+  // Balansdan to'lash — Multicard'ga umuman chiqilmaydi, natija shu zahoti beriladi
+  if (useBalance) {
+    // Atomik: balans yetarli bo'lgan hujjatnigina yangilaydi (bir vaqtda kelgan
+    // ikkita so'rov balansni ikki marta yechib qo'ymasligi uchun — redeemReward'dagi
+    // bilan bir xil naqsh)
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: userId, balance: { $gte: finalAmount } },
+      { $inc: { balance: -finalAmount } },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      throw new ApiError(400, "Balansingizda mablag' yetarli emas");
+    }
+
+    const payment = await Payment.create({
+      user: userId,
+      invoiceId,
+      method: 'balance',
+      amount: finalAmount,
+      purpose,
+      plan: purpose === 'premium' ? plan : null,
+      course: course?._id ?? null,
+      promoCode: promoCodeDoc?._id ?? null,
+      discountPercent,
+      status: 'success',
+      paymentTime: new Date(),
+    });
+
+    await grantPaymentOutcome(payment);
+
+    return { payment, checkoutUrl: null, paidWithBalance: true };
+  }
+
   const invoice = await multicardService.createInvoice({
     amount: finalAmount,
     invoiceId,
@@ -108,7 +157,7 @@ const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, pro
     status: 'draft',
   });
 
-  return { payment, checkoutUrl: invoice.checkoutUrl };
+  return { payment, checkoutUrl: invoice.checkoutUrl, paidWithBalance: false };
 };
 
 // ─────────────────────────────────────────
@@ -149,9 +198,11 @@ const grantPaymentOutcome = async (payment) => {
       title: "✅ To'lov muvaffaqiyatli!",
       message: `📚 Kurs: "${course?.title ?? '—'}"\n👨‍🏫 O'qituvchi: ${course?.teacher?.name ?? '—'}\n💳 To'langan summa: ${formatSom(payment.amount)} so'm\n🎓 Siz ushbu kursga muvaffaqiyatli yozildingiz!`,
       meta: { paymentId: payment._id, courseId: payment.course },
+      url: frontendLinks.course(payment.course),
+      buttonText: '📖 Kursni boshlash',
     });
   } else if (payment.purpose === 'premium') {
-    const user = await User.findById(payment.user).select('tarif premiumExpiresAt');
+    const user = await User.findById(payment.user).select('tarif premiumExpiresAt role');
     const plan = PREMIUM_PLANS[payment.plan];
     const daysToAdd = plan?.days ?? 30; // amalda payment.plan har doim to'g'ri saqlangan bo'ladi
 
@@ -170,12 +221,32 @@ const grantPaymentOutcome = async (payment) => {
 
     await User.findByIdAndUpdate(payment.user, { tarif: 'premium', premiumExpiresAt: newExpiry });
 
+    // Rolga qarab imkoniyatlar ro'yxati farqlanadi — student diamond/spin/sovg'a
+    // foydasini ko'radi, teacher esa o'quvchilariga ko'proq urinish taklif qila olishini
+    const benefits =
+      user.role === 'teacher'
+        ? [
+            "📝 Testlaringizda o'quvchilarga ko'proq urinish (1 martadan ko'p) taklif qila olasiz",
+            '💎 Testlaringizni yechgan o\'quvchilar 1.5x ko\'proq diamond oladi',
+          ]
+        : [
+            "💎 Testlar va darslarda 1.5x ko'proq diamond",
+            '🎰 Kunlik barabonni kuniga 3 martagacha aylantirish',
+            "🎁 Faqat Premium uchun mo'ljallangan maxsus sovg'alar",
+          ];
+
     await notificationService.createNotification({
       userId: payment.user,
       type: 'payment',
-      title: '⭐ Premium faollashtirildi!',
-      message: `💳 To'langan summa: ${formatSom(payment.amount)} so'm\n⭐ Tarifingiz endi: Premium\n📅 Amal qilish muddati: ${formatSomDate(newExpiry)} gacha`,
+      title: "🎉 Tabriklaymiz! Siz endi Premium egasisiz!",
+      message:
+        `💳 To'langan summa: ${formatSom(payment.amount)} so'm\n` +
+        `📅 Amal qilish muddati: ${formatSomDate(newExpiry)} gacha\n\n` +
+        `⭐ Sizga ochilgan imkoniyatlar:\n${benefits.join('\n')}\n\n` +
+        `Siz endi platformamizdagi eng imtiyozli foydalanuvchilardan birisiz — buning uchun faxrlanishga haqlisiz! 🏆`,
       meta: { paymentId: payment._id, premiumExpiresAt: newExpiry },
+      url: frontendLinks.premium(),
+      buttonText: '⭐ Premium sahifasi',
     });
   } else if (payment.purpose === 'donation') {
     // Xayriya — foydalanuvchiga hech narsa berilmaydi, faqat rahmat xabari yuboriladi
@@ -195,6 +266,8 @@ const grantPaymentOutcome = async (payment) => {
       title: "💰 Hisobingiz to'ldirildi",
       message: `💳 To'ldirilgan summa: ${formatSom(payment.amount)} so'm\n✅ Balansingizga muvaffaqiyatli qo'shildi`,
       meta: { paymentId: payment._id, amount: payment.amount },
+      url: frontendLinks.wallet(),
+      buttonText: '💰 Hamyonni ko\'rish',
     });
   }
 

@@ -48,6 +48,19 @@ const createPaymentValidation = [
     .optional({ checkFalsy: true })
     .isURL({ require_tld: false })
     .withMessage("returnUrl formati noto'g'ri"),
+
+  body('useBalance')
+    .optional()
+    .isBoolean()
+    .withMessage("useBalance true yoki false bo'lishi kerak")
+    .bail()
+    .if(body('purpose').equals('wallet'))
+    .custom((value) => {
+      if (value) {
+        throw new Error("Hamyonni hamyonning o'zidan to'ldirib bo'lmaydi");
+      }
+      return true;
+    }),
 ];
 
 module.exports = { createPaymentValidation };

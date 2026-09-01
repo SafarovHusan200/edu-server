@@ -10,6 +10,7 @@ const certificateService = require('../certificates/certificate.service');
 const ApiError = require('../../utils/ApiError');
 const { LESSON_COMPLETE_REWARD } = require('../../config/gamification');
 const { applyDiamondMultiplier } = require('../../utils/diamonds');
+const { frontendLinks } = require('../../config/frontendLinks');
 
 const findCourseOrThrow = async (courseId) => {
   const course = await Course.findById(courseId);
@@ -141,6 +142,8 @@ const completeLesson = async (lessonId, studentId) => {
     title: '💎 Diamond qo\'lga kiritdingiz!',
     message: `📖 Kurs: "${course.title}"\n✅ Dars: "${lesson.title}"\n💎 Mukofot: ${diamondAmount} diamond`,
     meta: { lessonId: lesson._id, courseId: course._id, diamonds: diamondAmount },
+    url: frontendLinks.course(course._id),
+    buttonText: '📖 Davom etish',
   });
 
   if (justCompletedCourse) {

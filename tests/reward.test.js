@@ -42,7 +42,7 @@ describe('Rewards (sovg\'alar)', () => {
     expect(updatedStudent.diamonds).toBe(5);
   });
 
-  test('admin "rejected" qilsa diamant va stock qaytariladi', async () => {
+  test('admin reject qilsa diamant va stock qaytariladi', async () => {
     const { user: student, token: studentToken } = await createUser({ role: 'student' });
     const { token: adminToken } = await createUser({ role: 'admin' });
     await User.findByIdAndUpdate(student._id, { diamonds: 50 });
@@ -55,9 +55,9 @@ describe('Rewards (sovg\'alar)', () => {
     const redemptionId = redeemRes.body.data.redemption._id;
 
     const rejectRes = await request(app)
-      .patch(`/api/v1/rewards/redemptions/${redemptionId}`)
+      .patch(`/api/v1/rewards/redemptions/${redemptionId}/reject`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ status: 'rejected', adminNote: 'Sovg\'a tugagan' });
+      .send({ reason: 'Sovg\'a tugagan' });
 
     expect(rejectRes.status).toBe(200);
 
@@ -67,16 +67,15 @@ describe('Rewards (sovg\'alar)', () => {
     const rewardAfterReject = await Reward.findById(reward._id);
     expect(rewardAfterReject.stock).toBe(3); // qaytarildi
 
-    // pending bo'lmagan so'rovni qayta o'zgartirib bo'lmaydi
+    // allaqachon yakunlangan (rejected) so'rovni qayta o'zgartirib bo'lmaydi
     const secondUpdateRes = await request(app)
-      .patch(`/api/v1/rewards/redemptions/${redemptionId}`)
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ status: 'delivered' });
+      .patch(`/api/v1/rewards/redemptions/${redemptionId}/approve`)
+      .set('Authorization', `Bearer ${adminToken}`);
 
     expect(secondUpdateRes.status).toBe(400);
   });
 
-  test('admin "delivered" qilsa diamant qaytarilmaydi', async () => {
+  test('admin approve, so\'ng deliver qilsa diamant qaytarilmaydi', async () => {
     const { user: student, token: studentToken } = await createUser({ role: 'student' });
     const { token: adminToken } = await createUser({ role: 'admin' });
     await User.findByIdAndUpdate(student._id, { diamonds: 50 });
@@ -88,10 +87,22 @@ describe('Rewards (sovg\'alar)', () => {
       .set('Authorization', `Bearer ${studentToken}`);
     const redemptionId = redeemRes.body.data.redemption._id;
 
-    await request(app)
-      .patch(`/api/v1/rewards/redemptions/${redemptionId}`)
+    // deliver — avval approve qilinmasdan turib ishlamasligi kerak
+    const prematureDeliverRes = await request(app)
+      .patch(`/api/v1/rewards/redemptions/${redemptionId}/deliver`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(prematureDeliverRes.status).toBe(400);
+
+    const approveRes = await request(app)
+      .patch(`/api/v1/rewards/redemptions/${redemptionId}/approve`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(approveRes.status).toBe(200);
+
+    const deliverRes = await request(app)
+      .patch(`/api/v1/rewards/redemptions/${redemptionId}/deliver`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ status: 'delivered' });
+      .send({ note: 'Qo\'lda topshirildi' });
+    expect(deliverRes.status).toBe(200);
 
     const studentAfterDeliver = await User.findById(student._id);
     expect(studentAfterDeliver.diamonds).toBe(30); // qaytarilmadi

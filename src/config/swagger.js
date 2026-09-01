@@ -366,6 +366,7 @@ const definition = {
           _id: idProp,
           user: idProp,
           invoiceId: { type: 'string' },
+          method: { type: 'string', enum: ['multicard', 'balance'], description: "To'lov qanday amalga oshirilgani" },
           amount: { type: 'integer', description: 'Tiyinda' },
           purpose: { type: 'string', enum: ['wallet', 'course', 'premium', 'donation'] },
           plan: { type: 'string', enum: ['30d', '90d', '180d', '365d'], nullable: true, description: "purpose='premium' bo'lganda tanlangan reja" },

@@ -10,6 +10,7 @@ const {
   PREMIUM_SPINS_PER_DAY,
   SPIN_PRIZE_TABLE,
 } = require('../../config/gamification');
+const { frontendLinks } = require('../../config/frontendLinks');
 
 const getMaxSpins = (tarif) => (tarif === 'premium' ? PREMIUM_SPINS_PER_DAY : STANDARD_SPINS_PER_DAY);
 
@@ -86,6 +87,8 @@ const spin = async (userId) => {
     title: "🎰 Kunlik barabon!",
     message: `🎡 Barabanni aylantirdingiz\n💎 Yutuq: ${prize} diamond\n🔥 Ketma-ket kunlar: ${user.streakCount}`,
     meta: { diamondsWon: prize, streakCount: user.streakCount },
+    url: frontendLinks.dailySpin(),
+    buttonText: '🎰 Yana aylantirish',
   });
 
   return {

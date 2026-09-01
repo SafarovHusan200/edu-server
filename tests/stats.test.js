@@ -40,6 +40,8 @@ describe('Stats', () => {
       targetId: course._id,
       createdBy: teacher._id,
       passingScore: 50,
+      timeLimit: 30,
+      targetGrades: [{ number: 5, letter: null }],
     });
 
     await QuizAttempt.create({

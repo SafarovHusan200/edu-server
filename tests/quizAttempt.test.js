@@ -11,6 +11,12 @@ const setupQuiz = async (teacherId, overrides = {}) => {
     createdBy: teacherId,
     passingScore: 50,
     maxAttempts: 1,
+    timeLimit: 30,
+    isActive: true,
+    // createUser({role:'student'}) helperning standart grade'i {number:5, letter:'A'} —
+    // shu sinf uchun mo'ljallanmasa startAttempt 403 qaytaradi (letter:null — 5-sinfning
+    // barcha parallellari, ya'ni 'A' ham shu ichiga kiradi)
+    targetGrades: [{ number: 5, letter: null }],
     ...overrides,
   });
 

@@ -38,7 +38,7 @@ describe('Promo codes', () => {
     expect(studentRes.status).toBe(403);
   });
 
-  test('promokod kurs sotib olishda summani to\'g\'ri chegirmalaydi', async () => {
+  test('promokod faqat premium sotib olishda ishlaydi — course bilan yuborilsa rad etiladi', async () => {
     const { user: teacher } = await createUser({ role: 'teacher' });
     const { token: studentToken } = await createUser({ role: 'student' });
     const category = await createCategory();
@@ -55,25 +55,22 @@ describe('Promo codes', () => {
       .set('Authorization', `Bearer ${studentToken}`)
       .send({ purpose: 'course', courseId: course._id.toString(), promoCode: 'yozgi30' });
 
-    expect(res.status).toBe(201);
-    expect(multicardService.createInvoice).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 70000 })
-    );
+    expect(res.status).toBe(422);
   });
 
-  test('promokod premium sotib olishda ham ishlaydi, muvaffaqiyatli to\'lovdan keyin tarif premium bo\'ladi', async () => {
+  test('promokod premium sotib olishda summani to\'g\'ri chegirmalaydi, muvaffaqiyatli to\'lovdan keyin tarif premium bo\'ladi', async () => {
     const { user: student, token: studentToken } = await createUser({ role: 'student' });
     await PromoCode.create({ code: 'PREM20', discountPercent: 20 });
 
     const createRes = await request(app)
       .post('/api/v1/payment/create')
       .set('Authorization', `Bearer ${studentToken}`)
-      .send({ purpose: 'premium', promoCode: 'PREM20' });
+      .send({ purpose: 'premium', plan: '30d', promoCode: 'PREM20' });
 
     expect(createRes.status).toBe(201);
     const { invoiceId } = createRes.body.data;
 
-    // PREMIUM_PRICE fallback 5000000, 20% chegirma -> 4000000
+    // PREMIUM_PRICE_30D testda 5 000 000 (jest.env.js), 20% chegirma -> 4 000 000
     expect(multicardService.createInvoice).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 4000000 })
     );
@@ -94,22 +91,23 @@ describe('Promo codes', () => {
     expect(promo.usedCount).toBe(1);
   });
 
-  test('allaqachon premium bo\'lgan foydalanuvchi qayta premium sotib ololmaydi', async () => {
-    const { token: studentToken } = await createUser({ role: 'student', tarif: 'premium' });
+  test('allaqachon premium bo\'lgan foydalanuvchi qayta premium sotib olishi mumkin (muddat uzaytiriladi)', async () => {
+    const { token: studentToken } = await createUser({
+      role: 'student',
+      tarif: 'premium',
+      premiumExpiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+    });
 
     const res = await request(app)
       .post('/api/v1/payment/create')
       .set('Authorization', `Bearer ${studentToken}`)
-      .send({ purpose: 'premium' });
+      .send({ purpose: 'premium', plan: '30d' });
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
   });
 
   test('muddati o\'tgan promokod rad etiladi', async () => {
-    const { user: teacher } = await createUser({ role: 'teacher' });
     const { token: studentToken } = await createUser({ role: 'student' });
-    const category = await createCategory();
-    const course = await createCourse({ teacherId: teacher._id, categoryId: category._id, price: 100000 });
 
     await PromoCode.create({
       code: 'ESKI10',
@@ -120,24 +118,21 @@ describe('Promo codes', () => {
     const res = await request(app)
       .post('/api/v1/payment/create')
       .set('Authorization', `Bearer ${studentToken}`)
-      .send({ purpose: 'course', courseId: course._id.toString(), promoCode: 'ESKI10' });
+      .send({ purpose: 'premium', plan: '30d', promoCode: 'ESKI10' });
 
     expect(res.status).toBe(400);
   });
 
   test('maxUses tugagan promokod rad etiladi, muvaffaqiyatsiz to\'lov usedCount ni oshirmaydi', async () => {
-    const { user: teacher } = await createUser({ role: 'teacher' });
     const { token: student1Token } = await createUser({ role: 'student' });
     const { token: student2Token } = await createUser({ role: 'student' });
-    const category = await createCategory();
-    const course = await createCourse({ teacherId: teacher._id, categoryId: category._id, price: 100000 });
 
     await PromoCode.create({ code: 'BIRMARTA', discountPercent: 15, maxUses: 1 });
 
     const firstRes = await request(app)
       .post('/api/v1/payment/create')
       .set('Authorization', `Bearer ${student1Token}`)
-      .send({ purpose: 'course', courseId: course._id.toString(), promoCode: 'BIRMARTA' });
+      .send({ purpose: 'premium', plan: '30d', promoCode: 'BIRMARTA' });
     expect(firstRes.status).toBe(201);
 
     // to'lov hali draft holatida — callback kelmagan, shuning uchun usedCount hali 0
@@ -145,11 +140,12 @@ describe('Promo codes', () => {
     expect(promo.usedCount).toBe(0);
 
     const { invoiceId } = firstRes.body.data;
-    const sign = buildSign(invoiceId, 85000);
+    const amount = 4250000; // 5 000 000 * 0.85 (15% chegirma)
+    const sign = buildSign(invoiceId, amount);
     await request(app).post('/api/v1/payment/callback').send({
       invoice_id: invoiceId,
       uuid: 'mock-uuid',
-      amount: 85000,
+      amount,
       status: 'success',
       sign,
     });
@@ -157,30 +153,23 @@ describe('Promo codes', () => {
     promo = await PromoCode.findOne({ code: 'BIRMARTA' });
     expect(promo.usedCount).toBe(1);
 
-    const category2 = await createCategory();
-    const course2 = await createCourse({ teacherId: teacher._id, categoryId: category2._id, price: 100000 });
-
     const secondRes = await request(app)
       .post('/api/v1/payment/create')
       .set('Authorization', `Bearer ${student2Token}`)
-      .send({ purpose: 'course', courseId: course2._id.toString(), promoCode: 'BIRMARTA' });
+      .send({ purpose: 'premium', plan: '30d', promoCode: 'BIRMARTA' });
 
     expect(secondRes.status).toBe(400);
   });
 
   test('GET /promo-codes/preview to\'g\'ri chegirmalangan summani qaytaradi', async () => {
-    const { user: teacher } = await createUser({ role: 'teacher' });
-    const category = await createCategory();
-    const course = await createCourse({ teacherId: teacher._id, categoryId: category._id, price: 200000 });
-
     await PromoCode.create({ code: 'ONFIRE25', discountPercent: 25 });
 
     const res = await request(app).get(
-      `/api/v1/promo-codes/preview?code=ONFIRE25&purpose=course&courseId=${course._id}`
+      '/api/v1/promo-codes/preview?code=ONFIRE25&purpose=premium&plan=30d'
     );
 
     expect(res.status).toBe(200);
-    expect(res.body.data.baseAmount).toBe(200000);
-    expect(res.body.data.finalAmount).toBe(150000);
+    expect(res.body.data.baseAmount).toBe(5000000);
+    expect(res.body.data.finalAmount).toBe(3750000);
   });
 });

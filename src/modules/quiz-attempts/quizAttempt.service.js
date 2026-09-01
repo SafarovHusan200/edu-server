@@ -13,6 +13,7 @@ const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { QUIZ_MAX_REWARD } = require('../../config/gamification');
 const { applyDiamondMultiplier } = require('../../utils/diamonds');
+const { frontendLinks } = require('../../config/frontendLinks');
 
 // Xato xabarlarida vaqtni har doim Toshkent vaqti bilan, "10:10 01.01.2026"
 // shaklida ko'rsatish uchun (server qaysi timezone'da ishlashidan qat'i nazar)
@@ -55,6 +56,8 @@ const awardQuizDiamonds = async (attempt, quizTitle, teacherName) => {
     title: '💎 Diamond qo\'lga kiritdingiz!',
     message: `📚 Fan: "${quizTitle}"\n👨‍🏫 O'qituvchi: ${teacherName ?? "—"}\n💎 Mukofot: ${diamondAmount} diamond`,
     meta: { quizId: attempt.quiz._id ?? attempt.quiz, attemptId: attempt._id },
+    url: frontendLinks.quizAttemptResult(attempt._id),
+    buttonText: '📊 Natijani ko\'rish',
   });
 };
 
@@ -219,6 +222,8 @@ const submitAttempt = async (attemptId, studentId, answers) => {
       title: passed ? '🏆 Test yakunlandi — o\'tdingiz!' : '📊 Test yakunlandi',
       message: `📚 Fan: "${quiz.title}"\n👨‍🏫 O'qituvchi: ${teacher?.name ?? "—"}\n✅ Natija: ${correctCount}/${totalQuestions} ta savolga to'g'ri javob berdingiz (${scorePercent}%)\n${passed ? "🎉 Tabriklaymiz, testdan muvaffaqiyatli o'tdingiz!" : "💪 O'tish balidan past natija — qayta urinib ko'ring!"}`,
       meta: { quizId: quiz._id, attemptId: attempt._id },
+      url: frontendLinks.quizAttemptResult(attempt._id),
+      buttonText: '📊 Natijani ko\'rish',
     });
 
     await notificationService.createNotification({
@@ -227,6 +232,8 @@ const submitAttempt = async (attemptId, studentId, answers) => {
       title: '📥 Yangi natija',
       message: `👤 O'quvchi: ${student?.name ?? 'Talaba'}\n📚 Fan: "${quiz.title}"\n✅ Natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n${passed ? "🟢 Holat: o'tdi" : "🔴 Holat: o'ta olmadi"}`,
       meta: { quizId: quiz._id, attemptId: attempt._id, studentId },
+      url: frontendLinks.teacherQuizResults(quiz._id),
+      buttonText: '📋 Natijalarni ko\'rish',
     });
   } else {
     // Ochiq savol bor — o'qituvchi tekshirgandan keyin (reviewOpenEnded) student
@@ -239,6 +246,8 @@ const submitAttempt = async (attemptId, studentId, answers) => {
       title: '📝 Tekshirish kerak',
       message: `👤 O'quvchi: ${student?.name ?? 'Talaba'}\n📚 Fan: "${quiz.title}"\n❓ ${openEndedCount} ta ochiq savolga javob yubordi — tekshirib, baholab bering`,
       meta: { quizId: quiz._id, attemptId: attempt._id, studentId },
+      url: frontendLinks.reviewOpenEnded(attempt._id),
+      buttonText: '📝 Tekshirish',
     });
   }
 
@@ -350,6 +359,8 @@ const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
     title: '✅ Natijangiz baholandi',
     message: `📚 Fan: "${attempt.quiz.title}"\n👨‍🏫 O'qituvchi: ${attempt.quiz.createdBy?.name ?? '—'}\n📊 Yakuniy natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n${attempt.passed ? "🎉 Testdan muvaffaqiyatli o'tdingiz!" : "📌 Afsuski, testdan o'ta olmadingiz"}`,
     meta: { quizId: attempt.quiz._id, attemptId: attempt._id },
+    url: frontendLinks.quizAttemptResult(attempt._id),
+    buttonText: '📊 Natijani ko\'rish',
   });
 
   return attempt;

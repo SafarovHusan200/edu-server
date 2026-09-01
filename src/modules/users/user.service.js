@@ -7,6 +7,7 @@ const TelegramLinkToken = require('../auth/telegramLinkToken.model');
 const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
+const { FRONTEND_URL } = require('../../config/frontendLinks');
 
 const TELEGRAM_LINK_TTL_MS = 15 * 60 * 1000; // 15 daqiqa
 
@@ -94,6 +95,8 @@ const verifyUser = async (id, verifiedById) => {
     type: 'system',
     title: 'Hisobingiz tasdiqlandi',
     message: 'Administrator hisobingizni tasdiqladi. Endi tizimga kirishingiz mumkin',
+    url: `${FRONTEND_URL}/login`,
+    buttonText: '🔑 Tizimga kirish',
   });
 
   return user.populate('verifiedBy', 'name phone role');

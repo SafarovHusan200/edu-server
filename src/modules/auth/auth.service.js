@@ -2,6 +2,7 @@ const User = require('../users/user.model');
 const ApiError = require('../../utils/ApiError');
 const Otp = require('./otp.model');
 const notificationService = require('../notifications/notification.service');
+const { frontendLinks } = require('../../config/frontendLinks');
 
 // ─────────────────────────────────────────
 // TELEGRAM OTP VERIFY (To'g'rilangan variant)
@@ -66,6 +67,8 @@ const register = async ({ name, phone, password, role, grade }) => {
         title: "Yangi foydalanuvchi tasdiqlashni kutmoqda",
         message: `${name} (${phone}, ${role}) ro'yxatdan o'tdi va tasdiqlanishini kutmoqda`,
         meta: { userId: user._id },
+        url: frontendLinks.adminPendingUsers(),
+        buttonText: '👤 Ko\'rib chiqish',
       })
     )
   );

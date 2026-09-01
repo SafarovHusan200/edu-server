@@ -22,6 +22,14 @@ const paymentSchema = new mongoose.Schema(
       default: null,
     },
 
+    // 'multicard' — Multicard checkout orqali karta bilan to'langan
+    // 'balance'   — user.balance (hamyon)dan to'g'ridan-to'g'ri yechilgan, Multicard'ga chiqilmagan
+    method: {
+      type: String,
+      enum: ['multicard', 'balance'],
+      default: 'multicard',
+    },
+
     amount: {
       type: Number,
       required: true,

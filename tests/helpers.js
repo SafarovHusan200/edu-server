@@ -15,6 +15,11 @@ const createUser = async (overrides = {}) => {
     password: 'password123',
     role: 'student',
     grade: { number: 5, letter: 'A' },
+    // authenticate middleware isVerified'ni talab qiladi (admin tasdiqlash oqimi) —
+    // testlarda default holda tasdiqlangan qilib yaratamiz, aks holda hamma
+    // himoyalangan so'rov 403 qaytaradi. Ataylab tasdiqlanmagan user kerak bo'lsa
+    // overrides orqali { isVerified: false } berish mumkin.
+    isVerified: true,
   };
 
   if (overrides.role && overrides.role !== 'student') {

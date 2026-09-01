@@ -6,6 +6,7 @@ const paymentService = require('../payment/payment.service');
 const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
+const { frontendLinks } = require('../../config/frontendLinks');
 
 const ACTIVE_STATUSES = ['active', 'completed'];
 
@@ -58,6 +59,8 @@ const enroll = async (studentId, courseId) => {
     title: '🎓 Kursga muvaffaqiyatli yozildingiz!',
     message: `📚 Kurs: "${course.title}"\n👨‍🏫 O'qituvchi: ${course.teacher?.name ?? '—'}\n✅ O'qishni hoziroq boshlashingiz mumkin!`,
     meta: { courseId: course._id },
+    url: frontendLinks.course(course._id),
+    buttonText: '📖 Kursni boshlash',
   });
 
   return { requiresPayment: false, enrollment };

@@ -17,6 +17,9 @@ describe('Gamification: diamonds', () => {
       createdBy: teacher._id,
       passingScore: 40,
       maxAttempts: 1,
+      timeLimit: 30,
+      isActive: true,
+      targetGrades: [{ number: 5, letter: null }],
     });
 
     const mcq = await Question.create({
@@ -64,16 +67,18 @@ describe('Gamification: diamonds', () => {
     expect(reviewRes.body.data.attempt.passed).toBe(true);
 
     let studentAfterReview = await User.findById(student._id);
-    expect(studentAfterReview.diamonds).toBe(10);
+    // mcq (1/1) + open_ended (0/1) = 1/2 ball = 50% -> QUIZ_MAX_REWARD(10) * 0.5 = 5
+    expect(studentAfterReview.diamonds).toBe(5);
 
-    // ikkinchi marta review qilinsa qayta diamant berilmasligi kerak
+    // ikkinchi marta review qilinsa qayta diamant berilmasligi kerak (ball 100%ga
+    // ko'tarilsa ham, diamond birinchi review'dagi qiymatda qoladi)
     await request(app)
       .patch(`/api/v1/quizzes/attempts/${attemptId}/review`)
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ reviewedAnswers: [{ questionId: open._id.toString(), pointsEarned: 1 }] });
 
     const studentAfterSecondReview = await User.findById(student._id);
-    expect(studentAfterSecondReview.diamonds).toBe(10);
+    expect(studentAfterSecondReview.diamonds).toBe(5);
   });
 
   test('darsni tugatish diamant beradi va ikkinchi marta qayta bermaydi (idempotent)', async () => {

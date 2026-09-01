@@ -13,6 +13,7 @@ const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { UPLOADS_ROOT, toPublicPath } = require('../../middleware/upload');
+const { frontendLinks } = require('../../config/frontendLinks');
 
 const CERTIFICATES_DIR = path.join(UPLOADS_ROOT, 'certificates');
 
@@ -119,6 +120,8 @@ const issueCertificate = async (studentId, courseId) => {
     title: '🎓 Tabriklaymiz, sertifikat tayyor!',
     message: `📚 Kurs: "${course.title}"\n👨‍🏫 O'qituvchi: ${course.teacher?.name ?? '—'}\n📜 Sertifikat raqami: ${certificateNumber}\n✅ Siz ushbu kursni muvaffaqiyatli yakunladingiz!`,
     meta: { courseId: course._id, certificateId: certificate._id },
+    url: frontendLinks.certificatePdf(certificate.pdfPath),
+    buttonText: '📜 Sertifikatni ko\'rish',
   });
 
   return certificate;

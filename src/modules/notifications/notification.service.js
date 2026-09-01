@@ -8,13 +8,23 @@ const { sendTelegramMessage } = require('../../bot/telegramNotifier');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 
-const createNotification = async ({ userId, type, title, message, meta = {} }) => {
-  const notification = await Notification.create({ user: userId, type, title, message, meta });
+// url/buttonText berilsa — Telegram xabari ostiga "ochish" tugmasi qo'shiladi
+// (foydalanuvchi tegishli sahifani sайтда bir bosishda ochadi) va shu havola
+// notification.meta.url'ga ham yoziladi (frontend in-app bildirishnomada ham
+// deep-link sifatida ishlatishi mumkin)
+const createNotification = async ({ userId, type, title, message, meta = {}, url, buttonText }) => {
+  const fullMeta = url ? { ...meta, url } : meta;
+  const notification = await Notification.create({ user: userId, type, title, message, meta: fullMeta });
 
   const user = await User.findById(userId).select('telegramId');
   if (user?.telegramId) {
     // Fire-and-forget — Telegram sekin/ishlamasa ham asosiy oqim kutib turmaydi
-    sendTelegramMessage(user.telegramId, `<b>${title}</b>\n${message}`);
+    const text = `<b>${title}</b>\n${message}`;
+    if (url) {
+      sendTelegramMessage(user.telegramId, text, { url, buttonText });
+    } else {
+      sendTelegramMessage(user.telegramId, text);
+    }
   }
 
   return notification;

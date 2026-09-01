@@ -9,13 +9,13 @@ const ApiError = require('../../utils/ApiError');
 // POST /api/v1/payment/create — Private
 // ─────────────────────────────────────────
 const createPayment = asyncHandler(async (req, res) => {
-  const { amount, returnUrl, ofd, purpose, courseId, promoCode, plan } = req.body;
+  const { amount, returnUrl, ofd, purpose, courseId, promoCode, plan, useBalance } = req.body;
 
   if (!['course', 'premium'].includes(purpose) && !amount) {
     throw new ApiError(400, "To'lov summasi (amount) kiritilishi shart");
   }
 
-  const { payment, checkoutUrl } = await paymentService.createPayment({
+  const { payment, checkoutUrl, paidWithBalance } = await paymentService.createPayment({
     userId: req.user.id,
     purpose,
     courseId,
@@ -24,12 +24,15 @@ const createPayment = asyncHandler(async (req, res) => {
     returnUrl,
     ofd,
     plan,
+    useBalance,
   });
 
   res.status(201).json(
-    new ApiResponse(201, "To'lov yaratildi", {
+    new ApiResponse(201, paidWithBalance ? "To'lov balansdan amalga oshirildi" : "To'lov yaratildi", {
       invoiceId: payment.invoiceId,
       checkoutUrl,
+      paidWithBalance,
+      status: payment.status,
     })
   );
 });
