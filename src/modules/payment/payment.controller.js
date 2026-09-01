@@ -39,7 +39,16 @@ const createPayment = asyncHandler(async (req, res) => {
 // Multicard doim HTTP 200 kutadi, aks holda to'lovni bekor qilib qo'yishi mumkin
 // ─────────────────────────────────────────
 const handleCallback = asyncHandler(async (req, res) => {
-  const { uuid, amount, invoice_id: invoiceId, status, card_pan: cardPan, payment_time: paymentTime, receipt_url: receiptUrl, sign } = req.body;
+  // invoice_id/amount/sign — imzo shu maydonlardan hisoblanadi, hujjatga ko'ra doim
+  // yuqori darajada keladi. status/card_pan/payment_time/receipt_url esa — GET
+  // /payment/invoice/:uuid javobida invoice.payment.* ichida kelishi tasdiqlangan
+  // (production loglaridan) — callback ham xuddi shunday tuzilishda bo'lishi
+  // mumkinligi uchun ikkalasi ham (yuqori daraja va payment.* ichida) tekshiriladi.
+  const { uuid, amount, invoice_id: invoiceId, sign, payment: paymentInfo } = req.body;
+  const status = req.body.status ?? paymentInfo?.status;
+  const cardPan = req.body.card_pan ?? paymentInfo?.card_pan;
+  const paymentTime = req.body.payment_time ?? paymentInfo?.payment_time;
+  const receiptUrl = req.body.receipt_url ?? paymentInfo?.receipt_url;
 
   // Vaqtinchalik diagnostika: Multicard'dan aynan qanday maydonlar kelayotganini
   // ko'rish uchun (payment.gatewayDebug'ga saqlanadi — Payment modeliga izohga qarang)

@@ -312,22 +312,24 @@ const getStatusByInvoiceId = async (invoiceId, userId, role) => {
   if (payment.status !== 'success' && payment.multicardUuid) {
     try {
       const invoice = await multicardService.getInvoiceStatus(payment.multicardUuid);
-      console.log('📥 Multicard getInvoiceStatus javobi:', JSON.stringify(invoice));
 
-      // DIQQAT — vaqtinchalik: Multicard javobida status aynan qaysi maydonda
-      // kelishi hali aniq tasdiqlanmagani uchun bir nechta ehtimoliy nomdan qidiramiz.
-      // gatewayDebug'ga xom javob HAR DOIM saqlanadi — status topilmasa ham,
-      // shu orqali Multicard'ning haqiqiy javob shaklini API orqali ko'rish mumkin.
-      const resolvedStatus = invoice?.status ?? invoice?.state ?? invoice?.payment_status ?? invoice?.invoice_status;
+      // TASDIQLANGAN (production loglaridan): GET /payment/invoice/:uuid javobida
+      // haqiqiy to'lov holati eng yuqori darajada emas, balki invoice.payment.status
+      // ichida keladi (invoice.payment — hali urinish bo'lmagan bo'lsa null bo'lishi
+      // mumkin). invoice.status/state/payment_status — pastdagilar shunchaki ehtiyot
+      // uchun qoldirilgan, real javobda kelmaydi.
+      const paymentInfo = invoice?.payment;
+      const resolvedStatus =
+        paymentInfo?.status ?? invoice?.status ?? invoice?.state ?? invoice?.payment_status;
       const gatewayDebug = { source: 'reconciliation', invoice, receivedAt: new Date() };
 
       if (resolvedStatus && resolvedStatus !== payment.status) {
         return await applyStatusUpdate(payment, {
           uuid: payment.multicardUuid,
           status: resolvedStatus,
-          receiptUrl: invoice.receipt_url ?? invoice.receiptUrl,
-          cardPan: invoice.card_pan ?? invoice.cardPan,
-          paymentTime: invoice.payment_time ?? invoice.paymentTime,
+          receiptUrl: paymentInfo?.receipt_url ?? invoice?.receipt_url,
+          cardPan: paymentInfo?.card_pan ?? invoice?.card_pan,
+          paymentTime: paymentInfo?.payment_time ?? invoice?.payment_time,
           gatewayDebug,
         });
       }
