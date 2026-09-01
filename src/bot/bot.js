@@ -2,6 +2,9 @@ const TelegramBot = require('node-telegram-bot-api');
 const Otp = require('../modules/auth/otp.model');
 const TelegramLinkToken = require('../modules/auth/telegramLinkToken.model');
 const User = require('../modules/users/user.model');
+const Quiz = require('../modules/quizzes/quiz.model');
+const QuizAttempt = require('../modules/quiz-attempts/quizAttempt.model');
+const quizAttemptService = require('../modules/quiz-attempts/quizAttempt.service');
 
 // Test muhitida polling boshlanmaydi — aks holda testlar haqiqiy Telegram
 // serveriga ulanib, jarayon ochiq qolib ketishiga (hanging) sabab bo'lardi.
@@ -223,6 +226,39 @@ bot.on('callback_query', async (query) => {
     return;
   }
 
+  // Ochiq savolni botda tekshirishni boshlash — registratsiya state'idan mustaqil
+  // (bildirishnoma tugmasidan yoki /tekshir ro'yxatidan kelishi mumkin, ikkalasida
+  // ham oldindan userState mavjud bo'lishi shart emas)
+  if (data.startsWith('startreview_')) {
+    const attemptId = data.slice('startreview_'.length);
+    bot.answerCallbackQuery(query.id);
+    return startReviewFlow(telegramId, attemptId);
+  }
+
+  // Ochiq savolga ball qo'yish — faqat startReviewFlow orqali boshlangan sessiyada ishlaydi
+  if (data.startsWith('setpoints_')) {
+    const flow = userState[telegramId]?.reviewFlow;
+
+    if (!flow) {
+      return bot.answerCallbackQuery(query.id, {
+        text: "Bu tekshirish sessiyasi tugagan. /tekshir bilan qayta boshlang.",
+      });
+    }
+
+    const points = Number(data.slice('setpoints_'.length));
+    const question = flow.questions[flow.currentIndex];
+
+    flow.reviewedAnswers.push({
+      questionId: question.questionId,
+      pointsEarned: points,
+      isCorrect: points >= question.maxPoints,
+    });
+    flow.currentIndex += 1;
+
+    bot.answerCallbackQuery(query.id, { text: `${points} ball qo'yildi ✅` });
+    return advanceReviewFlow(telegramId);
+  }
+
   // Agar foydalanuvchi state-da bo'lmasa, qayta /start qilishini so'raymiz
   if (!userState[telegramId]) {
     bot.answerCallbackQuery(query.id, { text: 'Sessiya muddati tugadi. Iltimos, /start bosing.' });
@@ -373,6 +409,172 @@ bot.onText(/\/login/, async (msg) => {
       reply_markup: buildOtpKeyboard(code),
     });
   } catch (error) {
+    bot.sendMessage(telegramId, "Xatolik yuz berdi. Qayta urinib ko'ring.");
+  }
+});
+
+// --- 6. OCHIQ SAVOLLARNI BOTDA TEKSHIRISH ---
+// Ba'zi o'qituvchilar uchun saytga kirishdan ko'ra botda javob berish qulayroq —
+// shuning uchun /tekshir buyrug'i (yoki "🤖 Botda tekshirish" tugmasi) orqali
+// ochiq savolli urinishlarni to'g'ridan-to'g'ri shu yerda baholash mumkin.
+
+// Bitta savol uchun ball tanlash tugmalari — max 10 ball bo'lsa har biri alohida
+// tugma, undan ko'p bo'lsa 0/25%/50%/75%/100% oralig'ida taklif qilinadi
+function pointsKeyboard(maxPoints) {
+  const values =
+    maxPoints <= 10
+      ? Array.from({ length: maxPoints + 1 }, (_, i) => i)
+      : [0, Math.round(maxPoints * 0.25), Math.round(maxPoints * 0.5), Math.round(maxPoints * 0.75), maxPoints];
+
+  const row = [...new Set(values)].map((v) => ({ text: `${v}`, callback_data: `setpoints_${v}` }));
+  return [row];
+}
+
+async function sendCurrentReviewQuestion(telegramId) {
+  const flow = userState[telegramId]?.reviewFlow;
+  if (!flow) return;
+
+  const q = flow.questions[flow.currentIndex];
+  const text =
+    `📚 <b>${flow.quizTitle}</b> — ${flow.studentName}\n` +
+    `❓ Savol ${flow.currentIndex + 1}/${flow.questions.length}:\n${q.text}\n\n` +
+    `✍️ Javobi: <i>${q.givenAnswer || "(bo'sh qoldirilgan)"}</i>\n\n` +
+    `Necha ball qo'yasiz? (maksimal: ${q.maxPoints})`;
+
+  bot.sendMessage(telegramId, text, {
+    parse_mode: 'HTML',
+    reply_markup: { inline_keyboard: pointsKeyboard(q.maxPoints) },
+  });
+}
+
+// Joriy savol baholangach — keyingisiga o'tadi yoki, agar oxirgisi bo'lsa,
+// reviewOpenEnded orqali yakuniy natijani saqlaydi (diamond/bildirishnoma
+// mavjud servis logikasi orqali avtomatik ishlaydi — bu yerda takrorlanmaydi)
+async function advanceReviewFlow(telegramId) {
+  const flow = userState[telegramId]?.reviewFlow;
+  if (!flow) return;
+
+  if (flow.currentIndex < flow.questions.length) {
+    return sendCurrentReviewQuestion(telegramId);
+  }
+
+  try {
+    const teacher = await User.findOne({ telegramId });
+    const attempt = await quizAttemptService.reviewOpenEnded(
+      flow.attemptId,
+      teacher._id,
+      flow.reviewedAnswers
+    );
+
+    await bot.sendMessage(
+      telegramId,
+      `✅ Baholash yakunlandi!\n📊 Yakuniy natija: ${attempt.scorePercent}%\n` +
+        `${attempt.passed ? "🟢 O'quvchi o'tdi" : "🔴 O'quvchi o'ta olmadi"}\n\n` +
+        `O'quvchiga natija haqida bildirishnoma yuborildi. Boshqa tekshirilishi kerak bo'lgan ` +
+        `ishlarni ko'rish uchun: /tekshir`
+    );
+  } catch (error) {
+    console.error('Botda review yakunlash xatosi:', error.message);
+    bot.sendMessage(
+      telegramId,
+      "Baholashni saqlashda xatolik yuz berdi. Iltimos, saytda qayta urinib ko'ring."
+    );
+  } finally {
+    delete userState[telegramId];
+  }
+}
+
+// Bildirishnoma tugmasidan yoki /tekshir ro'yxatidan bitta urinishni tanlaganda chaqiriladi
+async function startReviewFlow(telegramId, attemptId) {
+  try {
+    const teacher = await User.findOne({ telegramId });
+    if (!teacher || teacher.role !== 'teacher') {
+      return bot.sendMessage(telegramId, "Bu imkoniyat faqat o'qituvchilar uchun.");
+    }
+
+    const attempt = await QuizAttempt.findById(attemptId)
+      .populate('student', 'name')
+      .populate('answers.question', 'text type points')
+      .populate('quiz', 'title createdBy');
+
+    if (!attempt) {
+      return bot.sendMessage(telegramId, "Bu urinish topilmadi.");
+    }
+    if (attempt.quiz.createdBy.toString() !== teacher._id.toString()) {
+      return bot.sendMessage(telegramId, "Siz bu urinishni tekshira olmaysiz.");
+    }
+    if (attempt.status !== 'submitted') {
+      return bot.sendMessage(telegramId, "Bu urinish allaqachon baholab bo'lingan.");
+    }
+
+    const openEnded = attempt.answers.filter((a) => a.question?.type === 'open_ended');
+    if (openEnded.length === 0) {
+      return bot.sendMessage(telegramId, "Bu urinishda ochiq (qo'lda baholanadigan) savol yo'q.");
+    }
+
+    userState[telegramId] = {
+      reviewFlow: {
+        attemptId: attempt._id.toString(),
+        studentName: attempt.student?.name ?? 'Talaba',
+        quizTitle: attempt.quiz.title,
+        questions: openEnded.map((a) => ({
+          questionId: a.question._id.toString(),
+          text: a.question.text,
+          givenAnswer: a.givenAnswer,
+          maxPoints: a.question.points,
+        })),
+        currentIndex: 0,
+        reviewedAnswers: [],
+      },
+    };
+
+    await sendCurrentReviewQuestion(telegramId);
+  } catch (error) {
+    console.error('startReviewFlow xatosi:', error.message);
+    bot.sendMessage(telegramId, "Xatolik yuz berdi. Qayta urinib ko'ring.").catch(() => {});
+  }
+}
+
+// /tekshir — o'qituvchining hali tekshirilmagan (ochiq savolli, status='submitted')
+// barcha urinishlarini ro'yxat qilib, har biri uchun boshlash tugmasini beradi
+bot.onText(/\/tekshir/, async (msg) => {
+  const telegramId = msg.from.id;
+
+  try {
+    const teacher = await User.findOne({ telegramId });
+    if (!teacher || teacher.role !== 'teacher') {
+      return bot.sendMessage(telegramId, "Bu buyruq faqat o'qituvchilar uchun.");
+    }
+
+    const quizzes = await Quiz.find({ createdBy: teacher._id }).select('_id title');
+    const quizTitleById = Object.fromEntries(quizzes.map((q) => [q._id.toString(), q.title]));
+
+    const attempts = await QuizAttempt.find({
+      quiz: { $in: quizzes.map((q) => q._id) },
+      status: 'submitted',
+    })
+      .populate('student', 'name')
+      .sort({ submittedAt: 1 })
+      .limit(10);
+
+    if (attempts.length === 0) {
+      return bot.sendMessage(telegramId, "Hozircha tekshirilishi kerak bo'lgan ochiq savol yo'q. 🎉");
+    }
+
+    const buttons = attempts.map((a) => [
+      {
+        text: `📚 ${quizTitleById[a.quiz.toString()] ?? 'Test'} — ${a.student?.name ?? 'Talaba'}`,
+        callback_data: `startreview_${a._id}`,
+      },
+    ]);
+
+    bot.sendMessage(
+      telegramId,
+      `📝 Tekshirilishi kerak bo'lgan ${attempts.length} ta urinish bor. Birini tanlang:`,
+      { reply_markup: { inline_keyboard: buttons } }
+    );
+  } catch (error) {
+    console.error('/tekshir xatosi:', error.message);
     bot.sendMessage(telegramId, "Xatolik yuz berdi. Qayta urinib ko'ring.");
   }
 });

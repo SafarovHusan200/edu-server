@@ -247,7 +247,11 @@ const submitAttempt = async (attemptId, studentId, answers) => {
       message: `👤 O'quvchi: ${student?.name ?? 'Talaba'}\n📚 Fan: "${quiz.title}"\n❓ ${openEndedCount} ta ochiq savolga javob yubordi — tekshirib, baholab bering`,
       meta: { quizId: quiz._id, attemptId: attempt._id, studentId },
       url: frontendLinks.reviewOpenEnded(attempt._id),
-      buttonText: '📝 Tekshirish',
+      buttonText: '🌐 Saytda tekshirish',
+      // Ba'zi o'qituvchilar uchun botning o'zida tekshirish qulayroq — bot.js'dagi
+      // callback_query handler shu tugmani bosilganda /tekshir oqimini boshlaydi
+      callbackData: `startreview_${attempt._id}`,
+      callbackButtonText: '🤖 Botda tekshirish',
     });
   }
 

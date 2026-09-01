@@ -3,8 +3,10 @@
 // bot.js shu yerda LAZY require qilinadi — testlarda yoki token yo'q holatda
 // haqiqiy Telegram API'ga umuman chiqilmasligi uchun.
 
-// options.url berilsa — xabar ostiga "ochish" tugmasi (inline keyboard) qo'shiladi,
-// shunda foydalanuvchi tegishli sahifani bir bosishda ocha oladi
+// options.url berilsa — xabar ostiga "ochish" (URL) tugmasi qo'shiladi.
+// options.callbackData berilsa — botning o'zida amal boshlaydigan tugma qo'shiladi
+// (masalan "Botda tekshirish" — bot.js'dagi callback_query handler shu data'ni ushlaydi).
+// Ikkalasi ham berilsa, ikkala tugma ham chiqadi.
 const sendTelegramMessage = async (telegramId, text, options) => {
   if (!telegramId) return;
 
@@ -16,10 +18,17 @@ const sendTelegramMessage = async (telegramId, text, options) => {
     const bot = require('./bot');
     const sendOptions = { parse_mode: 'HTML' };
 
+    const buttons = [];
     if (options?.url) {
-      sendOptions.reply_markup = {
-        inline_keyboard: [[{ text: options.buttonText || '🔗 Ochish', url: options.url }]],
-      };
+      buttons.push([{ text: options.buttonText || '🔗 Ochish', url: options.url }]);
+    }
+    if (options?.callbackData) {
+      buttons.push([
+        { text: options.callbackButtonText || '🤖 Bu yerda bajarish', callback_data: options.callbackData },
+      ]);
+    }
+    if (buttons.length) {
+      sendOptions.reply_markup = { inline_keyboard: buttons };
     }
 
     await bot.sendMessage(telegramId, text, sendOptions);

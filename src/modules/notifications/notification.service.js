@@ -8,11 +8,22 @@ const { sendTelegramMessage } = require('../../bot/telegramNotifier');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 
-// url/buttonText berilsa — Telegram xabari ostiga "ochish" tugmasi qo'shiladi
-// (foydalanuvchi tegishli sahifani sайтда bir bosishda ochadi) va shu havola
-// notification.meta.url'ga ham yoziladi (frontend in-app bildirishnomada ham
-// deep-link sifatida ishlatishi mumkin)
-const createNotification = async ({ userId, type, title, message, meta = {}, url, buttonText }) => {
+// url/buttonText berilsa — Telegram xabari ostiga "ochish" (sayt) tugmasi qo'shiladi,
+// va shu havola notification.meta.url'ga ham yoziladi (frontend in-app bildirishnomada
+// deep-link sifatida ishlatishi mumkin). callbackData/callbackButtonText berilsa —
+// botning o'zida amal boshlaydigan qo'shimcha tugma qo'shiladi (masalan "Botda
+// tekshirish" — bot.js'dagi callback_query handler shu data'ni ushlab oladi).
+const createNotification = async ({
+  userId,
+  type,
+  title,
+  message,
+  meta = {},
+  url,
+  buttonText,
+  callbackData,
+  callbackButtonText,
+}) => {
   const fullMeta = url ? { ...meta, url } : meta;
   const notification = await Notification.create({ user: userId, type, title, message, meta: fullMeta });
 
@@ -20,8 +31,8 @@ const createNotification = async ({ userId, type, title, message, meta = {}, url
   if (user?.telegramId) {
     // Fire-and-forget — Telegram sekin/ishlamasa ham asosiy oqim kutib turmaydi
     const text = `<b>${title}</b>\n${message}`;
-    if (url) {
-      sendTelegramMessage(user.telegramId, text, { url, buttonText });
+    if (url || callbackData) {
+      sendTelegramMessage(user.telegramId, text, { url, buttonText, callbackData, callbackButtonText });
     } else {
       sendTelegramMessage(user.telegramId, text);
     }
