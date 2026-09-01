@@ -11,17 +11,21 @@ const promocodeService = require('../promocodes/promocode.service');
 const notificationService = require('../notifications/notification.service');
 const multicardService = require('./multicard.service');
 const ApiError = require('../../utils/ApiError');
-const { PREMIUM_PRICE } = require('../../config/pricing');
+const { PREMIUM_PLANS } = require('../../config/pricing');
 
 const MIN_WALLET_TOPUP = 1000; // tiyin
 
 // Bildirishnomalarda summani tiyindan so'mga, minglik ajratgich bilan ko'rsatish uchun
 const formatSom = (tiyin) => Math.round(tiyin / 100).toLocaleString('uz-UZ');
 
+// Bildirishnomalarda muddatni "27.08.2026" ko'rinishida, Toshkent vaqti bo'yicha ko'rsatish uchun
+const formatSomDate = (date) =>
+  date.toLocaleDateString('uz-UZ', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', year: 'numeric' });
+
 // ─────────────────────────────────────────
 // TO'LOV YARATISH
 // ─────────────────────────────────────────
-const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, promoCode, returnUrl, ofd }) => {
+const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, promoCode, returnUrl, ofd, plan }) => {
   let finalAmount = amount;
   let course = null;
 
@@ -41,12 +45,18 @@ const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, pro
     // to'lov summasini o'zgartirib yuborishi mumkin edi.
     finalAmount = course.price;
   } else if (purpose === 'premium') {
-    const user = await User.findById(userId);
-    if (user.tarif === 'premium') {
-      throw new ApiError(400, 'Siz allaqachon premium foydalanuvchisiz');
+    // Diqqat: allaqachon premium bo'lgan userga ham to'lov ruxsat etiladi — bu holda
+    // muddat cho'zib (uzaytirib) beriladi (grantPaymentOutcome'da hisoblanadi),
+    // bloklab qo'yilmaydi — chunki muddati tugashidan oldin qayta sotib olish normal holat.
+    const plan_ = PREMIUM_PLANS[plan];
+    if (!plan_) {
+      throw new ApiError(
+        400,
+        `Noto'g'ri reja. Mavjud rejalar: ${Object.keys(PREMIUM_PLANS).join(', ')}`
+      );
     }
 
-    finalAmount = PREMIUM_PRICE;
+    finalAmount = plan_.price;
   } else if (purpose === 'donation') {
     if (!amount || amount < MIN_WALLET_TOPUP) {
       throw new ApiError(400, `Xayriya summasi kamida ${MIN_WALLET_TOPUP} tiyin bo'lishi kerak`);
@@ -60,7 +70,13 @@ const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, pro
   let promoCodeDoc = null;
   let discountPercent = null;
 
-  if (promoCode && (purpose === 'course' || purpose === 'premium')) {
+  if (promoCode) {
+    // Promokod faqat premium sotib olishda amal qiladi — boshqa purpose bilan
+    // yuborilsa aniq xato qaytariladi (jimgina e'tiborsiz qoldirilmaydi)
+    if (purpose !== 'premium') {
+      throw new ApiError(400, "Promokod faqat premium sotib olishda ishlatiladi");
+    }
+
     // Chegirma foizi ham serverda, promo koddan olinadi — client foizni o'zi yubormaydi
     promoCodeDoc = await promocodeService.validatePromoCode(promoCode);
     discountPercent = promoCodeDoc.discountPercent;
@@ -84,6 +100,7 @@ const createPayment = async ({ userId, purpose = 'wallet', courseId, amount, pro
     multicardUuid: invoice.uuid,
     amount: finalAmount,
     purpose,
+    plan: purpose === 'premium' ? plan : null,
     course: course?._id ?? null,
     promoCode: promoCodeDoc?._id ?? null,
     discountPercent,
@@ -133,14 +150,29 @@ const grantPaymentOutcome = async (payment) => {
       meta: { paymentId: payment._id, courseId: payment.course },
     });
   } else if (payment.purpose === 'premium') {
-    await User.findByIdAndUpdate(payment.user, { tarif: 'premium' });
+    const user = await User.findById(payment.user).select('tarif premiumExpiresAt');
+    const plan = PREMIUM_PLANS[payment.plan];
+    const monthsToAdd = plan?.months ?? 1; // amalda payment.plan har doim to'g'ri saqlangan bo'ladi
+
+    // Hali muddati tugamagan premium bo'lsa — qolgan muddat ustiga QO'SHILADI (uzaytiriladi),
+    // aks holda (birinchi marta yoki muddati o'tgan) bugundan boshlab hisoblanadi
+    const now = new Date();
+    const baseDate =
+      user.tarif === 'premium' && user.premiumExpiresAt && user.premiumExpiresAt > now
+        ? user.premiumExpiresAt
+        : now;
+
+    const newExpiry = new Date(baseDate);
+    newExpiry.setMonth(newExpiry.getMonth() + monthsToAdd);
+
+    await User.findByIdAndUpdate(payment.user, { tarif: 'premium', premiumExpiresAt: newExpiry });
 
     await notificationService.createNotification({
       userId: payment.user,
       type: 'payment',
       title: '⭐ Premium faollashtirildi!',
-      message: `💳 To'langan summa: ${formatSom(payment.amount)} so'm\n⭐ Tarifingiz endi: Premium`,
-      meta: { paymentId: payment._id },
+      message: `💳 To'langan summa: ${formatSom(payment.amount)} so'm\n⭐ Tarifingiz endi: Premium\n📅 Amal qilish muddati: ${formatSomDate(newExpiry)} gacha`,
+      meta: { paymentId: payment._id, premiumExpiresAt: newExpiry },
     });
   } else if (payment.purpose === 'donation') {
     // Xayriya — foydalanuvchiga hech narsa berilmaydi, faqat rahmat xabari yuboriladi
@@ -238,8 +270,12 @@ const getStatusByInvoiceId = async (invoiceId, userId, role) => {
   return payment;
 };
 
+// GET /payment/premium-plans — frontend narxlar jadvalini shu yerdan oladi
+const getPremiumPlans = () => PREMIUM_PLANS;
+
 module.exports = {
   createPayment,
   applyCallback,
   getStatusByInvoiceId,
+  getPremiumPlans,
 };

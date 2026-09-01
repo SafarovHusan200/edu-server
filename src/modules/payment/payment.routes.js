@@ -23,8 +23,9 @@ const { createPaymentValidation } = require('./payment.validation');
  *             properties:
  *               purpose: { type: string, enum: [wallet, course, premium, donation], default: wallet }
  *               courseId: { type: string, description: "purpose='course' bo'lsa majburiy" }
+ *               plan: { type: string, enum: [1m, 3m, 6m, 1y], description: "purpose='premium' bo'lsa majburiy — 1/3/6 oylik yoki 1 yillik reja" }
  *               amount: { type: integer, minimum: 1000, description: "Tiyinda; purpose 'course'/'premium' bo'lmasa majburiy" }
- *               promoCode: { type: string, minLength: 3, maxLength: 30 }
+ *               promoCode: { type: string, minLength: 3, maxLength: 30, description: "Faqat purpose='premium' bo'lganda ishlaydi, aks holda 400 xato qaytadi" }
  *               returnUrl: { type: string, format: uri }
  *     responses:
  *       201:
@@ -48,6 +49,40 @@ router.post(
   validate,
   paymentController.createPayment
 );
+
+/**
+ * @swagger
+ * /payment/premium-plans:
+ *   get:
+ *     summary: Premium tarif rejalari va narxlarini olish
+ *     tags: [Payment]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Rejalar ro'yxati
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         plans:
+ *                           type: object
+ *                           description: "Kalitlar: 1m, 3m, 6m, 1y"
+ *                           additionalProperties:
+ *                             type: object
+ *                             properties:
+ *                               months: { type: integer }
+ *                               price: { type: integer, description: 'Jami narx, tiyinda' }
+ *                               pricePerMonth: { type: integer, description: "Oyiga to'g'ri keladigan narx, tiyinda — solishtirish uchun" }
+ *                               discountPercent: { type: integer, description: "1 oylik narxga nisbatan chegirma foizi" }
+ */
+// GET /api/v1/payment/premium-plans — Public
+router.get('/premium-plans', paymentController.getPremiumPlans);
 
 /**
  * @swagger

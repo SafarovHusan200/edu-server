@@ -34,8 +34,9 @@ const verifyTelegramOtp = async ({ code }) => {
   otp.isUsed = true;
   await otp.save();
 
-  // 4. Oxirgi kirish vaqtini yangilash
+  // 4. Oxirgi kirish vaqtini yangilash (premium muddati tugagan bo'lsa shu bilan birga saqlanadi)
   user.lastLogin = new Date();
+  user.downgradeIfPremiumExpired();
   await user.save();
 
   // 5. JWT Token yaratish
@@ -92,6 +93,9 @@ const login = async ({ phone, password }) => {
   if (!user.isVerified) {
     throw new ApiError(403, 'Hisobingiz hali administrator tomonidan tasdiqlanmagan');
   }
+
+  // Premium muddati tugagan bo'lsa — pastdagi user.save() bilan birga saqlanadi
+  user.downgradeIfPremiumExpired();
 
   const isMatch = await user.matchPassword(password);
   if (!isMatch) {

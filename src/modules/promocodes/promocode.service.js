@@ -1,10 +1,9 @@
 // src/modules/promocodes/promocode.service.js
 
 const PromoCode = require('./promocode.model');
-const Course = require('../courses/course.model');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
-const { PREMIUM_PRICE } = require('../../config/pricing');
+const { PREMIUM_PLANS } = require('../../config/pricing');
 
 const createPromoCode = async ({ code, discountPercent, expiresAt, maxUses }) => {
   const existing = await PromoCode.findOne({ code: code.toUpperCase() });
@@ -59,22 +58,23 @@ const validatePromoCode = async (code) => {
   return promoCode;
 };
 
-const resolveBaseAmount = async ({ purpose, courseId }) => {
-  if (purpose === 'premium') return PREMIUM_PRICE;
-
-  if (purpose === 'course') {
-    const course = await Course.findById(courseId);
-    if (!course || !course.isPublished) throw new ApiError(404, 'Kurs topilmadi');
-    return course.price;
+// Promokod faqat premium sotib olishda qo'llanadi
+const resolveBaseAmount = async ({ purpose, plan }) => {
+  if (purpose !== 'premium') {
+    throw new ApiError(400, "Promokod faqat premium sotib olishda ishlatiladi");
   }
 
-  throw new ApiError(400, "promokod faqat 'course' yoki 'premium' to'lovlarga qo'llanadi");
+  const plan_ = PREMIUM_PLANS[plan];
+  if (!plan_) {
+    throw new ApiError(400, `Noto'g'ri reja. Mavjud rejalar: ${Object.keys(PREMIUM_PLANS).join(', ')}`);
+  }
+  return plan_.price;
 };
 
 // GET /promo-codes/preview — checkoutda chegirmani oldindan ko'rsatish uchun
-const previewDiscount = async ({ code, purpose, courseId }) => {
+const previewDiscount = async ({ code, purpose, plan }) => {
   const promoCode = await validatePromoCode(code);
-  const baseAmount = await resolveBaseAmount({ purpose, courseId });
+  const baseAmount = await resolveBaseAmount({ purpose, plan });
   const finalAmount = Math.round(baseAmount * (1 - promoCode.discountPercent / 100));
 
   return {

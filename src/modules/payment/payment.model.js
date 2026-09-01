@@ -43,6 +43,14 @@ const paymentSchema = new mongoose.Schema(
       default: null,
     },
 
+    // purpose='premium' bo'lsa qaysi reja sotib olinganini bildiradi ('1m'|'3m'|'6m'|'1y').
+    // Tarixiy yozuv — narxlar keyin o'zgarsa ham qaysi reja tanlangani aniq qoladi.
+    plan: {
+      type: String,
+      enum: ['1m', '3m', '6m', '1y', null],
+      default: null,
+    },
+
     promoCode: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PromoCode',

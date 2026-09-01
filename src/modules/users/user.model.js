@@ -64,6 +64,15 @@ const userSchema = new mongoose.Schema(
       default: 'standart',
     },
 
+    // Premium tugash sanasi (1/3/6/12 oylik reja sotib olinganda o'rnatiladi/uzaytiriladi).
+    // tarif='standart' bo'lsa yoki muddatsiz eski holat bo'lsa — null.
+    // Muddati o'tgan bo'lsa downgradeIfPremiumExpired() orqali (authenticate middleware
+    // va login vaqtida chaqiriladi) avtomatik tarif='standart'ga qaytariladi.
+    premiumExpiresAt: {
+      type: Date,
+      default: null,
+    },
+
     // Telefon+parol orqali ro'yxatdan o'tgan userlar admin/superadmin tasdiqlamaguncha
     // login qila olmaydi (authenticate middleware va login servisida tekshiriladi).
     // Telegram orqali ro'yxatdan o'tganlar va admin tomonidan yaratilganlar avtomatik true.
@@ -151,6 +160,19 @@ userSchema.pre('validate', async function () {
     }
   }
 });
+
+// Premium muddati tugagan bo'lsa avtomatik 'standart'ga qaytaradi. Bu yerda save()
+// chaqirilmaydi — o'zgarish bo'lganda chaqiruvchi tomon saqlashi kerak (true qaytaradi).
+// authenticate middleware va login servisida har bir so'rovda/kirishda chaqiriladi —
+// shuning uchun muddat tugashini kuzatib turuvchi alohida cron/job shart emas.
+userSchema.methods.downgradeIfPremiumExpired = function () {
+  if (this.tarif === 'premium' && this.premiumExpiresAt && this.premiumExpiresAt <= new Date()) {
+    this.tarif = 'standart';
+    this.premiumExpiresAt = null;
+    return true;
+  }
+  return false;
+};
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
   if (!this.password) return false; // telegram user parolsiz

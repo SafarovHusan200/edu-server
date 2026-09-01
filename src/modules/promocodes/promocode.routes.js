@@ -18,19 +18,21 @@ const STAFF_ROLES = ['admin', 'superadmin'];
  *     summary: Promokod chegirmasini oldindan hisoblash
  *     tags: [PromoCodes]
  *     security: []
+ *     description: "Promokod faqat premium sotib olishda ishlaydi — purpose='premium' bo'lishi shart"
  *     parameters:
  *       - { name: code, in: query, required: true, schema: { type: string } }
- *       - { name: purpose, in: query, schema: { type: string, enum: [wallet, course, premium, donation] } }
- *       - { name: courseId, in: query, schema: { type: string } }
+ *       - { name: purpose, in: query, required: true, schema: { type: string, enum: [premium] } }
+ *       - { name: plan, in: query, required: true, schema: { type: string, enum: [1m, 3m, 6m, 1y] } }
  *     responses:
  *       200:
  *         description: Chegirma ma'lumoti
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/SuccessResponse' }
+ *       400: { description: "Promokod faqat premium sotib olishda ishlatiladi" }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-// GET /api/v1/promo-codes/preview?code=&purpose=&courseId= — public
+// GET /api/v1/promo-codes/preview?code=&purpose=premium&plan= — public
 router.get('/preview', promocodeController.previewDiscount);
 
 /**

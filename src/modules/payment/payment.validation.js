@@ -16,6 +16,14 @@ const createPaymentValidation = [
     .isMongoId()
     .withMessage("courseId noto'g'ri format"),
 
+  body('plan')
+    .if(body('purpose').equals('premium'))
+    .notEmpty()
+    .withMessage("purpose='premium' uchun plan kiritilishi shart")
+    .bail()
+    .isIn(['1m', '3m', '6m', '1y'])
+    .withMessage("plan '1m', '3m', '6m' yoki '1y' bo'lishi kerak"),
+
   body('amount')
     .if(body('purpose').not().isIn(['course', 'premium']))
     .notEmpty()
@@ -29,7 +37,12 @@ const createPaymentValidation = [
     .isString()
     .trim()
     .isLength({ min: 3, max: 30 })
-    .withMessage("promoCode noto'g'ri format"),
+    .withMessage("promoCode noto'g'ri format")
+    .bail()
+    .if(body('purpose').not().equals('premium'))
+    .custom(() => {
+      throw new Error("Promokod faqat premium sotib olishda ishlatiladi");
+    }),
 
   body('returnUrl')
     .optional({ checkFalsy: true })

@@ -107,6 +107,12 @@ const definition = {
           grade: { $ref: '#/components/schemas/Grade' },
           role: { type: 'string', enum: ['student', 'teacher', 'admin', 'superadmin'] },
           tarif: { type: 'string', enum: ['standart', 'premium'] },
+          premiumExpiresAt: {
+            type: 'string',
+            format: 'date-time',
+            nullable: true,
+            description: "Premium tugash sanasi — shu sana o'tsa authenticate/login vaqtida avtomatik tarif='standart'ga qaytariladi",
+          },
           isVerified: { type: 'boolean' },
           verifiedBy: {
             type: 'object',
@@ -362,6 +368,7 @@ const definition = {
           invoiceId: { type: 'string' },
           amount: { type: 'integer', description: 'Tiyinda' },
           purpose: { type: 'string', enum: ['wallet', 'course', 'premium', 'donation'] },
+          plan: { type: 'string', enum: ['1m', '3m', '6m', '1y'], nullable: true, description: "purpose='premium' bo'lganda tanlangan reja" },
           course: { ...idProp, nullable: true },
           promoCode: { ...idProp, nullable: true },
           discountPercent: { type: 'number', nullable: true },
@@ -376,6 +383,7 @@ const definition = {
       },
       PromoCode: {
         type: 'object',
+        description: "Faqat premium sotib olishda qo'llanadi (purpose='premium')",
         properties: {
           _id: idProp,
           code: { type: 'string', example: 'EDU2026' },

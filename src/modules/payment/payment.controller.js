@@ -9,7 +9,7 @@ const ApiError = require('../../utils/ApiError');
 // POST /api/v1/payment/create — Private
 // ─────────────────────────────────────────
 const createPayment = asyncHandler(async (req, res) => {
-  const { amount, returnUrl, ofd, purpose, courseId, promoCode } = req.body;
+  const { amount, returnUrl, ofd, purpose, courseId, promoCode, plan } = req.body;
 
   if (!['course', 'premium'].includes(purpose) && !amount) {
     throw new ApiError(400, "To'lov summasi (amount) kiritilishi shart");
@@ -23,6 +23,7 @@ const createPayment = asyncHandler(async (req, res) => {
     promoCode,
     returnUrl,
     ofd,
+    plan,
   });
 
   res.status(201).json(
@@ -78,8 +79,18 @@ const getPaymentStatus = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, "To'lov holati", { payment }));
 });
 
+// ─────────────────────────────────────────
+// GET /api/v1/payment/premium-plans — Public
+// ─────────────────────────────────────────
+const getPremiumPlans = asyncHandler(async (req, res) => {
+  const plans = paymentService.getPremiumPlans();
+
+  res.status(200).json(new ApiResponse(200, 'Premium rejalar', { plans }));
+});
+
 module.exports = {
   createPayment,
   handleCallback,
   getPaymentStatus,
+  getPremiumPlans,
 };

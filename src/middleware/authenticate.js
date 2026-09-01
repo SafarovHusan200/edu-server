@@ -22,6 +22,12 @@ const authenticate = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, 'Foydalanuvchi topilmadi');
   }
 
+  // Premium muddati tugagan bo'lsa — shu yerda avtomatik 'standart'ga qaytariladi,
+  // shuning uchun butun ilova bo'ylab tarif har doim haqiqiy holatni ko'rsatadi
+  if (user.downgradeIfPremiumExpired()) {
+    await user.save();
+  }
+
   if (user.isBlocked) {
     throw new ApiError(403, 'Sizning hisobingiz bloklangan');
   }
@@ -50,6 +56,10 @@ const optionalAuthenticate = asyncHandler(async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_TOKEN_SECRET);
     const user = await User.findById(decoded.id);
+
+    if (user?.downgradeIfPremiumExpired()) {
+      await user.save();
+    }
 
     if (user && !user.isBlocked && user.isVerified && decoded.tokenVersion === user.tokenVersion) {
       req.user = user;
