@@ -368,7 +368,7 @@ const definition = {
           invoiceId: { type: 'string' },
           amount: { type: 'integer', description: 'Tiyinda' },
           purpose: { type: 'string', enum: ['wallet', 'course', 'premium', 'donation'] },
-          plan: { type: 'string', enum: ['1m', '3m', '6m', '1y'], nullable: true, description: "purpose='premium' bo'lganda tanlangan reja" },
+          plan: { type: 'string', enum: ['30d', '90d', '180d', '365d'], nullable: true, description: "purpose='premium' bo'lganda tanlangan reja" },
           course: { ...idProp, nullable: true },
           promoCode: { ...idProp, nullable: true },
           discountPercent: { type: 'number', nullable: true },

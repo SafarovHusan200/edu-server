@@ -23,7 +23,7 @@ const { createPaymentValidation } = require('./payment.validation');
  *             properties:
  *               purpose: { type: string, enum: [wallet, course, premium, donation], default: wallet }
  *               courseId: { type: string, description: "purpose='course' bo'lsa majburiy" }
- *               plan: { type: string, enum: [1m, 3m, 6m, 1y], description: "purpose='premium' bo'lsa majburiy — 1/3/6 oylik yoki 1 yillik reja" }
+ *               plan: { type: string, enum: [30d, 90d, 180d, 365d], description: "purpose='premium' bo'lsa majburiy — 30/90/180/365 kunlik reja" }
  *               amount: { type: integer, minimum: 1000, description: "Tiyinda; purpose 'course'/'premium' bo'lmasa majburiy" }
  *               promoCode: { type: string, minLength: 3, maxLength: 30, description: "Faqat purpose='premium' bo'lganda ishlaydi, aks holda 400 xato qaytadi" }
  *               returnUrl: { type: string, format: uri }
@@ -72,14 +72,14 @@ router.post(
  *                       properties:
  *                         plans:
  *                           type: object
- *                           description: "Kalitlar: 1m, 3m, 6m, 1y"
+ *                           description: "Kalitlar: 30d, 90d, 180d, 365d"
  *                           additionalProperties:
  *                             type: object
  *                             properties:
- *                               months: { type: integer }
+ *                               days: { type: integer, description: "Muddat, kunlarda" }
  *                               price: { type: integer, description: 'Jami narx, tiyinda' }
- *                               pricePerMonth: { type: integer, description: "Oyiga to'g'ri keladigan narx, tiyinda — solishtirish uchun" }
- *                               discountPercent: { type: integer, description: "1 oylik narxga nisbatan chegirma foizi" }
+ *                               pricePerMonth: { type: integer, description: "~30 kunga to'g'ri keladigan narx, tiyinda — solishtirish uchun" }
+ *                               discountPercent: { type: integer, description: "30 kunlik narxga nisbatan chegirma foizi" }
  */
 // GET /api/v1/payment/premium-plans — Public
 router.get('/premium-plans', paymentController.getPremiumPlans);

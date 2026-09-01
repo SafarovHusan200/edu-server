@@ -21,8 +21,8 @@ const createPaymentValidation = [
     .notEmpty()
     .withMessage("purpose='premium' uchun plan kiritilishi shart")
     .bail()
-    .isIn(['1m', '3m', '6m', '1y'])
-    .withMessage("plan '1m', '3m', '6m' yoki '1y' bo'lishi kerak"),
+    .isIn(['30d', '90d', '180d', '365d'])
+    .withMessage("plan '30d', '90d', '180d' yoki '365d' bo'lishi kerak"),
 
   body('amount')
     .if(body('purpose').not().isIn(['course', 'premium']))

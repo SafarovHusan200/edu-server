@@ -22,7 +22,7 @@ const STAFF_ROLES = ['admin', 'superadmin'];
  *     parameters:
  *       - { name: code, in: query, required: true, schema: { type: string } }
  *       - { name: purpose, in: query, required: true, schema: { type: string, enum: [premium] } }
- *       - { name: plan, in: query, required: true, schema: { type: string, enum: [1m, 3m, 6m, 1y] } }
+ *       - { name: plan, in: query, required: true, schema: { type: string, enum: [30d, 90d, 180d, 365d] } }
  *     responses:
  *       200:
  *         description: Chegirma ma'lumoti

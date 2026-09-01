@@ -152,10 +152,12 @@ const grantPaymentOutcome = async (payment) => {
   } else if (payment.purpose === 'premium') {
     const user = await User.findById(payment.user).select('tarif premiumExpiresAt');
     const plan = PREMIUM_PLANS[payment.plan];
-    const monthsToAdd = plan?.months ?? 1; // amalda payment.plan har doim to'g'ri saqlangan bo'ladi
+    const daysToAdd = plan?.days ?? 30; // amalda payment.plan har doim to'g'ri saqlangan bo'ladi
 
     // Hali muddati tugamagan premium bo'lsa — qolgan muddat ustiga QO'SHILADI (uzaytiriladi),
-    // aks holda (birinchi marta yoki muddati o'tgan) bugundan boshlab hisoblanadi
+    // aks holda (birinchi marta yoki muddati o'tgan) bugundan boshlab hisoblanadi.
+    // Kun (setDate) bilan qo'shiladi — oy uzunligi turlicha (28/30/31) bo'lgani uchun
+    // setMonth() aniq bo'lmagan natija berishi mumkin edi.
     const now = new Date();
     const baseDate =
       user.tarif === 'premium' && user.premiumExpiresAt && user.premiumExpiresAt > now
@@ -163,7 +165,7 @@ const grantPaymentOutcome = async (payment) => {
         : now;
 
     const newExpiry = new Date(baseDate);
-    newExpiry.setMonth(newExpiry.getMonth() + monthsToAdd);
+    newExpiry.setDate(newExpiry.getDate() + daysToAdd);
 
     await User.findByIdAndUpdate(payment.user, { tarif: 'premium', premiumExpiresAt: newExpiry });
 

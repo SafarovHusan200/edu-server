@@ -1,33 +1,37 @@
 // src/config/pricing.js
 
-// Faqat 1 oylik narx .env orqali sozlanadi — qolgan davrlar (3/6/12 oy) narxi
-// shundan avtomatik hisoblanadi (uzoqroq muddat = oyiga arzonroq, DISCOUNT_PERCENT
-// bo'yicha). Tiyinda (1 so'm = 100 tiyin) — Multicard bilan bir xil birlik.
-const MONTHLY_PRICE = Number(process.env.PREMIUM_PRICE_1M) || 5000000; // 50 000 so'm
+// Faqat 30 kunlik narx .env orqali sozlanadi — qolgan davrlar (90/180/365 kun) narxi
+// shundan avtomatik hisoblanadi (uzoqroq muddat = kuniga arzonroq, PLAN_DEFS'dagi
+// discountPercent bo'yicha). Tiyinda (1 so'm = 100 tiyin) — Multicard bilan bir xil birlik.
+//
+// Muddat OYLARDA emas, KUNLARDA hisoblanadi (premiumExpiresAt'ga setDate() bilan
+// qo'shiladi) — bu oy uzunligi turlicha (28/30/31 kun) bo'lishidan kelib chiqadigan
+// noaniqlikni oldini oladi, har doim aniq son kun beriladi.
+const DAILY_BASE_PRICE = Number(process.env.PREMIUM_PRICE_30D) || 2900000; // 30 kun uchun 29 000 so'm
 
-// Har bir davr — necha oy va 1 oylik narxga nisbatan necha foiz chegirma
+// Har bir reja — necha kun va 30 kunlik narxga nisbatan necha foiz chegirma
 const PLAN_DEFS = {
-  '1m': { months: 1, discountPercent: 0 },
-  '3m': { months: 3, discountPercent: 10 },
-  '6m': { months: 6, discountPercent: 20 },
-  '1y': { months: 12, discountPercent: 30 },
+  '30d': { days: 30, discountPercent: 0 },
+  '90d': { days: 90, discountPercent: 10 },
+  '180d': { days: 180, discountPercent: 20 },
+  '365d': { days: 365, discountPercent: 30 },
 };
 
 // Chiroyli son chiqishi uchun 1000 tiyin (10 so'm)ga yaxlitlanadi
 const roundPrice = (amount) => Math.round(amount / 1000) * 1000;
 
-// { '1m': { months: 1, price: 5000000, pricePerMonth: 5000000, discountPercent: 0 }, ... }
-// pricePerMonth va discountPercent — frontend narxlar jadvalida "oyiga X so'm" va
-// "N% chegirma" ko'rsatishi uchun (masalan solishtiruv jadvali/badge)
+// { '30d': { days: 30, price: 2900000, pricePerMonth: 2900000, discountPercent: 0 }, ... }
+// pricePerMonth (kunlik narxni ~30 kunga proporsional ko'rsatish) va discountPercent —
+// frontend narxlar jadvalida "oyiga X so'm" va "N% chegirma" ko'rsatishi uchun
 const PREMIUM_PLANS = Object.fromEntries(
-  Object.entries(PLAN_DEFS).map(([key, { months, discountPercent }]) => {
-    const price = roundPrice(MONTHLY_PRICE * months * (1 - discountPercent / 100));
+  Object.entries(PLAN_DEFS).map(([key, { days, discountPercent }]) => {
+    const price = roundPrice(DAILY_BASE_PRICE * (days / 30) * (1 - discountPercent / 100));
     return [
       key,
       {
-        months,
+        days,
         price,
-        pricePerMonth: roundPrice(price / months),
+        pricePerMonth: roundPrice(price / (days / 30)),
         discountPercent,
       },
     ];
