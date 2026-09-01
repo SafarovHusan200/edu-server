@@ -88,6 +88,17 @@ const paymentSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // DIQQAT — vaqtinchalik diagnostika maydoni: Multicard'dan kelgan callback yoki
+    // reconciliation (getInvoiceStatus) javobining XOM (raw) shakli shu yerga yoziladi.
+    // Maqsad — real production'da Multicard aslida qanday maydon nomlari bilan javob
+    // berayotganini SSH/log kirish huquqisiz, to'g'ridan-to'g'ri API orqali ko'rish.
+    // Muammo aniqlanib, kod (masalan status maydoni mosligi) tasdiqlangach, bu
+    // maydonni va uni to'ldiruvchi kodni butunlay olib tashlash mumkin/kerak.
+    gatewayDebug: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   { timestamps: true }
 );

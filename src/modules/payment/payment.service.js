@@ -214,12 +214,17 @@ const grantPaymentOutcome = async (payment) => {
 // so'rov uchun "yutib olinadi", shu bilan balans/premium/enrollment ikki marta
 // berilib ketishining oldi olinadi (poyga holati — race condition himoyasi).
 // ─────────────────────────────────────────
-const applyStatusUpdate = async (payment, { uuid, status, receiptUrl, cardPan, paymentTime }) => {
+const applyStatusUpdate = async (payment, { uuid, status, receiptUrl, cardPan, paymentTime, gatewayDebug }) => {
   const update = {
     multicardUuid: uuid ?? payment.multicardUuid,
     status,
     callbackReceivedAt: new Date(),
   };
+
+  // Vaqtinchalik diagnostika — Payment modeliga izohga qarang
+  if (gatewayDebug !== undefined) {
+    update.gatewayDebug = gatewayDebug;
+  }
 
   if (status === 'success') {
     update.receiptUrl = receiptUrl ?? payment.receiptUrl;
@@ -261,6 +266,7 @@ const applyCallback = async ({
   cardPan,
   paymentTime,
   sign,
+  rawBody,
 }) => {
   if (!isSignValid({ invoiceId, amount, sign })) {
     throw new ApiError(400, "Sign noto'g'ri — callback ishonchsiz");
@@ -271,7 +277,14 @@ const applyCallback = async ({
     throw new ApiError(404, "Bunday invoiceId bilan to'lov topilmadi");
   }
 
-  return applyStatusUpdate(payment, { uuid, status, receiptUrl, cardPan, paymentTime });
+  return applyStatusUpdate(payment, {
+    uuid,
+    status,
+    receiptUrl,
+    cardPan,
+    paymentTime,
+    gatewayDebug: { source: 'callback', body: rawBody, receivedAt: new Date() },
+  });
 };
 
 // ─────────────────────────────────────────
@@ -299,16 +312,30 @@ const getStatusByInvoiceId = async (invoiceId, userId, role) => {
   if (payment.status !== 'success' && payment.multicardUuid) {
     try {
       const invoice = await multicardService.getInvoiceStatus(payment.multicardUuid);
+      console.log('📥 Multicard getInvoiceStatus javobi:', JSON.stringify(invoice));
 
-      if (invoice?.status && invoice.status !== payment.status) {
+      // DIQQAT — vaqtinchalik: Multicard javobida status aynan qaysi maydonda
+      // kelishi hali aniq tasdiqlanmagani uchun bir nechta ehtimoliy nomdan qidiramiz.
+      // gatewayDebug'ga xom javob HAR DOIM saqlanadi — status topilmasa ham,
+      // shu orqali Multicard'ning haqiqiy javob shaklini API orqali ko'rish mumkin.
+      const resolvedStatus = invoice?.status ?? invoice?.state ?? invoice?.payment_status ?? invoice?.invoice_status;
+      const gatewayDebug = { source: 'reconciliation', invoice, receivedAt: new Date() };
+
+      if (resolvedStatus && resolvedStatus !== payment.status) {
         return await applyStatusUpdate(payment, {
           uuid: payment.multicardUuid,
-          status: invoice.status,
-          receiptUrl: invoice.receipt_url,
-          cardPan: invoice.card_pan,
-          paymentTime: invoice.payment_time,
+          status: resolvedStatus,
+          receiptUrl: invoice.receipt_url ?? invoice.receiptUrl,
+          cardPan: invoice.card_pan ?? invoice.cardPan,
+          paymentTime: invoice.payment_time ?? invoice.paymentTime,
+          gatewayDebug,
         });
       }
+
+      // Status topilmadi yoki o'zgarmadi — baribir xom javobni saqlab qo'yamiz
+      // (diagnostika uchun), lekin grantPaymentOutcome chaqirilmaydi
+      await Payment.findByIdAndUpdate(payment._id, { gatewayDebug });
+      payment.gatewayDebug = gatewayDebug;
     } catch (err) {
       // Multicard vaqtincha javob bermasa ham, foydalanuvchiga oxirgi ma'lum
       // holatni qaytaramiz — bu so'rovni butunlay muvaffaqiyatsiz qilib qo'ymaydi
