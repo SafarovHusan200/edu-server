@@ -4,6 +4,9 @@ const Enrollment = require('../src/modules/enrollment/enrollment.model');
 const Payment = require('../src/modules/payment/payment.model');
 const Quiz = require('../src/modules/quizzes/quiz.model');
 const QuizAttempt = require('../src/modules/quiz-attempts/quizAttempt.model');
+const Lesson = require('../src/modules/lessons/lesson.model');
+const Book = require('../src/modules/books/book.model');
+const BookCategory = require('../src/modules/book-categories/bookCategory.model');
 const { createUser, createCategory, createCourse } = require('./helpers');
 
 describe('Stats', () => {
@@ -102,5 +105,48 @@ describe('Stats', () => {
     expect(stats.students.total).toBe(2);
     expect(stats.revenue.total).toBe(50000);
     expect(stats.quizzes.totalAttempts).toBe(1);
+  });
+
+  test('GET /stats/top-teachers kontent soniga qarab saralaydi', async () => {
+    // Faolroq teacher: 1 kurs (setupCourseWithData) + 1 dars + 1 kitob
+    const { teacher: activeTeacher, teacherToken, course } = await setupCourseWithData();
+
+    await Lesson.create({ course: course._id, title: 'Birinchi dars' });
+
+    const bookCategory = await BookCategory.create({ name: 'Adabiyot', slug: `adabiyot-${Date.now()}` });
+    await Book.create({
+      title: 'Test kitobi',
+      author: 'Muallif',
+      category: bookCategory._id,
+      uploadedBy: activeTeacher._id,
+    });
+
+    // Kamroq faol teacher: hech narsa yaratmagan
+    const { token: idleTeacherToken } = await createUser({ role: 'teacher' });
+
+    const res = await request(app)
+      .get('/api/v1/stats/top-teachers')
+      .set('Authorization', `Bearer ${idleTeacherToken}`);
+
+    expect(res.status).toBe(200);
+    const { teachers } = res.body.data;
+
+    const activeRow = teachers.find((t) => t._id === activeTeacher._id.toString());
+    const idleRow = teachers.find((t) => t.name === 'Test User' && t.coursesCount === 0);
+
+    expect(activeRow).toBeDefined();
+    expect(activeRow.coursesCount).toBe(1);
+    expect(activeRow.quizzesCount).toBe(1);
+    expect(activeRow.lessonsCount).toBe(1);
+    expect(activeRow.booksCount).toBe(1);
+    expect(activeRow.studentsCount).toBe(2);
+    // 1*3 (course) + 1*2 (quiz) + 1*1 (lesson) + 1*2 (book) = 8
+    expect(activeRow.activityScore).toBe(8);
+    expect(activeRow.rank).toBe(1);
+
+    if (idleRow) {
+      expect(idleRow.activityScore).toBe(0);
+      expect(activeRow.rank).toBeLessThan(idleRow.rank);
+    }
   });
 });

@@ -3,10 +3,8 @@
 // sahifaga to'g'ridan-to'g'ri olib boradigan havolalar — bitta joyda saqlanadi,
 // shunda frontend routing o'zgarsa faqat shu faylni yangilash kifoya.
 //
-// DIQQAT: quyidagi yo'llarning ba'zilari (masalan attemptResult, teacherQuizResults)
-// frontendda hali mavjud bo'lmasligi mumkin — frontend jamoasi bilan tekshirib,
-// haqiqiy route'larga moslashtiring. premium va rewards yo'llari mavjud sahifalar
-// bilan tasdiqlangan (Multicard return_url va skrinshotlardan).
+// Barcha yo'llar frontend jamoasi tomonidan haqiqiy route tuzilmasi bo'yicha
+// tasdiqlangan/tuzatilgan (2026-09-01).
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://edu-platform.uz';
 
@@ -22,22 +20,26 @@ const frontendLinks = {
 
   // Tasdiqlangan: skrinshotdagi sahifa manzili
   rewards: () => `${FRONTEND_URL}/student/rewards`,
-  myRedemptions: () => `${FRONTEND_URL}/student/rewards?tab=my`,
+  myRedemptions: () => `${FRONTEND_URL}/student/rewards/redemptions`,
 
   dailySpin: () => `${FRONTEND_URL}/student/daily-spin`,
-  wallet: () => `${FRONTEND_URL}/wallet`,
+  wallet: () => `${FRONTEND_URL}/student/wallet`,
 
+  // Ochiq marketing sahifasi — courseId bilan ishlaydi (student ichki
+  // /student/courses/:enrollmentId BUNGA mos kelmaydi, u yerda enrollmentId kerak)
   course: (courseId) => `${FRONTEND_URL}/courses/${courseId}`,
 
   // pdfPath — Certificate.pdfPath ("/uploads/certificates/xxx.pdf") — to'g'ridan-to'g'ri
   // PDF fayl havolasi (backend statik xizmatidan), frontend sahifasi emas
   certificatePdf: (pdfPath) => `${BACKEND_URL}${pdfPath}`,
 
-  quizAttemptResult: (attemptId) => `${FRONTEND_URL}/student/attempts/${attemptId}`,
+  // Ikkalasi ham shart — faqat attemptId yetarli emas
+  quizAttemptResult: (quizId, attemptId) => `${FRONTEND_URL}/student/quizzes/${quizId}/attempts/${attemptId}`,
   teacherQuizResults: (quizId) => `${FRONTEND_URL}/teacher/quizzes/${quizId}/results`,
-  reviewOpenEnded: (attemptId) => `${FRONTEND_URL}/teacher/attempts/${attemptId}/review`,
+  // "review" prefiksi yo'q — natijalar sahifasining o'zida, attemptId qo'shimcha segment sifatida
+  reviewOpenEnded: (quizId, attemptId) => `${FRONTEND_URL}/teacher/quizzes/${quizId}/results/${attemptId}`,
 
-  adminPendingUsers: () => `${FRONTEND_URL}/admin/users?isVerified=false`,
+  adminPendingUsers: () => `${FRONTEND_URL}/admin/users?tab=unverified`,
 };
 
 module.exports = { FRONTEND_URL, BACKEND_URL, frontendLinks };

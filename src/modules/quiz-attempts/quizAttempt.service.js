@@ -56,7 +56,7 @@ const awardQuizDiamonds = async (attempt, quizTitle, teacherName) => {
     title: '💎 Diamond qo\'lga kiritdingiz!',
     message: `📚 Fan: "${quizTitle}"\n👨‍🏫 O'qituvchi: ${teacherName ?? "—"}\n💎 Mukofot: ${diamondAmount} diamond`,
     meta: { quizId: attempt.quiz._id ?? attempt.quiz, attemptId: attempt._id },
-    url: frontendLinks.quizAttemptResult(attempt._id),
+    url: frontendLinks.quizAttemptResult(attempt.quiz._id ?? attempt.quiz, attempt._id),
     buttonText: '📊 Natijani ko\'rish',
   });
 };
@@ -222,7 +222,7 @@ const submitAttempt = async (attemptId, studentId, answers) => {
       title: passed ? '🏆 Test yakunlandi — o\'tdingiz!' : '📊 Test yakunlandi',
       message: `📚 Fan: "${quiz.title}"\n👨‍🏫 O'qituvchi: ${teacher?.name ?? "—"}\n✅ Natija: ${correctCount}/${totalQuestions} ta savolga to'g'ri javob berdingiz (${scorePercent}%)\n${passed ? "🎉 Tabriklaymiz, testdan muvaffaqiyatli o'tdingiz!" : "💪 O'tish balidan past natija — qayta urinib ko'ring!"}`,
       meta: { quizId: quiz._id, attemptId: attempt._id },
-      url: frontendLinks.quizAttemptResult(attempt._id),
+      url: frontendLinks.quizAttemptResult(quiz._id, attempt._id),
       buttonText: '📊 Natijani ko\'rish',
     });
 
@@ -246,7 +246,7 @@ const submitAttempt = async (attemptId, studentId, answers) => {
       title: '📝 Tekshirish kerak',
       message: `👤 O'quvchi: ${student?.name ?? 'Talaba'}\n📚 Fan: "${quiz.title}"\n❓ ${openEndedCount} ta ochiq savolga javob yubordi — tekshirib, baholab bering`,
       meta: { quizId: quiz._id, attemptId: attempt._id, studentId },
-      url: frontendLinks.reviewOpenEnded(attempt._id),
+      url: frontendLinks.reviewOpenEnded(quiz._id, attempt._id),
       buttonText: '🌐 Saytda tekshirish',
       // Ba'zi o'qituvchilar uchun botning o'zida tekshirish qulayroq — bot.js'dagi
       // callback_query handler shu tugmani bosilganda /tekshir oqimini boshlaydi
@@ -363,7 +363,7 @@ const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
     title: '✅ Natijangiz baholandi',
     message: `📚 Fan: "${attempt.quiz.title}"\n👨‍🏫 O'qituvchi: ${attempt.quiz.createdBy?.name ?? '—'}\n📊 Yakuniy natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n${attempt.passed ? "🎉 Testdan muvaffaqiyatli o'tdingiz!" : "📌 Afsuski, testdan o'ta olmadingiz"}`,
     meta: { quizId: attempt.quiz._id, attemptId: attempt._id },
-    url: frontendLinks.quizAttemptResult(attempt._id),
+    url: frontendLinks.quizAttemptResult(attempt.quiz._id, attempt._id),
     buttonText: '📊 Natijani ko\'rish',
   });
 
