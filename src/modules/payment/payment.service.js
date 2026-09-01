@@ -205,7 +205,51 @@ const grantPaymentOutcome = async (payment) => {
 };
 
 // ─────────────────────────────────────────
-// CALLBACK'NI QAYTA ISHLASH (idempotent)
+// HOLATNI SAQLASH VA NATIJA BERISH — callback'dan ham, pastdagi reconciliation
+// (Multicard'dan faol so'rash)dan ham chaqiriladi. Ikkalasi deyarli bir vaqtda
+// kelib qolishi mumkin (masalan foydalanuvchi status sahifasini yangilagan zahoti
+// callback ham kelsa) — shuning uchun oddiy "o'qish → tekshirish → yozish" emas,
+// ATOMIK findOneAndUpdate ishlatiladi: status='success'ga o'tish faqat bitta
+// so'rov uchun "yutib olinadi", shu bilan balans/premium/enrollment ikki marta
+// berilib ketishining oldi olinadi (poyga holati — race condition himoyasi).
+// ─────────────────────────────────────────
+const applyStatusUpdate = async (payment, { uuid, status, receiptUrl, cardPan, paymentTime }) => {
+  const update = {
+    multicardUuid: uuid ?? payment.multicardUuid,
+    status,
+    callbackReceivedAt: new Date(),
+  };
+
+  if (status === 'success') {
+    update.receiptUrl = receiptUrl ?? payment.receiptUrl;
+    update.cardPan = cardPan ?? payment.cardPan;
+    update.paymentTime = paymentTime ? new Date(paymentTime) : new Date();
+  }
+
+  // status hali 'success' bo'lmagan hujjatnigina yangilaydi — agar parallel so'rov
+  // ulgurib "success" qilib bo'lgan bo'lsa, bu yerda 0 ta hujjat topiladi (updated=null)
+  // va grantPaymentOutcome QAYTA chaqirilmaydi.
+  const updated = await Payment.findOneAndUpdate(
+    { _id: payment._id, status: { $ne: 'success' } },
+    update,
+    { new: true }
+  );
+
+  if (!updated) {
+    // Boshqa so'rov (yoki shu holatning o'zi) allaqachon 'success' qilib ulgurgan —
+    // eng so'nggi holatni qaytaramiz, qayta ishlov bermaymiz
+    return Payment.findById(payment._id);
+  }
+
+  if (status === 'success') {
+    await grantPaymentOutcome(updated);
+  }
+
+  return updated;
+};
+
+// ─────────────────────────────────────────
+// CALLBACK'NI QAYTA ISHLASH — Multicard "push" qiladi, imzo tekshiriladi
 // ─────────────────────────────────────────
 const applyCallback = async ({
   invoiceId,
@@ -226,35 +270,17 @@ const applyCallback = async ({
     throw new ApiError(404, "Bunday invoiceId bilan to'lov topilmadi");
   }
 
-  // Idempotentlik: agar bu to'lov allaqachon shu uuid bilan yakunlangan bo'lsa,
-  // qayta yozmasdan (va qayta balans/enrollment bermasdan) shunchaki muvaffaqiyatli deb qaytaramiz.
-  if (payment.status === 'success' && payment.multicardUuid === uuid) {
-    return payment;
-  }
-
-  const wasAlreadySuccess = payment.status === 'success';
-
-  payment.multicardUuid = uuid;
-  payment.status = status;
-  payment.callbackReceivedAt = new Date();
-
-  if (status === 'success') {
-    payment.receiptUrl = receiptUrl ?? payment.receiptUrl;
-    payment.cardPan = cardPan ?? payment.cardPan;
-    payment.paymentTime = paymentTime ? new Date(paymentTime) : new Date();
-  }
-
-  await payment.save();
-
-  if (status === 'success' && !wasAlreadySuccess) {
-    await grantPaymentOutcome(payment);
-  }
-
-  return payment;
+  return applyStatusUpdate(payment, { uuid, status, receiptUrl, cardPan, paymentTime });
 };
 
 // ─────────────────────────────────────────
 // TO'LOV HOLATINI OLISH (frontend uchun)
+// Reconciliation: callback (webhook) yo'qolgan/kelmagan bo'lishi mumkin — shu
+// sababli, agar to'lov hali 'success' bo'lmasa, Multicard'ning o'zidan ("pull",
+// bizning autentifikatsiya qilingan so'rovimiz — sign tekshiruvi shart emas)
+// haqiqiy holat so'raladi va agar u yerda muvaffaqiyatli bo'lsa, shu yerning
+// o'zida darhol qo'llaniladi. Alohida cron/job kerak emas — foydalanuvchi
+// checkoutdan qaytib shu endpointni chaqirganda o'zi "tuzatib" ketadi.
 // ─────────────────────────────────────────
 const getStatusByInvoiceId = async (invoiceId, userId, role) => {
   const payment = await Payment.findOne({ invoiceId });
@@ -267,6 +293,26 @@ const getStatusByInvoiceId = async (invoiceId, userId, role) => {
 
   if (!isOwner && !isAdmin) {
     throw new ApiError(403, "Siz bu to'lovni ko'ra olmaysiz");
+  }
+
+  if (payment.status !== 'success' && payment.multicardUuid) {
+    try {
+      const invoice = await multicardService.getInvoiceStatus(payment.multicardUuid);
+
+      if (invoice?.status && invoice.status !== payment.status) {
+        return await applyStatusUpdate(payment, {
+          uuid: payment.multicardUuid,
+          status: invoice.status,
+          receiptUrl: invoice.receipt_url,
+          cardPan: invoice.card_pan,
+          paymentTime: invoice.payment_time,
+        });
+      }
+    } catch (err) {
+      // Multicard vaqtincha javob bermasa ham, foydalanuvchiga oxirgi ma'lum
+      // holatni qaytaramiz — bu so'rovni butunlay muvaffaqiyatsiz qilib qo'ymaydi
+      console.error('⚠️ Multicard status reconciliation xatosi:', err.message);
+    }
   }
 
   return payment;
