@@ -222,12 +222,14 @@ const grantPaymentOutcome = async (payment) => {
     await User.findByIdAndUpdate(payment.user, { tarif: 'premium', premiumExpiresAt: newExpiry });
 
     // Rolga qarab imkoniyatlar ro'yxati farqlanadi — student diamond/spin/sovg'a
-    // foydasini ko'radi, teacher esa o'quvchilariga ko'proq urinish taklif qila olishini
+    // foydasini ko'radi, teacher esa faqat urinishlar sonini ko'paytira olishini
+    // ko'radi (diamond multiplikatori — 1.5x — HAR DOIM shu testni YECHAYOTGAN
+    // studentning O'Z tarifiga bog'liq, o'qituvchining tarifiga emas — shuning
+    // uchun bu yerda diamond haqida va'da berilmaydi, chalg'itmaslik uchun)
     const benefits =
       user.role === 'teacher'
         ? [
-            "📝 Testlaringizda o'quvchilarga ko'proq urinish (1 martadan ko'p) taklif qila olasiz",
-            '💎 Testlaringizni yechgan o\'quvchilar 1.5x ko\'proq diamond oladi',
+            "📝 Testlaringizda o'quvchilarga ko'proq urinish (1 martadan ko'p) taklif qila olasiz — bu barcha testlaringizga darhol qo'llanadi",
           ]
         : [
             "💎 Testlar va darslarda 1.5x ko'proq diamond",
