@@ -6,12 +6,16 @@ require('./src/bot/bot');
 const validateEnv = require('./src/config/env');
 const connectDB = require('./src/config/db');
 const app = require('./src/app');
+const { startBackupScheduler } = require('./src/jobs/dbBackup.scheduler');
 
 // 1. Env tekshirish
 validateEnv();
 
 // 2. DB ulanish
 connectDB();
+
+// 2.1 Kunlik DB zaxira jadvali (DB_BACKUP_ENABLED=true bo'lsagina ishga tushadi)
+startBackupScheduler();
 
 // 3. Serverni ishga tushirish
 const PORT = process.env.PORT || 5000;

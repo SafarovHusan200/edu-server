@@ -53,11 +53,11 @@ const awardQuizDiamonds = async (attempt, quizTitle, teacherName) => {
   await notificationService.createNotification({
     userId: attempt.student,
     type: 'quiz',
-    title: '💎 Diamond qo\'lga kiritdingiz!',
-    message: `📚 Fan: "${quizTitle}"\n👨‍🏫 O'qituvchi: ${teacherName ?? "—"}\n💎 Mukofot: ${diamondAmount} diamond`,
+    title: "💎 Diamond qo'lga kiritdingiz!",
+    message: `📚 Fan: "${quizTitle}"\n👨‍🏫 O'qituvchi: ${teacherName ?? '—'}\n💎 Mukofot: ${diamondAmount} diamond`,
     meta: { quizId: attempt.quiz._id ?? attempt.quiz, attemptId: attempt._id },
     url: frontendLinks.quizAttemptResult(attempt.quiz._id ?? attempt.quiz, attempt._id),
-    buttonText: '📊 Natijani ko\'rish',
+    buttonText: "📊 Natijani ko'rish",
   });
 };
 
@@ -219,11 +219,11 @@ const submitAttempt = async (attemptId, studentId, answers) => {
     await notificationService.createNotification({
       userId: attempt.student,
       type: 'quiz',
-      title: passed ? '🏆 Test yakunlandi — o\'tdingiz!' : '📊 Test yakunlandi',
-      message: `📚 Fan: "${quiz.title}"\n👨‍🏫 O'qituvchi: ${teacher?.name ?? "—"}\n✅ Natija: ${correctCount}/${totalQuestions} ta savolga to'g'ri javob berdingiz (${scorePercent}%)\n${passed ? "🎉 Tabriklaymiz, testdan muvaffaqiyatli o'tdingiz!" : "💪 O'tish balidan past natija — qayta urinib ko'ring!"}`,
+      title: passed ? "🏆 Test yakunlandi — o'tdingiz!" : '📊 Test yakunlandi',
+      message: `📚 Fan: "${quiz.title}"\n👨‍🏫 O'qituvchi: ${teacher?.name ?? '—'}\n✅ Natija: ${correctCount}/${totalQuestions} ta savolga to'g'ri javob berdingiz (${scorePercent}%)\n${passed ? "🎉 Tabriklaymiz, testdan muvaffaqiyatli o'tdingiz!" : "💪 O'tish balidan past natija — qayta urinib ko'ring!"}`,
       meta: { quizId: quiz._id, attemptId: attempt._id },
       url: frontendLinks.quizAttemptResult(quiz._id, attempt._id),
-      buttonText: '📊 Natijani ko\'rish',
+      buttonText: "📊 Natijani ko'rish",
     });
 
     await notificationService.createNotification({
@@ -233,7 +233,7 @@ const submitAttempt = async (attemptId, studentId, answers) => {
       message: `👤 O'quvchi: ${student?.name ?? 'Talaba'}\n📚 Fan: "${quiz.title}"\n✅ Natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n${passed ? "🟢 Holat: o'tdi" : "🔴 Holat: o'ta olmadi"}`,
       meta: { quizId: quiz._id, attemptId: attempt._id, studentId },
       url: frontendLinks.teacherQuizResults(quiz._id),
-      buttonText: '📋 Natijalarni ko\'rish',
+      buttonText: "📋 Natijalarni ko'rish",
     });
   } else {
     // Ochiq savol bor — o'qituvchi tekshirgandan keyin (reviewOpenEnded) student
@@ -301,7 +301,7 @@ const getQuizResults = async (quizId, teacherId, role) => {
     quiz: quizId,
     status: { $in: ['submitted', 'reviewed'] },
   })
-    .populate('student', 'name phone')
+    .populate('student', 'name phone grade')
     .sort({ createdAt: -1 });
 
   return attempts;
@@ -364,7 +364,7 @@ const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
     message: `📚 Fan: "${attempt.quiz.title}"\n👨‍🏫 O'qituvchi: ${attempt.quiz.createdBy?.name ?? '—'}\n📊 Yakuniy natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n${attempt.passed ? "🎉 Testdan muvaffaqiyatli o'tdingiz!" : "📌 Afsuski, testdan o'ta olmadingiz"}`,
     meta: { quizId: attempt.quiz._id, attemptId: attempt._id },
     url: frontendLinks.quizAttemptResult(attempt.quiz._id, attempt._id),
-    buttonText: '📊 Natijani ko\'rish',
+    buttonText: "📊 Natijani ko'rish",
   });
 
   return attempt;
@@ -373,7 +373,7 @@ const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
 // quizAttempt.service.js ga qo'shish
 const getAttemptById = async (attemptId, userId, role) => {
   const attempt = await QuizAttempt.findById(attemptId)
-    .populate('student', 'name phone')
+    .populate('student', 'name phone grade')
     .populate('answers.question', 'text type points');
 
   if (!attempt) throw new ApiError(404, 'Attempt topilmadi');
