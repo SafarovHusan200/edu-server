@@ -9,7 +9,7 @@ const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { FRONTEND_URL } = require('../../config/frontendLinks');
 
-const TELEGRAM_LINK_TTL_MS = 15 * 60 * 1000; // 15 daqiqa
+const TELEGRAM_LINK_TTL_MS = 5 * 60 * 1000; // 5 daqiqa
 
 const updateMe = async (userId, { name, grade }) => {
   const user = await User.findById(userId);
@@ -17,7 +17,10 @@ const updateMe = async (userId, { name, grade }) => {
 
   if (name) user.name = name;
   if (grade && user.role === 'student') {
-    user.grade = { number: grade.number ?? user.grade?.number, letter: grade.letter ?? user.grade?.letter };
+    user.grade = {
+      number: grade.number ?? user.grade?.number,
+      letter: grade.letter ?? user.grade?.letter,
+    };
   }
 
   await user.save();
@@ -230,7 +233,11 @@ const getLeaderboard = async ({ page, limit }) => {
   const filter = { role: 'student' };
 
   const [students, total] = await Promise.all([
-    User.find(filter).select('name avatar diamonds').sort({ diamonds: -1 }).skip(skip).limit(pageLimit),
+    User.find(filter)
+      .select('name avatar diamonds')
+      .sort({ diamonds: -1 })
+      .skip(skip)
+      .limit(pageLimit),
     User.countDocuments(filter),
   ]);
 

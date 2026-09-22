@@ -8,7 +8,7 @@ const skip = () => process.env.NODE_ENV === 'test';
 
 // Login/register/telegram-otp kabi og'ir suiiste'mol qilinadigan endpointlar uchun
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 daqiqa
+  windowMs: 5 * 60 * 1000, // 15 daqiqa
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -16,7 +16,7 @@ const authLimiter = rateLimit({
   message: {
     success: false,
     statusCode: 429,
-    message: "Juda ko'p urinish qildingiz. 15 daqiqadan so'ng qayta urinib ko'ring",
+    message: "Juda ko'p urinish qildingiz. 5 daqiqadan so'ng qayta urinib ko'ring",
   },
 });
 
