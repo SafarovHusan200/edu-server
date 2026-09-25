@@ -15,5 +15,5 @@ module.exports = {
 
   // Har bir aylantirishda tushishi mumkin bo'lgan diamond miqdorlari (teng ehtimollik
   // bilan tanlanadi — kichik qiymatlar ko'proq takrorlangani uchun kamdan-kam katta yutuq tushadi)
-  SPIN_PRIZE_TABLE: [1, 1, 2, 2, 3, 3, 5, 10],
+  SPIN_PRIZE_TABLE: [1, 1, 2, 2, 3, 3, 4, 5],
 };
