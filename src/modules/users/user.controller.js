@@ -67,6 +67,15 @@ const verifyUser = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, 'Foydalanuvchi tasdiqlandi', { user }));
 });
 
+// PATCH /api/v1/users/:id/reset-password — superadmin
+const resetPassword = asyncHandler(async (req, res) => {
+  const { newPassword } = req.body;
+
+  const user = await userService.resetPassword(req.params.id, newPassword);
+
+  res.status(200).json(new ApiResponse(200, 'Parol muvaffaqiyatli tiklandi', { user }));
+});
+
 // PATCH /api/v1/users/:id/block — admin
 const setBlocked = asyncHandler(async (req, res) => {
   const { isBlocked } = req.body;
@@ -125,6 +134,7 @@ module.exports = {
   uploadAvatar,
   createUser,
   verifyUser,
+  resetPassword,
   getUsers,
   getUserById,
   setBlocked,

@@ -12,6 +12,7 @@ const {
   updateMeValidation,
   changePasswordValidation,
   createUserValidation,
+  resetPasswordValidation,
   setBlockedValidation,
   updateUserValidation,
 } = require('./user.validation');
@@ -369,6 +370,52 @@ router.patch(
  */
 // PATCH /api/v1/users/:id/verify — admin, superadmin
 router.patch('/:id/verify', authorize('admin', 'superadmin'), userController.verifyUser);
+
+/**
+ * @swagger
+ * /users/{id}/reset-password:
+ *   patch:
+ *     summary: Foydalanuvchi parolini majburan tiklash (eski parol so'ralmaydi)
+ *     tags: [Users]
+ *     description: "Ruxsat: superadmin. Parol unutilganda ishlatiladi — eski parol tekshirilmaydi, o'zgartirilgandan so'ng foydalanuvchining boshqa qurilmalardagi sessiyalari tugatiladi va unga xabar yuboriladi"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [newPassword]
+ *             properties:
+ *               newPassword: { type: string, format: password, minLength: 6 }
+ *     responses:
+ *       200:
+ *         description: Parol tiklandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user: { $ref: '#/components/schemas/User' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+// PATCH /api/v1/users/:id/reset-password — superadmin
+router.patch(
+  '/:id/reset-password',
+  authorize('superadmin'),
+  resetPasswordValidation,
+  validate,
+  userController.resetPassword
+);
 
 /**
  * @swagger

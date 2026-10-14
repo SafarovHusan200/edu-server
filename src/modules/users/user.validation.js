@@ -85,6 +85,15 @@ const createUserValidation = [
     .withMessage("Sinf harfi A-E oralig'ida bo'lishi kerak"),
 ];
 
+const resetPasswordValidation = [
+  body('newPassword')
+    .notEmpty()
+    .withMessage('Yangi parol kiritilishi shart')
+    .bail()
+    .isLength({ min: 6 })
+    .withMessage("Parol kamida 6 ta belgi bo'lishi kerak"),
+];
+
 const setBlockedValidation = [
   body('isBlocked').isBoolean().withMessage("isBlocked true yoki false bo'lishi kerak"),
 ];
@@ -123,6 +132,7 @@ module.exports = {
   updateMeValidation,
   changePasswordValidation,
   createUserValidation,
+  resetPasswordValidation,
   setBlockedValidation,
   updateUserValidation,
 };

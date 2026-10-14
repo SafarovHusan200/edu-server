@@ -105,6 +105,30 @@ const verifyUser = async (id, verifiedById) => {
   return user.populate('verifiedBy', 'name phone role');
 };
 
+// PATCH /users/:id/reset-password — superadmin: eski parolni so'ramasdan yangi parol
+// o'rnatadi (foydalanuvchi parolni unutganda ishlatiladi). Boshqa qurilmalardagi eski
+// tokenlar yaroqsiz bo'lishi uchun tokenVersion oshiriladi, foydalanuvchiga xabar boradi
+const resetPassword = async (id, newPassword) => {
+  const user = await User.findById(id);
+  if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
+
+  user.password = newPassword;
+  user.tokenVersion += 1;
+  await user.save();
+
+  await notificationService.createNotification({
+    userId: user._id,
+    type: 'system',
+    title: 'Parolingiz yangilandi',
+    message:
+      "Administrator hisobingiz parolini yangiladi. Agar bu siz bo'lmasangiz, administratorga murojaat qiling",
+    url: `${FRONTEND_URL}/login`,
+    buttonText: '🔑 Tizimga kirish',
+  });
+
+  return user;
+};
+
 const getUsers = async ({ page, limit, role, search, isVerified }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
@@ -258,6 +282,7 @@ module.exports = {
   setAvatar,
   createUser,
   verifyUser,
+  resetPassword,
   getUsers,
   getUserById,
   setBlocked,
