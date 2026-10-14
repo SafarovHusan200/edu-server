@@ -55,6 +55,26 @@ const setAvatar = async (userId, publicPath) => {
   return user;
 };
 
+// POST /users/:id/avatar — superadmin: boshqa foydalanuvchiga avatar belgilaydi/almashtiradi
+const setUserAvatar = async (id, publicPath) => {
+  const user = await User.findById(id);
+  if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
+
+  user.avatar = publicPath;
+  await user.save();
+  return user;
+};
+
+// DELETE /users/:id/avatar — superadmin: foydalanuvchi avatarini o'chiradi
+const deleteUserAvatar = async (id) => {
+  const user = await User.findById(id);
+  if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
+
+  user.avatar = null;
+  await user.save();
+  return user;
+};
+
 // POST /users — superadmin: istalgan roldagi (admin/superadmin ham) yangi foydalanuvchi yaratadi
 // Admin o'zi yaratganligi sababli qo'shimcha tasdiqlash shart emas — isVerified=true,
 // va shu amalni kim bajarganini ham saqlab qo'yamiz (verifiedBy/verifiedAt)
@@ -280,6 +300,8 @@ module.exports = {
   updateMe,
   changePassword,
   setAvatar,
+  setUserAvatar,
+  deleteUserAvatar,
   createUser,
   verifyUser,
   resetPassword,

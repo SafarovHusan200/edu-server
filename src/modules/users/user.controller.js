@@ -35,6 +35,22 @@ const uploadAvatar = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, 'Avatar yuklandi', { user }));
 });
 
+// POST /api/v1/users/:id/avatar — superadmin
+const setUserAvatar = asyncHandler(async (req, res) => {
+  if (!req.file) throw new ApiError(400, 'Rasm fayli yuborilishi shart');
+
+  const user = await userService.setUserAvatar(req.params.id, toPublicPath(req.file.path));
+
+  res.status(200).json(new ApiResponse(200, 'Avatar yangilandi', { user }));
+});
+
+// DELETE /api/v1/users/:id/avatar — superadmin
+const deleteUserAvatar = asyncHandler(async (req, res) => {
+  const user = await userService.deleteUserAvatar(req.params.id);
+
+  res.status(200).json(new ApiResponse(200, "Avatar o'chirildi", { user }));
+});
+
 // POST /api/v1/users — superadmin
 const createUser = asyncHandler(async (req, res) => {
   const { name, phone, password, role, tarif, grade } = req.body;
@@ -132,6 +148,8 @@ module.exports = {
   updateMe,
   changePassword,
   uploadAvatar,
+  setUserAvatar,
+  deleteUserAvatar,
   createUser,
   verifyUser,
   resetPassword,

@@ -419,6 +419,77 @@ router.patch(
 
 /**
  * @swagger
+ * /users/{id}/avatar:
+ *   post:
+ *     summary: Foydalanuvchiga avatar belgilash/almashtirish
+ *     tags: [Users]
+ *     description: "Ruxsat: superadmin"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [avatar]
+ *             properties:
+ *               avatar: { type: string, format: binary }
+ *     responses:
+ *       200:
+ *         description: Avatar yangilandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user: { $ref: '#/components/schemas/User' }
+ *       400: { description: "Rasm fayli yuborilishi shart" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *   delete:
+ *     summary: Foydalanuvchi avatarini o'chirish
+ *     tags: [Users]
+ *     description: "Ruxsat: superadmin"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     responses:
+ *       200:
+ *         description: Avatar o'chirildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user: { $ref: '#/components/schemas/User' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+// POST /api/v1/users/:id/avatar — superadmin
+router.post(
+  '/:id/avatar',
+  authorize('superadmin'),
+  uploadImage('avatars').single('avatar'),
+  userController.setUserAvatar
+);
+
+// DELETE /api/v1/users/:id/avatar — superadmin
+router.delete('/:id/avatar', authorize('superadmin'), userController.deleteUserAvatar);
+
+/**
+ * @swagger
  * /users/{id}:
  *   patch:
  *     summary: Foydalanuvchini yangilash (rolni o'zgartirish shu jumladan)
