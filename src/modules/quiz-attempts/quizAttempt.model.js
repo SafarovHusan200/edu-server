@@ -43,7 +43,7 @@ const quizAttemptSchema = new mongoose.Schema(
     // Holat
     status: {
       type: String,
-      enum: ['in_progress', 'submitted', 'reviewed'],
+      enum: ['in_progress', 'submitted', 'reviewed', 'expired'],
       default: 'in_progress',
     },
 

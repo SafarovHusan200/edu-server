@@ -2,6 +2,7 @@ const request = require('supertest');
 const app = require('../src/app');
 const Quiz = require('../src/modules/quizzes/quiz.model');
 const Question = require('../src/modules/questions/question.model');
+const QuizAttempt = require('../src/modules/quiz-attempts/quizAttempt.model');
 const { createUser } = require('./helpers');
 
 const setupQuiz = async (teacherId, overrides = {}) => {
@@ -96,6 +97,39 @@ describe('Quiz attempts', () => {
       .set('Authorization', `Bearer ${studentToken}`);
 
     expect(secondStartRes.status).toBe(400);
+  });
+
+  test('vaqt limiti tugagandan so\'ng submit qilinsa attempt "expired" bo\'ladi', async () => {
+    const { user: teacher } = await createUser({ role: 'teacher' });
+    const { token: studentToken } = await createUser({ role: 'student' });
+    const { quiz, mcq, tf } = await setupQuiz(teacher._id, { timeLimit: 10 });
+
+    const startRes = await request(app)
+      .post(`/api/v1/quizzes/${quiz._id}/start`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    const attemptId = startRes.body.data.attempt._id;
+
+    // Boshlangan vaqtni orqaga suramiz — 10 daqiqalik limit allaqachon tugagan bo'lsin
+    await QuizAttempt.findByIdAndUpdate(attemptId, {
+      startedAt: new Date(Date.now() - 20 * 60 * 1000),
+    });
+
+    const submitRes = await request(app)
+      .post(`/api/v1/quizzes/attempts/${attemptId}/submit`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        answers: [
+          { questionId: mcq._id.toString(), givenAnswer: 1 },
+          { questionId: tf._id.toString(), givenAnswer: true },
+        ],
+      });
+
+    expect(submitRes.status).toBe(400);
+
+    const attempt = await QuizAttempt.findById(attemptId);
+    expect(attempt.status).toBe('expired');
+    expect(attempt.scorePercent).toBe(0);
   });
 
   test('boshqa teacher quiz natijalarini ko\'ra olmaydi', async () => {

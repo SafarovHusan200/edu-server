@@ -57,7 +57,7 @@ const quizSchema = new mongoose.Schema(
     timeLimit: {
       type: Number,
       required: true,
-      min: 1,
+      min: 10,
     },
 
     // Quiz qaysi sinf(lar) uchun mo'ljallangan — bir nechta sinf/parallel bo'lishi mumkin

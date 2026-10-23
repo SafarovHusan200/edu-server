@@ -352,7 +352,7 @@ const definition = {
           scorePercent: { type: 'number' },
           passed: { type: 'boolean' },
           diamondsAwarded: { type: 'boolean' },
-          status: { type: 'string', enum: ['in_progress', 'submitted', 'reviewed'] },
+          status: { type: 'string', enum: ['in_progress', 'submitted', 'reviewed', 'expired'] },
           attemptNumber: { type: 'integer' },
           startedAt: { type: 'string', format: 'date-time' },
           submittedAt: { type: 'string', format: 'date-time', nullable: true },

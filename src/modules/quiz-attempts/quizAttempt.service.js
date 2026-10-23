@@ -4,6 +4,7 @@ const QuizAttempt = require('./quizAttempt.model');
 const Quiz = require('../quizzes/quiz.model');
 const {
   getEffectiveMaxAttempts,
+  getEffectiveTimeLimit,
   findMatchingTargetGrade,
   getEffectiveAvailability,
 } = require('../quizzes/quiz.service');
@@ -153,6 +154,27 @@ const submitAttempt = async (attemptId, studentId, answers) => {
   }
 
   const quiz = await Quiz.findById(attempt.quiz);
+
+  // Vaqt limiti tekshiruvi — tarmoq kechikishi uchun kichik zahira (GRACE) bilan.
+  // Oshib ketgan bo'lsa attempt 'expired' deb yakunlanadi (0 ball, diamond berilmaydi,
+  // bu urinish ham maxAttempts hisobiga kiradi) — aks holda student cheksiz vaqt
+  // javob izlab, keyin oddiy submit qilib normal baho olishi mumkin edi.
+  const GRACE_SECONDS = 20;
+  const studentGradeDoc = await User.findById(studentId).select('grade');
+  const matchedGrade = findMatchingTargetGrade(quiz, studentGradeDoc?.grade);
+  const effectiveTimeLimit = getEffectiveTimeLimit(quiz, matchedGrade); // daqiqada
+  const elapsedSeconds = (Date.now() - attempt.startedAt.getTime()) / 1000;
+
+  if (elapsedSeconds > effectiveTimeLimit * 60 + GRACE_SECONDS) {
+    attempt.status = 'expired';
+    attempt.submittedAt = new Date();
+    await attempt.save();
+    throw new ApiError(
+      400,
+      `Vaqt tugagan (${effectiveTimeLimit} daqiqa) — bu urinish bekor qilindi`
+    );
+  }
+
   const questions = await Question.find({ quiz: attempt.quiz });
 
   let totalPoints = 0;
@@ -299,7 +321,7 @@ const getQuizResults = async (quizId, teacherId, role) => {
 
   const attempts = await QuizAttempt.find({
     quiz: quizId,
-    status: { $in: ['submitted', 'reviewed'] },
+    status: { $in: ['submitted', 'reviewed', 'expired'] },
   })
     .populate('student', 'name phone grade')
     .sort({ createdAt: -1 });
