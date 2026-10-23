@@ -60,6 +60,17 @@ const verifyTelegramOtp = asyncHandler(async (req, res) => {
 });
 
 // ─────────────────────────────────────────
+// POST /api/v1/auth/telegram-webapp
+// ─────────────────────────────────────────
+const verifyTelegramWebApp = asyncHandler(async (req, res) => {
+  const { initData } = req.body;
+
+  const { user, token } = await authService.verifyTelegramWebApp({ initData });
+
+  res.status(200).json(new ApiResponse(200, 'Muvaffaqiyatli kirdingiz', { user, token }));
+});
+
+// ─────────────────────────────────────────
 // POST /api/v1/auth/logout
 // ─────────────────────────────────────────
 const logout = asyncHandler(async (req, res) => {
@@ -74,4 +85,5 @@ module.exports = {
   getMe,
   logout,
   verifyTelegramOtp, // ← qo'shildi
+  verifyTelegramWebApp,
 };

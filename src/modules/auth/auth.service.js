@@ -1,8 +1,12 @@
+const crypto = require('crypto');
 const User = require('../users/user.model');
 const ApiError = require('../../utils/ApiError');
 const Otp = require('./otp.model');
 const notificationService = require('../notifications/notification.service');
 const { frontendLinks } = require('../../config/frontendLinks');
+
+// Sizib chiqgan/eski initData qayta ishlatilmasligi uchun maksimal yashash muddati
+const INIT_DATA_MAX_AGE_SECONDS = 24 * 60 * 60;
 
 // ─────────────────────────────────────────
 // TELEGRAM OTP VERIFY (To'g'rilangan variant)
@@ -43,6 +47,73 @@ const verifyTelegramOtp = async ({ code }) => {
   // 5. JWT Token yaratish
   const token = user.generateJwtToken();
 
+  return { user, token };
+};
+
+// ─────────────────────────────────────────
+// TELEGRAM MINI APP (WebApp) LOGIN
+// initData'ni Telegramning o'z algoritmi bo'yicha tasdiqlaymiz:
+// https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+// Yangi hisob yaratilmaydi — foydalanuvchi avval botdan (/start) ro'yxatdan
+// o'tgan bo'lishi shart (telegramId orqali qidiriladi).
+// ─────────────────────────────────────────
+const verifyTelegramWebApp = async ({ initData }) => {
+  const params = new URLSearchParams(initData);
+  const hash = params.get('hash');
+  if (!hash) {
+    throw new ApiError(400, "initData noto'g'ri formatda");
+  }
+  params.delete('hash');
+
+  const dataCheckString = [...params.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('\n');
+
+  const secretKey = crypto
+    .createHmac('sha256', 'WebAppData')
+    .update(process.env.TELEGRAM_BOT_TOKEN)
+    .digest();
+  const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+
+  if (computedHash !== hash) {
+    throw new ApiError(401, "initData imzosi noto'g'ri");
+  }
+
+  const authDate = Number(params.get('auth_date'));
+  if (!authDate || Date.now() / 1000 - authDate > INIT_DATA_MAX_AGE_SECONDS) {
+    throw new ApiError(401, "initData muddati tugagan, Mini App'ni qayta oching");
+  }
+
+  let telegramUser;
+  try {
+    telegramUser = JSON.parse(params.get('user') || '{}');
+  } catch {
+    throw new ApiError(400, "initData ichidagi foydalanuvchi ma'lumoti noto'g'ri formatda");
+  }
+  if (!telegramUser.id) {
+    throw new ApiError(400, "initData ichida foydalanuvchi ma'lumoti topilmadi");
+  }
+
+  const user = await User.findOne({ telegramId: telegramUser.id });
+  if (!user) {
+    throw new ApiError(404, "Foydalanuvchi topilmadi. Avval botdan ro'yxatdan o'ting");
+  }
+
+  if (user.isBlocked) {
+    throw new ApiError(403, 'Hisobingiz bloklangan');
+  }
+
+  // Telegram profilidagi o'zgarishlarni (ism/username) sinxronlaymiz — xuddi
+  // telegramAuth (bot /start) qilganidek
+  const fullName = [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(' ');
+  if (fullName) user.name = fullName;
+  user.telegramUsername = telegramUser.username ?? user.telegramUsername;
+  user.lastLogin = new Date();
+  user.downgradeIfPremiumExpired();
+  await user.save();
+
+  const token = user.generateJwtToken();
   return { user, token };
 };
 
@@ -179,4 +250,5 @@ module.exports = {
   getMe,
   logout,
   verifyTelegramOtp,
+  verifyTelegramWebApp,
 };

@@ -9,6 +9,7 @@ const {
   registerValidation,
   loginValidation,
   telegramAuthValidation,
+  telegramWebAppValidation,
   verifyOtpValidation,
 } = require('./auth.validation');
 
@@ -148,6 +149,53 @@ router.post('/login', authLimiter, loginValidation, validate, authController.log
  */
 // POST /api/v1/auth/telegram/verify
 router.post('/telegram', authLimiter, verifyOtpValidation, validate, authController.verifyTelegramOtp);
+
+/**
+ * @swagger
+ * /auth/telegram-webapp:
+ *   post:
+ *     summary: Telegram Mini App orqali kirish (initData tasdiqlanadi)
+ *     tags: [Auth]
+ *     security: []
+ *     description: >
+ *       Telegram Mini App ichida `window.Telegram.WebApp.initData` shu yerga
+ *       yuboriladi, backend uni bot tokeni bilan HMAC orqali tasdiqlaydi.
+ *       Yangi hisob yaratilmaydi — foydalanuvchi avval botdan (/start) ro'yxatdan
+ *       o'tgan bo'lishi shart (telegramId orqali qidiriladi).
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [initData]
+ *             properties:
+ *               initData: { type: string, description: 'Telegram WebApp.initData (xom query-string)' }
+ *     responses:
+ *       200:
+ *         description: Muvaffaqiyatli kirildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/AuthPayload' }
+ *       400: { description: "initData formati noto'g'ri" }
+ *       401: { description: "initData imzosi noto'g'ri yoki muddati tugagan" }
+ *       403: { description: 'Hisob bloklangan' }
+ *       404: { description: "Foydalanuvchi topilmadi — avval botdan ro'yxatdan o'tishi kerak" }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+// POST /api/v1/auth/telegram-webapp
+router.post(
+  '/telegram-webapp',
+  authLimiter,
+  telegramWebAppValidation,
+  validate,
+  authController.verifyTelegramWebApp
+);
 
 /**
  * @swagger

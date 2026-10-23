@@ -15,7 +15,10 @@ const updateMe = async (userId, { name, grade }) => {
   const user = await User.findById(userId);
   if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
 
-  if (name) user.name = name;
+  // O'quvchilar o'z ismini o'zgartira olmaydi — admin tasdiqlagan haqiqiy ismi
+  // (masalan reyting/natijalarda identifikatsiya uchun) shundayligicha qolishi kerak.
+  // Boshqa rollar (teacher/admin/superadmin) uchun bu cheklov yo'q.
+  if (name && user.role !== 'student') user.name = name;
   if (grade && user.role === 'student') {
     user.grade = {
       number: grade.number ?? user.grade?.number,

@@ -21,7 +21,7 @@ const definition = {
   },
   servers: [
     { url: `http://localhost:${PORT}/api/v1`, description: 'Local server' },
-    { url: 'https://api.edu-platform.uz/api/v1', description: 'Production server' },
+    { url: 'https://server.maktab16.uz/api/v1', description: 'Production server' },
   ],
   tags: [
     { name: 'Auth', description: "Ro'yxatdan o'tish, kirish, Telegram orqali autentifikatsiya" },

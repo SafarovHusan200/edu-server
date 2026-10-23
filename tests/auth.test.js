@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const request = require('supertest');
 const app = require('../src/app');
 const User = require('../src/modules/users/user.model');
@@ -5,6 +6,27 @@ const User = require('../src/modules/users/user.model');
 // Ro'yxatdan o'tgan (lekin hali tasdiqlanmagan) userni admin tasdiqlagandek qilib
 // belgilaydi — login talab qiladigan testlarda shundan foydalaniladi
 const verifyUser = (userId) => User.findByIdAndUpdate(userId, { isVerified: true });
+
+// Telegram Mini App'ning haqiqiy initData'sini taqlid qiladi — xuddi Telegram
+// qiladigan HMAC imzoni bot tokeni bilan hisoblaydi (auth.service.js'dagi
+// tekshiruv aynan shu algoritmga mos bo'lishi kerak)
+const buildInitData = (telegramUser, { authDate = Math.floor(Date.now() / 1000) } = {}) => {
+  const params = new URLSearchParams({
+    user: JSON.stringify(telegramUser),
+    auth_date: String(authDate),
+  });
+
+  const dataCheckString = [...params.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('\n');
+
+  const secretKey = crypto.createHmac('sha256', 'WebAppData').update(process.env.TELEGRAM_BOT_TOKEN).digest();
+  const hash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+
+  params.set('hash', hash);
+  return params.toString();
+};
 
 describe('Auth', () => {
   test('register yangi studentni yaratadi, lekin token qaytarmaydi (tasdiqlanmagan)', async () => {
@@ -187,5 +209,53 @@ describe('Auth', () => {
       .post('/api/v1/auth/login')
       .send({ phone: '998906666666', password: 'newpassword123' });
     expect(loginWithNewPassword.status).toBe(200);
+  });
+
+  test('telegram-webapp: to\'g\'ri initData bilan allaqachon ulangan foydalanuvchi kira oladi', async () => {
+    const user = await User.create({
+      name: 'Eski Ism',
+      phone: '998907777777',
+      role: 'student',
+      grade: { number: 5, letter: 'A' },
+      telegramId: 123456789,
+      isVerified: true,
+    });
+
+    const initData = buildInitData({ id: 123456789, first_name: 'Yangi', last_name: 'Ism', username: 'yangi_ism' });
+
+    const res = await request(app).post('/api/v1/auth/telegram-webapp').send({ initData });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.token).toBeDefined();
+    expect(res.body.data.user.name).toBe('Yangi Ism');
+
+    const updated = await User.findById(user._id);
+    expect(updated.telegramUsername).toBe('yangi_ism');
+  });
+
+  test('telegram-webapp: botdan ro\'yxatdan o\'tmagan telegramId uchun 404 qaytadi', async () => {
+    const initData = buildInitData({ id: 999999999, first_name: 'Notanish' });
+
+    const res = await request(app).post('/api/v1/auth/telegram-webapp').send({ initData });
+
+    expect(res.status).toBe(404);
+  });
+
+  test('telegram-webapp: imzosi buzilgan initData rad etiladi', async () => {
+    await User.create({
+      name: 'Imzo Testi',
+      phone: '998908888888',
+      role: 'student',
+      grade: { number: 5, letter: 'A' },
+      telegramId: 555555555,
+      isVerified: true,
+    });
+
+    const initData = buildInitData({ id: 555555555, first_name: 'Imzo' });
+    const tampered = initData.replace(/hash=[a-f0-9]+/, 'hash=0000000000000000000000000000000000000000000000000000000000000000');
+
+    const res = await request(app).post('/api/v1/auth/telegram-webapp').send({ initData: tampered });
+
+    expect(res.status).toBe(401);
   });
 });

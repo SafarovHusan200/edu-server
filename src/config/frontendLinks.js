@@ -40,6 +40,9 @@ const frontendLinks = {
   reviewOpenEnded: (quizId, attemptId) => `${FRONTEND_URL}/teacher/quizzes/${quizId}/results/${attemptId}`,
 
   adminPendingUsers: () => `${FRONTEND_URL}/admin/users?tab=unverified`,
+
+  // TAXMIN — frontend jamoasi tomonidan hali tasdiqlanmagan, tekshirib ko'rish kerak
+  quizShares: () => `${FRONTEND_URL}/teacher/quizzes/shares`,
 };
 
 module.exports = { FRONTEND_URL, BACKEND_URL, frontendLinks };

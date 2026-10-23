@@ -96,6 +96,10 @@ const telegramAuthValidation = [
   body('avatar').optional().isURL().withMessage("Avatar URL formati noto'g'ri"),
 ];
 
+const telegramWebAppValidation = [
+  body('initData').notEmpty().withMessage('initData kiritilishi shart'),
+];
+
 const verifyOtpValidation = [
   body('code')
     .notEmpty()
@@ -109,5 +113,6 @@ module.exports = {
   registerValidation,
   loginValidation,
   telegramAuthValidation,
+  telegramWebAppValidation,
   verifyOtpValidation,
 };

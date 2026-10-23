@@ -5,9 +5,15 @@ const router = express.Router();
 
 const quizController = require('./quiz.controller');
 const attemptController = require('../quiz-attempts/quizAttempt.controller');
+const quizShareController = require('./quizShare.controller');
 const authenticate = require('../../middleware/authenticate');
 const authorize = require('../../middleware/authorize');
-const { quizValidation, questionValidation, submitValidation } = require('./quiz.validation');
+const {
+  quizValidation,
+  questionValidation,
+  submitValidation,
+  shareQuizValidation,
+} = require('./quiz.validation');
 const validate = require('../../middleware/validate');
 
 // ───────────────────────────────────────────────────────
@@ -578,6 +584,153 @@ router.patch(
   authenticate,
   authorize('teacher', 'admin', 'superadmin'),
   attemptController.reviewOpenEnded
+);
+
+// ───────────────────────────────────────────────────────
+// QUIZ SHARING — bir o'qituvchi testini boshqasiga ulashishi (nusxa orqali)
+// /:id dan OLDIN emas, chunki bular /shares/... (2 segment) — /:id (1 segment)
+// bilan to'qnashmaydi, lekin aniqlik uchun /:id/share alohida pastda joylashgan
+// ───────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /quizzes/{id}/share:
+ *   post:
+ *     summary: Testni boshqa o'qituvchiga ulashish (telefon raqami orqali)
+ *     tags: [Quizzes]
+ *     description: "Ruxsat: testning egasi. Faqat 'standalone' testlar ulashiladi."
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [toTeacherPhone]
+ *             properties:
+ *               toTeacherPhone: { type: string, example: '+998901234567' }
+ *     responses:
+ *       201:
+ *         description: Ulashildi (so'rov 'pending' holatida yaratildi)
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/SuccessResponse' }
+ *       400: { description: "Standalone bo'lmagan test, o'zingizga ulashish, yoki allaqachon kutilayotgan so'rov bor" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { description: "Siz bu testning egasi emassiz" }
+ *       404: { description: "Quiz yoki shu telefon raqamli o'qituvchi topilmadi" }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.post(
+  '/:id/share',
+  authenticate,
+  authorize('teacher', 'admin', 'superadmin'),
+  shareQuizValidation,
+  validate,
+  quizShareController.shareQuiz
+);
+
+/**
+ * @swagger
+ * /quizzes/shares/incoming:
+ *   get:
+ *     summary: Menga ulashilgan testlar ro'yxati
+ *     tags: [Quizzes]
+ *     description: "Ruxsat: teacher, admin, superadmin"
+ *     parameters:
+ *       - { name: status, in: query, schema: { type: string, enum: [pending, accepted, rejected] } }
+ *     responses:
+ *       200:
+ *         description: Ro'yxat
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/SuccessResponse' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+router.get(
+  '/shares/incoming',
+  authenticate,
+  authorize('teacher', 'admin', 'superadmin'),
+  quizShareController.getIncomingShares
+);
+
+/**
+ * @swagger
+ * /quizzes/shares/outgoing:
+ *   get:
+ *     summary: Men ulashgan testlar ro'yxati
+ *     tags: [Quizzes]
+ *     description: "Ruxsat: teacher, admin, superadmin"
+ *     parameters:
+ *       - { name: status, in: query, schema: { type: string, enum: [pending, accepted, rejected] } }
+ *     responses:
+ *       200:
+ *         description: Ro'yxat
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/SuccessResponse' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+router.get(
+  '/shares/outgoing',
+  authenticate,
+  authorize('teacher', 'admin', 'superadmin'),
+  quizShareController.getOutgoingShares
+);
+
+/**
+ * @swagger
+ * /quizzes/shares/{id}/accept:
+ *   patch:
+ *     summary: Ulashilgan testni qabul qilish (mustaqil nusxa yaratiladi)
+ *     tags: [Quizzes]
+ *     description: "Ruxsat: qabul qiluvchi o'qituvchi. Faqat 'pending' holatidan chaqiriladi."
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     responses:
+ *       200:
+ *         description: Qabul qilindi, yangi (mustaqil) quiz yaratildi — isActive=false, targetGrades'ni o'z sinfingizga moslab PATCH /quizzes/{clonedQuizId} orqali sozlang
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/SuccessResponse' }
+ *       400: { description: "So'rov allaqachon javob berilgan" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { description: "Bu sizga ulashilgan so'rov emas" }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.patch(
+  '/shares/:id/accept',
+  authenticate,
+  authorize('teacher', 'admin', 'superadmin'),
+  quizShareController.acceptShare
+);
+
+/**
+ * @swagger
+ * /quizzes/shares/{id}/reject:
+ *   patch:
+ *     summary: Ulashilgan testni rad etish
+ *     tags: [Quizzes]
+ *     description: "Ruxsat: qabul qiluvchi o'qituvchi. Faqat 'pending' holatidan chaqiriladi."
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     responses:
+ *       200:
+ *         description: Rad etildi
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/SuccessResponse' }
+ *       400: { description: "So'rov allaqachon javob berilgan" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { description: "Bu sizga ulashilgan so'rov emas" }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.patch(
+  '/shares/:id/reject',
+  authenticate,
+  authorize('teacher', 'admin', 'superadmin'),
+  quizShareController.rejectShare
 );
 
 module.exports = router;

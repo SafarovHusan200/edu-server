@@ -144,8 +144,19 @@ const submitValidation = [
   body('answers.*.givenAnswer').notEmpty().withMessage('givenAnswer kiritilishi shart'),
 ];
 
+const shareQuizValidation = [
+  body('toTeacherPhone')
+    .trim()
+    .notEmpty()
+    .withMessage("Qabul qiluvchi o'qituvchining telefon raqami kiritilishi shart")
+    .bail()
+    .matches(/^\+?[0-9]{9,15}$/)
+    .withMessage("Telefon raqam formati noto'g'ri"),
+];
+
 module.exports = {
   quizValidation,
   questionValidation,
   submitValidation,
+  shareQuizValidation,
 };

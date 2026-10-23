@@ -25,13 +25,14 @@ router.use(authenticate);
  *   patch:
  *     summary: O'z profilini yangilash
  *     tags: [Users]
+ *     description: "Student rolidagi foydalanuvchilar uchun `name` e'tiborga olinmaydi (o'quvchi o'z ismini o'zgartira olmaydi)"
  *     requestBody:
  *       content:
  *         application/json:
  *           schema:
  *             type: object
  *             properties:
- *               name: { type: string, minLength: 2, maxLength: 50 }
+ *               name: { type: string, minLength: 2, maxLength: 50, description: "Faqat teacher/admin/superadmin uchun qo'llaniladi" }
  *               grade:
  *                 type: object
  *                 properties:
