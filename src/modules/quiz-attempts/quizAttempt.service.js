@@ -410,6 +410,31 @@ const getAttemptById = async (attemptId, userId, role) => {
   return attempt;
 };
 
+// DELETE /quizzes/attempts/:attemptId — superadmin: test xato ketgan/noto'g'ri
+// ishlangan urinishni butunlay o'chiradi (shu bilan student uni qayta urinib
+// ko'rishi mumkin bo'ladi — maxAttempts hisobidan ham chiqib ketadi). Agar shu
+// urinish uchun diamond allaqachon berilgan bo'lsa, xuddi shu formula bilan
+// qayta hisoblab, studentdan qaytarib olinadi (0'dan pastga tushmaydi)
+const deleteAttempt = async (attemptId) => {
+  const attempt = await QuizAttempt.findById(attemptId);
+  if (!attempt) throw new ApiError(404, 'Attempt topilmadi');
+
+  if (attempt.diamondsAwarded) {
+    const student = await User.findById(attempt.student).select('tarif diamonds');
+    if (student) {
+      const baseAmount = Math.round((attempt.scorePercent / 100) * QUIZ_MAX_REWARD * 100) / 100;
+      const diamondAmount = applyDiamondMultiplier(baseAmount, student.tarif);
+      if (diamondAmount > 0) {
+        await User.findByIdAndUpdate(student._id, {
+          diamonds: Math.max(0, student.diamonds - diamondAmount),
+        });
+      }
+    }
+  }
+
+  await attempt.deleteOne();
+};
+
 module.exports = {
   startAttempt,
   submitAttempt,
@@ -417,4 +442,5 @@ module.exports = {
   getQuizResults,
   reviewOpenEnded,
   getAttemptById,
+  deleteAttempt,
 };

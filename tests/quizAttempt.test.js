@@ -143,4 +143,91 @@ describe('Quiz attempts', () => {
 
     expect(res.status).toBe(403);
   });
+
+  test('egasi yoki boshqa student attemptni ko\'rolmaydi, lekin admin ko\'ra oladi', async () => {
+    const { user: teacher } = await createUser({ role: 'teacher' });
+    const { token: studentToken } = await createUser({ role: 'student' });
+    const { token: otherStudentToken } = await createUser({ role: 'student' });
+    const { token: adminToken } = await createUser({ role: 'admin' });
+    const { quiz } = await setupQuiz(teacher._id);
+
+    const startRes = await request(app)
+      .post(`/api/v1/quizzes/${quiz._id}/start`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    const attemptId = startRes.body.data.attempt._id;
+
+    const ownerRes = await request(app)
+      .get(`/api/v1/quizzes/attempts/${attemptId}`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    expect(ownerRes.status).toBe(200);
+
+    const otherRes = await request(app)
+      .get(`/api/v1/quizzes/attempts/${attemptId}`)
+      .set('Authorization', `Bearer ${otherStudentToken}`);
+    expect(otherRes.status).toBe(403);
+
+    const adminRes = await request(app)
+      .get(`/api/v1/quizzes/attempts/${attemptId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(adminRes.status).toBe(200);
+  });
+
+  test('superadmin xato ketgan urinishni o\'chira oladi, berilgan diamond qaytariladi, student qayta urinishi mumkin', async () => {
+    const { user: teacher } = await createUser({ role: 'teacher' });
+    const { user: student, token: studentToken } = await createUser({ role: 'student' });
+    const { token: superadminToken } = await createUser({ role: 'superadmin' });
+    const { quiz, mcq, tf } = await setupQuiz(teacher._id, { maxAttempts: 1 });
+
+    const startRes = await request(app)
+      .post(`/api/v1/quizzes/${quiz._id}/start`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    const attemptId = startRes.body.data.attempt._id;
+
+    await request(app)
+      .post(`/api/v1/quizzes/attempts/${attemptId}/submit`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        answers: [
+          { questionId: mcq._id.toString(), givenAnswer: 1 },
+          { questionId: tf._id.toString(), givenAnswer: true },
+        ],
+      });
+
+    const studentAfterSubmit = await require('../src/modules/users/user.model').findById(student._id);
+    expect(studentAfterSubmit.diamonds).toBeGreaterThan(0);
+
+    const deleteRes = await request(app)
+      .delete(`/api/v1/quizzes/attempts/${attemptId}`)
+      .set('Authorization', `Bearer ${superadminToken}`);
+
+    expect(deleteRes.status).toBe(200);
+
+    const deletedAttempt = await QuizAttempt.findById(attemptId);
+    expect(deletedAttempt).toBeNull();
+
+    const studentAfterDelete = await require('../src/modules/users/user.model').findById(student._id);
+    expect(studentAfterDelete.diamonds).toBe(0);
+
+    const secondStartRes = await request(app)
+      .post(`/api/v1/quizzes/${quiz._id}/start`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    expect(secondStartRes.status).toBe(201);
+  });
+
+  test('teacher/admin urinishni o\'chira olmaydi, faqat superadmin', async () => {
+    const { user: teacher, token: teacherToken } = await createUser({ role: 'teacher' });
+    const { token: studentToken } = await createUser({ role: 'student' });
+    const { quiz, mcq, tf } = await setupQuiz(teacher._id);
+
+    const startRes = await request(app)
+      .post(`/api/v1/quizzes/${quiz._id}/start`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    const attemptId = startRes.body.data.attempt._id;
+
+    const res = await request(app)
+      .delete(`/api/v1/quizzes/attempts/${attemptId}`)
+      .set('Authorization', `Bearer ${teacherToken}`);
+
+    expect(res.status).toBe(403);
+  });
 });

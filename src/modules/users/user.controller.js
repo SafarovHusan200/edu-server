@@ -144,6 +144,15 @@ const getLeaderboard = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, 'Reyting', { leaderboard, meta }));
 });
 
+// GET /api/v1/users/teachers — testni ulashish uchun o'qituvchi tanlash (select/qidiruv)
+const searchTeachers = asyncHandler(async (req, res) => {
+  const { search } = req.query;
+
+  const teachers = await userService.searchTeachers(req.user.id, search);
+
+  res.status(200).json(new ApiResponse(200, "O'qituvchilar ro'yxati", { teachers }));
+});
+
 module.exports = {
   updateMe,
   changePassword,
@@ -161,4 +170,5 @@ module.exports = {
   linkTelegram,
   unlinkTelegram,
   getLeaderboard,
+  searchTeachers,
 };

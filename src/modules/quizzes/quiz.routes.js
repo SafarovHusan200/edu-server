@@ -586,6 +586,64 @@ router.patch(
   attemptController.reviewOpenEnded
 );
 
+/**
+ * @swagger
+ * /quizzes/attempts/{attemptId}:
+ *   get:
+ *     summary: Bitta urinishni to'liq (savol-javob) ko'rish
+ *     tags: [Quizzes]
+ *     description: "Ruxsat: urinish egasi (student) yoki teacher/admin/superadmin"
+ *     parameters:
+ *       - { name: attemptId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       200:
+ *         description: Urinish ma'lumotlari
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         attempt: { $ref: '#/components/schemas/QuizAttempt' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.get('/attempts/:attemptId', authenticate, attemptController.getAttemptById);
+
+/**
+ * @swagger
+ * /quizzes/attempts/{attemptId}:
+ *   delete:
+ *     summary: Urinishni o'chirish (test xato ketgan/noto'g'ri ishlangan holatlar uchun)
+ *     tags: [Quizzes]
+ *     description: >
+ *       Ruxsat: superadmin. O'chirilgan urinish maxAttempts hisobidan chiqib ketadi
+ *       (student qayta urinib ko'rishi mumkin bo'ladi). Agar shu urinish uchun
+ *       diamond berilgan bo'lsa, studentdan avtomatik qaytarib olinadi.
+ *     parameters:
+ *       - { name: attemptId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       200:
+ *         description: O'chirildi
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/SuccessResponse' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.delete(
+  '/attempts/:attemptId',
+  authenticate,
+  authorize('superadmin'),
+  attemptController.deleteAttempt
+);
+
 // ───────────────────────────────────────────────────────
 // QUIZ SHARING — bir o'qituvchi testini boshqasiga ulashishi (nusxa orqali)
 // /:id dan OLDIN emas, chunki bular /shares/... (2 segment) — /:id (1 segment)

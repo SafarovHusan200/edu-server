@@ -187,6 +187,42 @@ router.get('/leaderboard', userController.getLeaderboard);
 
 /**
  * @swagger
+ * /users/teachers:
+ *   get:
+ *     summary: "O'qituvchilarni qidirish (test ulashish uchun select/qidiruv maydoni)"
+ *     tags: [Users]
+ *     description: "Ruxsat: istalgan login qilgan foydalanuvchi. Faqat minimal maydonlar (ism/telefon/avatar) qaytadi, o'zi natijaga kirmaydi."
+ *     parameters:
+ *       - { name: search, in: query, schema: { type: string }, description: "Ism yoki telefon bo'yicha qidiruv" }
+ *     responses:
+ *       200:
+ *         description: "O'qituvchilar ro'yxati (ko'pi bilan 20 ta)"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         teachers:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               _id: { type: string }
+ *                               name: { type: string }
+ *                               phone: { type: string }
+ *                               avatar: { type: string, nullable: true }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+// GET /api/v1/users/teachers — /:id dan OLDIN ro'yxatdan o'tkazilishi shart
+router.get('/teachers', userController.searchTeachers);
+
+/**
+ * @swagger
  * /users:
  *   get:
  *     summary: Barcha foydalanuvchilarni olish

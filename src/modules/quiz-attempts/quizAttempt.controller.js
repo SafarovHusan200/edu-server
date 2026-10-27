@@ -75,6 +75,15 @@ const getAttemptById = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, "Attempt ma'lumotlari", { attempt }));
 });
 
+// ─────────────────────────────────────────
+// DELETE /api/v1/quiz-attempts/:attemptId  (superadmin)
+// ─────────────────────────────────────────
+const deleteAttempt = asyncHandler(async (req, res) => {
+  await quizAttemptService.deleteAttempt(req.params.attemptId);
+
+  res.status(200).json(new ApiResponse(200, "Urinish o'chirildi"));
+});
+
 module.exports = {
   startAttempt,
   submitAttempt,
@@ -82,4 +91,5 @@ module.exports = {
   getQuizResults,
   reviewOpenEnded,
   getAttemptById,
+  deleteAttempt,
 };

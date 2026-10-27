@@ -96,11 +96,19 @@ backend (`edu-platform.uz-server-api`)ning haqiqiy imkoniyatlariga asoslanib yoz
    - **Sinf(lar) tanlash** (`targetGrades[]`) — bir nechta sinf/parallel qo'shish, har biriga ixtiyoriy alohida boshlanish/tugash vaqti, urinish soni, vaqt limiti
    - Savollar qo'shish (multiple_choice/true_false/open_ended) — variant, to'g'ri javob, ball
    - Faollashtirish (`isActive`) — minimal savol soni talabi haqida ogohlantirish (sinf darajasiga qarab 10/20/25 ta)
-6. **Test natijalari** — barcha studentlar ro'yxati, ball, holat (shu jumladan "vaqt tugadi" — `expired`)
+6. **Test natijalari** — barcha studentlar ro'yxati, ball, holat (shu jumladan "vaqt tugadi" — `expired`).
+   Bitta urinishni bosilganda savol-javob tafsiloti ochiladi (`GET /quizzes/attempts/:attemptId`).
+   **Faqat superadmin** uchun bu yerda qo'shimcha **"O'chirish"** tugmasi ko'rinadi — test
+   texnik xato (masalan noto'g'ri savol/vaqt limiti) sababli buzilib ketgan urinishni butunlay
+   o'chirish uchun (shu bilan urinish `maxAttempts` hisobidan chiqadi — student qayta urina
+   oladi; agar diamond berilgan bo'lsa, avtomatik qaytarib olinadi). Boshqa rollar (teacher/
+   admin) bu tugmani ko'rmaydi/chaqirolmaydi.
 7. **Ochiq savollarni baholash** — kutilayotgan urinishlar ro'yxati, har bir javobga ball/izoh qo'yish formasi
 8. **Testni ulashish** — "Mening testlarim" ro'yxatidagi har bir **mustaqil (standalone)** test
-   yonida "Boshqa o'qituvchiga ulashish" tugmasi (telefon raqami kiritiladi). Bilan bog'liq
-   ikki ro'yxat:
+   yonida "Boshqa o'qituvchiga ulashish" tugmasi. Telefon raqamini qo'lda kiritish o'rniga
+   **qidiruv bilan select** ko'rsatilsin — `GET /users/teachers?search=...` orqali to'ldiriladi
+   (yozilgan harflar bo'yicha ism/telefon filtrlanadi), tanlangan o'qituvchining `phone`i
+   `toTeacherPhone` sifatida yuboriladi. Bilan bog'liq ikki ro'yxat:
    - **Menga ulashilganlar** — kelgan so'rovlar, har birida "Qabul qilish" / "Rad etish"
      tugmalari. Qabul qilinganda **yangi, mustaqil test** (o'zining nusxasi, `isActive:false`)
      yaratiladi — buni darhol "Test tahrirlash" sahifasiga yo'naltirib, o'z sinfini
@@ -229,7 +237,9 @@ Masalan 4-A sinf o'qituvchisi testini 4-V sinf o'qituvchisiga ulashmoqchi:
 
 1. 4-A o'qituvchisi "Mening testlarim"da (faqat **standalone** testlar uchun chiqadi
    — kursga/darsga bog'langan testlar ulashilmaydi) "Ulashish" tugmasini bosadi,
-   4-V o'qituvchisining telefon raqamini kiritadi.
+   ochilgan **qidiruv bilan select**da (`GET /users/teachers?search=...`) 4-V
+   o'qituvchisini ism/telefon bo'yicha topib tanlaydi (telefon raqamini qo'lda
+   kiritish shart emas).
 2. 4-V o'qituvchisiga bildirishnoma keladi ("Sizga test ulashildi"), "Menga
    ulashilganlar" sahifasida so'rov "kutilmoqda" holatida ko'rinadi.
 3. 4-V o'qituvchisi **"Qabul qilish"** bosadi → backend avtomatik ravishda testning
@@ -288,6 +298,7 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 | POST | /users/me/telegram/link | login | Telegram ulash uchun bir martalik deep-link |
 | DELETE | /users/me/telegram | login | Telegramni profildan uzish |
 | GET | /users/leaderboard | login | Diamond reytingi |
+| GET | /users/teachers | login | O'qituvchilarni qidirish (test ulashish uchun select) — filtr: `search` (ism/telefon), ko'pi bilan 20 ta, so'ragan o'zi natijaga kirmaydi |
 | GET | /users | admin, superadmin | Foydalanuvchilar ro'yxati (filtr: `role`, `isVerified`, `search`, `page`, `limit`) |
 | GET | /users/:id | admin, superadmin | Bitta foydalanuvchi |
 | PATCH | /users/:id/verify | admin, superadmin | Ro'yxatdan o'tishni tasdiqlash |
@@ -385,6 +396,8 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 | GET | /quizzes/:quizId/my-attempts | login | O'zimning shu testdagi urinishlarim |
 | GET | /quizzes/:quizId/results | teacher, admin, superadmin | Barcha studentlar natijalari |
 | PATCH | /quizzes/attempts/:attemptId/review | teacher, admin, superadmin | Ochiq savolni baholash: `reviews[{questionId,pointsEarned,feedback}]` |
+| GET | /quizzes/attempts/:attemptId | login (egasi) yoki teacher/admin/superadmin | Bitta urinishni savol-javob tafsiloti bilan ko'rish |
+| DELETE | /quizzes/attempts/:attemptId | **superadmin** | Urinishni o'chirish (xato ketgan testlar uchun) — `maxAttempts`dan chiqadi, berilgan diamond qaytariladi |
 | POST | /quizzes/:id/share | teacher, admin, superadmin (egasi) | Testni boshqa o'qituvchiga ulashish: `toTeacherPhone` — faqat standalone testlar (qarang 3.8) |
 | GET | /quizzes/shares/incoming | teacher, admin, superadmin | Menga ulashilgan testlar — filtr: `status` |
 | GET | /quizzes/shares/outgoing | teacher, admin, superadmin | Men ulashgan testlar — filtr: `status` |

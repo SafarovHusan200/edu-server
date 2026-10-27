@@ -299,6 +299,21 @@ const getLeaderboard = async ({ page, limit }) => {
   return { leaderboard, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
+// GET /users/teachers — testni ulashish uchun "kimga ulashish" select/qidiruv maydonini
+// to'ldirish uchun ishlatiladi (telefon raqamini qo'lda kiritish o'rniga). Faqat minimal
+// maydonlar (ism/telefon) qaytadi — to'liq /users ro'yxati (admin-only) o'rnini bosmaydi
+const searchTeachers = async (requesterId, search) => {
+  const filter = { role: 'teacher', _id: { $ne: requesterId } };
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { phone: { $regex: search, $options: 'i' } },
+    ];
+  }
+
+  return User.find(filter).select('name phone avatar').sort({ name: 1 }).limit(20);
+};
+
 module.exports = {
   updateMe,
   changePassword,
@@ -316,4 +331,5 @@ module.exports = {
   createTelegramLinkToken,
   unlinkTelegram,
   getLeaderboard,
+  searchTeachers,
 };
