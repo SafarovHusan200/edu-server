@@ -87,10 +87,11 @@ const createPayment = async ({
   let discountPercent = null;
 
   if (promoCode) {
-    // Promokod faqat premium sotib olishda amal qiladi — boshqa purpose bilan
-    // yuborilsa aniq xato qaytariladi (jimgina e'tiborsiz qoldirilmaydi)
-    if (purpose !== 'premium') {
-      throw new ApiError(400, "Promokod faqat premium sotib olishda ishlatiladi");
+    // Promokod faqat premium yoki kurs sotib olishda amal qiladi (wallet/donation
+    // uchun emas) — boshqa purpose bilan yuborilsa aniq xato qaytariladi
+    // (jimgina e'tiborsiz qoldirilmaydi)
+    if (!['premium', 'course'].includes(purpose)) {
+      throw new ApiError(400, "Promokod faqat premium yoki kurs sotib olishda ishlatiladi");
     }
 
     // Chegirma foizi ham serverda, promo koddan olinadi — client foizni o'zi yubormaydi

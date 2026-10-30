@@ -1,6 +1,7 @@
 // src/modules/promocodes/promocode.service.js
 
 const PromoCode = require('./promocode.model');
+const Course = require('../courses/course.model');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { PREMIUM_PLANS } = require('../../config/pricing');
@@ -58,23 +59,33 @@ const validatePromoCode = async (code) => {
   return promoCode;
 };
 
-// Promokod faqat premium sotib olishda qo'llanadi
-const resolveBaseAmount = async ({ purpose, plan }) => {
-  if (purpose !== 'premium') {
-    throw new ApiError(400, "Promokod faqat premium sotib olishda ishlatiladi");
+// Promokod faqat premium yoki kurs sotib olishda qo'llanadi
+const resolveBaseAmount = async ({ purpose, plan, courseId }) => {
+  if (purpose === 'premium') {
+    const plan_ = PREMIUM_PLANS[plan];
+    if (!plan_) {
+      throw new ApiError(400, `Noto'g'ri reja. Mavjud rejalar: ${Object.keys(PREMIUM_PLANS).join(', ')}`);
+    }
+    return plan_.price;
   }
 
-  const plan_ = PREMIUM_PLANS[plan];
-  if (!plan_) {
-    throw new ApiError(400, `Noto'g'ri reja. Mavjud rejalar: ${Object.keys(PREMIUM_PLANS).join(', ')}`);
+  if (purpose === 'course') {
+    if (!courseId) throw new ApiError(400, "purpose='course' uchun courseId kiritilishi shart");
+
+    const course = await Course.findById(courseId);
+    if (!course || !course.isPublished) throw new ApiError(404, 'Kurs topilmadi');
+    if (course.price <= 0) throw new ApiError(400, "Bu kurs bepul — promokod kerak emas");
+
+    return course.price;
   }
-  return plan_.price;
+
+  throw new ApiError(400, "Promokod faqat premium yoki kurs sotib olishda ishlatiladi");
 };
 
 // GET /promo-codes/preview — checkoutda chegirmani oldindan ko'rsatish uchun
-const previewDiscount = async ({ code, purpose, plan }) => {
+const previewDiscount = async ({ code, purpose, plan, courseId }) => {
   const promoCode = await validatePromoCode(code);
-  const baseAmount = await resolveBaseAmount({ purpose, plan });
+  const baseAmount = await resolveBaseAmount({ purpose, plan, courseId });
   const finalAmount = Math.round(baseAmount * (1 - promoCode.discountPercent / 100));
 
   return {

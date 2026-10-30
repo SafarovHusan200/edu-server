@@ -175,7 +175,7 @@ tasdiqlangan hisoblanadi, kutish shart emas.
    chegirma %. Agar foydalanuvchi allaqachon premium bo'lsa — joriy tugash sanasi va
    "yana sotib olib, muddatni uzaytirish" imkoniyati ko'rsatiladi (yangi reja eskisi
    ustiga **qo'shiladi**, almashtirmaydi).
-2. Ixtiyoriy promokod kiritish (faqat premium xaridlarida ishlaydi).
+2. Ixtiyoriy promokod kiritish (premium **va** kurs xaridlarida ishlaydi — wallet/donation'da ishlamaydi).
 3. To'lov usuli tanlash: **Multicard** (checkout'ga yo'naltiriladi, keyin qaytib keladi
    — "to'lov tekshirilmoqda" holatini ko'rsatish kerak, chunki tasdiqlash bir oz vaqt
    olishi mumkin) YOKI **hamyon balansidan** (agar balans yetarli bo'lsa — darhol
@@ -408,7 +408,7 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | /payment/premium-plans | public | 4 rejaning narxlari (`30d/90d/180d/365d`) |
-| POST | /payment/create | login | To'lov yaratish: `purpose,courseId,plan,amount,promoCode,useBalance,returnUrl` → `checkoutUrl` yoki `paidWithBalance:true` |
+| POST | /payment/create | login | To'lov yaratish: `purpose,courseId,plan,amount,promoCode,useBalance,returnUrl` → `checkoutUrl` yoki `paidWithBalance:true`. `promoCode` faqat `purpose='premium'` yoki `'course'`da ishlaydi |
 | POST | /payment/callback | public (Multicard webhook) | **Frontend ishlatmaydi** — Multicard serveri chaqiradi |
 | GET | /payment/status/:invoiceId | login | To'lov holatini tekshirish (checkout'dan qaytgandan keyin poll qilish uchun) |
 | GET | /payment/my | login | O'z to'lovlar tarixim — filtr: `purpose,status,page,limit` |
@@ -417,7 +417,7 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 ### Promo Codes (`/promo-codes`)
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | /promo-codes/preview | public | Promokodni oldindan tekshirish (query: `code,purpose,plan`) — checkout'da "qo'llash" tugmasi bosilganda |
+| GET | /promo-codes/preview | public | Promokodni oldindan tekshirish (query: `code,purpose` + `purpose='premium'` bo'lsa `plan`, `purpose='course'` bo'lsa `courseId`) — checkout'da "qo'llash" tugmasi bosilganda |
 | GET | /promo-codes | admin, superadmin | Ro'yxat |
 | POST | /promo-codes | admin, superadmin | Yaratish: `code,discountPercent,expiresAt,maxUses` |
 | PATCH | /promo-codes/:id | admin, superadmin | Tahrirlash |

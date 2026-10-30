@@ -39,9 +39,9 @@ const createPaymentValidation = [
     .isLength({ min: 3, max: 30 })
     .withMessage("promoCode noto'g'ri format")
     .bail()
-    .if(body('purpose').not().equals('premium'))
+    .if(body('purpose').not().isIn(['premium', 'course']))
     .custom(() => {
-      throw new Error("Promokod faqat premium sotib olishda ishlatiladi");
+      throw new Error("Promokod faqat premium yoki kurs sotib olishda ishlatiladi");
     }),
 
   body('returnUrl')

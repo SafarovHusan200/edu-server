@@ -18,18 +18,19 @@ const STAFF_ROLES = ['admin', 'superadmin'];
  *     summary: Promokod chegirmasini oldindan hisoblash
  *     tags: [PromoCodes]
  *     security: []
- *     description: "Promokod faqat premium sotib olishda ishlaydi — purpose='premium' bo'lishi shart"
+ *     description: "Promokod faqat premium yoki kurs sotib olishda ishlaydi — purpose='premium' bo'lsa plan, purpose='course' bo'lsa courseId kiritilishi shart"
  *     parameters:
  *       - { name: code, in: query, required: true, schema: { type: string } }
- *       - { name: purpose, in: query, required: true, schema: { type: string, enum: [premium] } }
- *       - { name: plan, in: query, required: true, schema: { type: string, enum: [30d, 90d, 180d, 365d] } }
+ *       - { name: purpose, in: query, required: true, schema: { type: string, enum: [premium, course] } }
+ *       - { name: plan, in: query, schema: { type: string, enum: [30d, 90d, 180d, 365d] }, description: "purpose='premium' bo'lsa majburiy" }
+ *       - { name: courseId, in: query, schema: { type: string }, description: "purpose='course' bo'lsa majburiy" }
  *     responses:
  *       200:
  *         description: Chegirma ma'lumoti
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/SuccessResponse' }
- *       400: { description: "Promokod faqat premium sotib olishda ishlatiladi" }
+ *       400: { description: "Promokod faqat premium yoki kurs sotib olishda ishlatiladi, yoki kurs bepul" }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
 // GET /api/v1/promo-codes/preview?code=&purpose=premium&plan= — public

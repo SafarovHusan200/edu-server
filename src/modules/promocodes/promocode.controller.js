@@ -44,10 +44,10 @@ const deletePromoCode = asyncHandler(async (req, res) => {
 
 // GET /api/v1/promo-codes/preview
 const previewDiscount = asyncHandler(async (req, res) => {
-  const { code, purpose, plan } = req.query;
+  const { code, purpose, plan, courseId } = req.query;
   if (!code || !purpose) throw new ApiError(400, 'code va purpose kiritilishi shart');
 
-  const result = await promocodeService.previewDiscount({ code, purpose, plan });
+  const result = await promocodeService.previewDiscount({ code, purpose, plan, courseId });
 
   res.status(200).json(new ApiResponse(200, 'Chegirma hisoblandi', result));
 });

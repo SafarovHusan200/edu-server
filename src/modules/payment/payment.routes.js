@@ -26,7 +26,7 @@ const { createPaymentValidation } = require('./payment.validation');
  *               courseId: { type: string, description: "purpose='course' bo'lsa majburiy" }
  *               plan: { type: string, enum: [30d, 90d, 180d, 365d], description: "purpose='premium' bo'lsa majburiy — 30/90/180/365 kunlik reja" }
  *               amount: { type: integer, minimum: 1000, description: "Tiyinda; purpose 'course'/'premium' bo'lmasa majburiy" }
- *               promoCode: { type: string, minLength: 3, maxLength: 30, description: "Faqat purpose='premium' bo'lganda ishlaydi, aks holda 400 xato qaytadi" }
+ *               promoCode: { type: string, minLength: 3, maxLength: 30, description: "purpose='premium' yoki 'course' bo'lganda ishlaydi, aks holda 400 xato qaytadi" }
  *               useBalance: { type: boolean, default: false, description: "true bo'lsa, Multicard'ga chiqmasdan to'g'ridan-to'g'ri hamyon balansidan yechiladi (purpose='course'/'premium'/'donation' uchun; 'wallet' bilan ishlamaydi). Balans yetarli bo'lmasa 400 xato qaytadi." }
  *               returnUrl: { type: string, format: uri, description: "useBalance=true bo'lsa shart emas" }
  *     responses:

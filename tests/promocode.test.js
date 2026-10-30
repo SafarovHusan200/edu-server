@@ -38,7 +38,7 @@ describe('Promo codes', () => {
     expect(studentRes.status).toBe(403);
   });
 
-  test('promokod faqat premium sotib olishda ishlaydi — course bilan yuborilsa rad etiladi', async () => {
+  test('promokod kurs sotib olishda ham ishlaydi, summani to\'g\'ri chegirmalaydi', async () => {
     const { user: teacher } = await createUser({ role: 'teacher' });
     const { token: studentToken } = await createUser({ role: 'student' });
     const category = await createCategory();
@@ -46,6 +46,7 @@ describe('Promo codes', () => {
       teacherId: teacher._id,
       categoryId: category._id,
       price: 100000,
+      isPublished: true,
     });
 
     await PromoCode.create({ code: 'YOZGI30', discountPercent: 30 });
@@ -54,6 +55,22 @@ describe('Promo codes', () => {
       .post('/api/v1/payment/create')
       .set('Authorization', `Bearer ${studentToken}`)
       .send({ purpose: 'course', courseId: course._id.toString(), promoCode: 'yozgi30' });
+
+    expect(res.status).toBe(201);
+    // 100 000 * 0.7 (30% chegirma) = 70 000
+    expect(multicardService.createInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 70000 })
+    );
+  });
+
+  test('promokod wallet/donation to\'lovida ishlamaydi', async () => {
+    const { token: studentToken } = await createUser({ role: 'student' });
+    await PromoCode.create({ code: 'NOPE10', discountPercent: 10 });
+
+    const res = await request(app)
+      .post('/api/v1/payment/create')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ purpose: 'wallet', amount: 50000, promoCode: 'NOPE10' });
 
     expect(res.status).toBe(422);
   });
@@ -171,5 +188,30 @@ describe('Promo codes', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.baseAmount).toBe(5000000);
     expect(res.body.data.finalAmount).toBe(3750000);
+  });
+
+  test('GET /promo-codes/preview — purpose=course bo\'lsa courseId orqali kurs narxidan hisoblaydi', async () => {
+    const { user: teacher } = await createUser({ role: 'teacher' });
+    const category = await createCategory();
+    const course = await createCourse({
+      teacherId: teacher._id,
+      categoryId: category._id,
+      price: 80000,
+      isPublished: true,
+    });
+    await PromoCode.create({ code: 'KURS10', discountPercent: 10 });
+
+    const res = await request(app).get(
+      `/api/v1/promo-codes/preview?code=KURS10&purpose=course&courseId=${course._id}`
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.baseAmount).toBe(80000);
+    expect(res.body.data.finalAmount).toBe(72000);
+
+    const noCourseIdRes = await request(app).get(
+      '/api/v1/promo-codes/preview?code=KURS10&purpose=course'
+    );
+    expect(noCourseIdRes.status).toBe(400);
   });
 });
