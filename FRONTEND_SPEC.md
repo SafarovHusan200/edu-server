@@ -343,7 +343,7 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 | DELETE | /courses/:id | teacher, admin, superadmin | O'chirish |
 | POST | /courses/:id/thumbnail | teacher, admin, superadmin | Muqova yuklash (multipart: `thumbnail`) |
 | GET | /courses/:id/stats | teacher, admin, superadmin | Kurs statistikasi (yozilganlar, daromad) |
-| GET | /courses/:id/lessons | public | Kursdagi darslar ro'yxati |
+| GET | /courses/:id/lessons | public (token ixtiyoriy) | Kursdagi darslar ro'yxati. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi |
 | POST | /courses/:id/lessons | teacher, admin, superadmin | Yangi dars: `title,description,content,videoUrl,order` |
 | GET | /courses/:id/reviews | public | Kurs sharhlari |
 | POST | /courses/:id/reviews | student | Sharh qoldirish: `rating,comment` |
@@ -351,7 +351,7 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 ### Lessons (`/lessons`) — single-lesson operations only
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | /lessons/:id | public | Bitta dars |
+| GET | /lessons/:id | public (token ixtiyoriy) | Bitta dars. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. Qulf holatida `{_id,title,order,course,locked:true}` (endi `course` ham bor — frontend kurs sahifasiga yo'naltira oladi) |
 | PATCH | /lessons/:id | teacher, admin, superadmin | Tahrirlash: `title,description,content,videoUrl,order` |
 | DELETE | /lessons/:id | teacher, admin, superadmin | O'chirish |
 | POST | /lessons/:id/material | teacher, admin, superadmin | Material (fayl) biriktirish (multipart: `material`) |

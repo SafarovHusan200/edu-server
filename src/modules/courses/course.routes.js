@@ -261,11 +261,15 @@ router.get('/:id/stats', authenticate, authorize(...TEACHING_ROLES), courseContr
  *     summary: Kursga tegishli barcha darslarni olish
  *     tags: [Courses]
  *     security: []
+ *     description: >
+ *       Token yuborilsa (ixtiyoriy) va foydalanuvchi shu kursga yozilgan bo'lsa —
+ *       har bir dars to'liq qaytadi. Aks holda har biri qisqa
+ *       `{_id, title, order, course, locked:true}` ko'rinishida qaytadi.
  *     parameters:
  *       - { $ref: '#/components/parameters/IdParam' }
  *     responses:
  *       200:
- *         description: Darslar ro'yxati
+ *         description: Darslar ro'yxati (to'liq yoki locked qisqa shakl)
  *         content:
  *           application/json:
  *             schema:
@@ -277,8 +281,9 @@ router.get('/:id/stats', authenticate, authorize(...TEACHING_ROLES), courseContr
  *                       type: array
  *                       items: { $ref: '#/components/schemas/Lesson' }
  */
-// GET /api/v1/courses/:id/lessons
-router.get('/:id/lessons', lessonController.getLessonsByCourse);
+// GET /api/v1/courses/:id/lessons — login bo'lmasa ham ochiladi (locked ko'rinishda),
+// lekin kursga yozilgan studentni aniqlash uchun TOKEN bo'lsa o'qilishi kerak
+router.get('/:id/lessons', authenticate.optional, lessonController.getLessonsByCourse);
 
 /**
  * @swagger

@@ -43,7 +43,7 @@ const getLessonsByCourse = async (courseId, userId, role) => {
   return lessons.map((lesson) =>
     access
       ? lesson
-      : { _id: lesson._id, title: lesson.title, order: lesson.order, locked: true }
+      : { _id: lesson._id, title: lesson.title, order: lesson.order, course: lesson.course, locked: true }
   );
 };
 
@@ -55,7 +55,7 @@ const getLessonById = async (lessonId, userId, role) => {
   const access = await courseService.hasCourseAccess(course, userId, role);
 
   if (!access) {
-    return { _id: lesson._id, title: lesson.title, order: lesson.order, locked: true };
+    return { _id: lesson._id, title: lesson.title, order: lesson.order, course: lesson.course, locked: true };
   }
 
   return lesson;

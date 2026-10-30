@@ -19,11 +19,15 @@ const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
  *     summary: Darsni ID bo'yicha olish
  *     tags: [Lessons]
  *     security: []
+ *     description: >
+ *       Token yuborilsa (ixtiyoriy) va foydalanuvchi shu kursga yozilgan bo'lsa —
+ *       to'liq dars (content, videoUrl, attachments) qaytadi. Aks holda faqat
+ *       `{_id, title, order, course, locked:true}` qaytadi.
  *     parameters:
  *       - { $ref: '#/components/parameters/IdParam' }
  *     responses:
  *       200:
- *         description: Dars
+ *         description: Dars (to'liq yoki locked qisqa shakl)
  *         content:
  *           application/json:
  *             schema:
@@ -34,8 +38,10 @@ const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
  *                     data: { $ref: '#/components/schemas/Lesson' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-// GET /api/v1/lessons/:id
-router.get('/:id', lessonController.getLessonById);
+// GET /api/v1/lessons/:id — login bo'lmasa ham ochiladi (locked ko'rinishda), lekin
+// kursga yozilgan studentni aniqlash uchun TOKEN bo'lsa albatta o'qilishi kerak —
+// shuning uchun authenticate.optional (to'liq authenticate emas, bu endpoint public)
+router.get('/:id', authenticate.optional, lessonController.getLessonById);
 
 /**
  * @swagger
