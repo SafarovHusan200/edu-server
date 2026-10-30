@@ -5,6 +5,7 @@ const app = require('../src/app');
 const multicardService = require('../src/modules/payment/multicard.service');
 const User = require('../src/modules/users/user.model');
 const PromoCode = require('../src/modules/promocodes/promocode.model');
+const Enrollment = require('../src/modules/enrollment/enrollment.model');
 const { createUser, createCategory, createCourse } = require('./helpers');
 
 const buildSign = (invoiceId, amount) => {
@@ -213,5 +214,120 @@ describe('Promo codes', () => {
       '/api/v1/promo-codes/preview?code=KURS10&purpose=course'
     );
     expect(noCourseIdRes.status).toBe(400);
+  });
+
+  test('100% chegirmali promokod bilan kurs sotib olinganda Multicard chaqirilmaydi, to\'lov darhol muvaffaqiyatli bo\'ladi', async () => {
+    const { user: teacher } = await createUser({ role: 'teacher' });
+    const { user: student, token: studentToken } = await createUser({ role: 'student' });
+    const category = await createCategory();
+    const course = await createCourse({
+      teacherId: teacher._id,
+      categoryId: category._id,
+      price: 50000,
+      isPublished: true,
+    });
+    await PromoCode.create({ code: 'FREE100', discountPercent: 100 });
+
+    multicardService.createInvoice.mockClear();
+    const res = await request(app)
+      .post('/api/v1/payment/create')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ purpose: 'course', courseId: course._id.toString(), promoCode: 'FREE100' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data).toMatchObject({
+      purpose: 'course',
+      amount: 0,
+      status: 'success',
+      checkoutUrl: null,
+      paidWithBalance: true,
+    });
+    expect(multicardService.createInvoice).not.toHaveBeenCalled();
+
+    const enrollment = await Enrollment.findOne({ student: student._id, course: course._id });
+    expect(enrollment).not.toBeNull();
+    expect(enrollment.status).toBe('active');
+
+    const updatedStudent = await User.findById(student._id);
+    expect(updatedStudent.balance).toBe(student.balance);
+
+    const promo = await PromoCode.findOne({ code: 'FREE100' });
+    expect(promo.usedCount).toBe(1);
+  });
+
+  test('100% chegirmali promokod bilan premium sotib olinganda ham darhol muvaffaqiyatli bo\'ladi', async () => {
+    const { user: student, token: studentToken } = await createUser({ role: 'student' });
+    await PromoCode.create({ code: 'FREEPREM', discountPercent: 100 });
+
+    multicardService.createInvoice.mockClear();
+    const res = await request(app)
+      .post('/api/v1/payment/create')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ purpose: 'premium', plan: '30d', promoCode: 'FREEPREM' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.amount).toBe(0);
+    expect(res.body.data.paidWithBalance).toBe(true);
+    expect(multicardService.createInvoice).not.toHaveBeenCalled();
+
+    const updatedStudent = await User.findById(student._id);
+    expect(updatedStudent.tarif).toBe('premium');
+  });
+
+  test('chegirmadan keyingi summa Multicard minimalidan (100 so\'m) kichik bo\'lsa 400 qaytadi', async () => {
+    const { user: teacher } = await createUser({ role: 'teacher' });
+    const { token: studentToken } = await createUser({ role: 'student' });
+    const category = await createCategory();
+    const course = await createCourse({
+      teacherId: teacher._id,
+      categoryId: category._id,
+      price: 10000, // 100 so'm
+      isPublished: true,
+    });
+    await PromoCode.create({ code: 'YARMI50', discountPercent: 50 });
+
+    multicardService.createInvoice.mockClear();
+    const res = await request(app)
+      .post('/api/v1/payment/create')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ purpose: 'course', courseId: course._id.toString(), promoCode: 'YARMI50' });
+
+    // 10000 * 0.5 = 5000 tiyin — Multicard minimali (10000 tiyin)dan kichik
+    expect(res.status).toBe(400);
+    expect(multicardService.createInvoice).not.toHaveBeenCalled();
+  });
+
+  test('useBalance=true va promoCode birga kelganda balansdan chegirmali (finalAmount) summa yechiladi', async () => {
+    const { user: teacher } = await createUser({ role: 'teacher' });
+    const { user: student, token: studentToken } = await createUser({
+      role: 'student',
+      balance: 100000,
+    });
+    const category = await createCategory();
+    const course = await createCourse({
+      teacherId: teacher._id,
+      categoryId: category._id,
+      price: 100000,
+      isPublished: true,
+    });
+    await PromoCode.create({ code: 'BAL20', discountPercent: 20 });
+
+    const res = await request(app)
+      .post('/api/v1/payment/create')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        purpose: 'course',
+        courseId: course._id.toString(),
+        promoCode: 'BAL20',
+        useBalance: true,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.paidWithBalance).toBe(true);
+    // 100 000 * 0.8 (20% chegirma) = 80 000 — balansdan aynan shu summa yechiladi
+    expect(res.body.data.amount).toBe(80000);
+
+    const updatedStudent = await User.findById(student._id);
+    expect(updatedStudent.balance).toBe(100000 - 80000);
   });
 });

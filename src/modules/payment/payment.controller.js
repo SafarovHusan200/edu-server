@@ -30,6 +30,8 @@ const createPayment = asyncHandler(async (req, res) => {
   res.status(201).json(
     new ApiResponse(201, paidWithBalance ? "To'lov balansdan amalga oshirildi" : "To'lov yaratildi", {
       invoiceId: payment.invoiceId,
+      purpose: payment.purpose,
+      amount: payment.amount,
       checkoutUrl,
       paidWithBalance,
       status: payment.status,

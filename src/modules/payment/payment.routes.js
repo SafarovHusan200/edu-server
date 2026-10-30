@@ -33,7 +33,8 @@ const { createPaymentValidation } = require('./payment.validation');
  *       201:
  *         description: >
  *           To'lov yaratildi. useBalance=false (yoki berilmagan) bo'lsa — checkoutUrl'ga
- *           yo'naltiring. useBalance=true va balans yetarli bo'lsa — to'lov shu zahoti
+ *           yo'naltiring. useBalance=true va balans yetarli bo'lsa, SHUNINGDEK promokod
+ *           yakuniy summani 0 ga tushirib qo'ysa (100% chegirma) — to'lov shu zahoti
  *           yakunlangan (paidWithBalance=true, checkoutUrl=null, status='success'),
  *           qayta yo'naltirish shart emas.
  *         content:
@@ -47,10 +48,12 @@ const { createPaymentValidation } = require('./payment.validation');
  *                       type: object
  *                       properties:
  *                         invoiceId: { type: string }
+ *                         purpose: { type: string, enum: [wallet, course, premium, donation] }
+ *                         amount: { type: integer, description: "Tiyinda, chegirmadan keyingi yakuniy summa (0 bo'lishi mumkin — 100% chegirma)" }
  *                         checkoutUrl: { type: string, nullable: true, description: "paidWithBalance=true bo'lsa null" }
  *                         paidWithBalance: { type: boolean }
  *                         status: { type: string, enum: [draft, success] }
- *       400: { description: "Balansda mablag' yetarli emas, yoki noto'g'ri parametrlar" }
+ *       400: { description: "Balansda mablag' yetarli emas, chegirmadan keyingi summa juda kichik (100 so'mdan kam), yoki noto'g'ri parametrlar" }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */

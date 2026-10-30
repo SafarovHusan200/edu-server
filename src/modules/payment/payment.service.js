@@ -16,6 +16,7 @@ const { getPagination, buildMeta } = require('../../utils/paginate');
 const { frontendLinks } = require('../../config/frontendLinks');
 
 const MIN_WALLET_TOPUP = 1000; // tiyin
+const MULTICARD_MIN_AMOUNT = 10000; // tiyin (100 so'm) — Multicard'ning o'zi talab qiladigan minimal summa
 
 // Bildirishnomalarda summani tiyindan so'mga, minglik ajratgich bilan ko'rsatish uchun
 const formatSom = (tiyin) => Math.round(tiyin / 100).toLocaleString('uz-UZ');
@@ -103,6 +104,29 @@ const createPayment = async ({
   // Har bir to'lov uchun o'ziga xos invoiceId generatsiya qilamiz
   const invoiceId = `ord_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
 
+  // 100% chegirmali promokod summani 0 ga tushirib qo'yishi mumkin — bunda Multicard'ga
+  // umuman chiqilmaydi (invoys ochish o'zi xato beradi) va balansdan ham hech narsa
+  // yechilmaydi, to'lov useBalance=true dagi kabi darhol muvaffaqiyatli deb belgilanadi
+  if (finalAmount === 0) {
+    const payment = await Payment.create({
+      user: userId,
+      invoiceId,
+      method: 'balance',
+      amount: 0,
+      purpose,
+      plan: purpose === 'premium' ? plan : null,
+      course: course?._id ?? null,
+      promoCode: promoCodeDoc?._id ?? null,
+      discountPercent,
+      status: 'success',
+      paymentTime: new Date(),
+    });
+
+    await grantPaymentOutcome(payment);
+
+    return { payment, checkoutUrl: null, paidWithBalance: true };
+  }
+
   // Balansdan to'lash — Multicard'ga umuman chiqilmaydi, natija shu zahoti beriladi
   if (useBalance) {
     // Atomik: balans yetarli bo'lgan hujjatnigina yangilaydi (bir vaqtda kelgan
@@ -135,6 +159,16 @@ const createPayment = async ({
     await grantPaymentOutcome(payment);
 
     return { payment, checkoutUrl: null, paidWithBalance: true };
+  }
+
+  // Multicard'ning o'zi bu summadan kichik invoys ochmaydi (masalan arzon kursga
+  // 99% chegirma qo'llanganda) — bu holatni oldindan aniq xabar bilan rad etamiz,
+  // Multicard'dan tushunarsiz 502 qaytishining oldini olamiz
+  if (finalAmount < MULTICARD_MIN_AMOUNT) {
+    throw new ApiError(
+      400,
+      `To'lov summasi juda kichik — to'lov tizimi kamida ${MULTICARD_MIN_AMOUNT / 100} so'm talab qiladi`
+    );
   }
 
   const invoice = await multicardService.createInvoice({

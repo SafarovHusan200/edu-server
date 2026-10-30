@@ -408,7 +408,7 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | /payment/premium-plans | public | 4 rejaning narxlari (`30d/90d/180d/365d`) |
-| POST | /payment/create | login | To'lov yaratish: `purpose,courseId,plan,amount,promoCode,useBalance,returnUrl` → `checkoutUrl` yoki `paidWithBalance:true`. `promoCode` faqat `purpose='premium'` yoki `'course'`da ishlaydi |
+| POST | /payment/create | login | To'lov yaratish: `purpose,courseId,plan,amount,promoCode,useBalance,returnUrl` → `{invoiceId,purpose,amount,checkoutUrl,paidWithBalance,status}`. `promoCode` faqat `purpose='premium'` yoki `'course'`da ishlaydi. 100% chegirma yakuniy summani 0 ga tushirsa — Multicard'ga chiqilmaydi, `paidWithBalance:true, amount:0, status:'success'` bilan darhol yakunlanadi. Chegirmadan keyingi summa 100 so'mdan kam (lekin 0 emas) bo'lsa — `400` |
 | POST | /payment/callback | public (Multicard webhook) | **Frontend ishlatmaydi** — Multicard serveri chaqiradi |
 | GET | /payment/status/:invoiceId | login | To'lov holatini tekshirish (checkout'dan qaytgandan keyin poll qilish uchun) |
 | GET | /payment/my | login | O'z to'lovlar tarixim — filtr: `purpose,status,page,limit` |
