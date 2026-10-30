@@ -15,6 +15,7 @@ const ApiError = require('../../utils/ApiError');
 const { QUIZ_MAX_REWARD } = require('../../config/gamification');
 const { applyDiamondMultiplier } = require('../../utils/diamonds');
 const { frontendLinks } = require('../../config/frontendLinks');
+const { getPagination } = require('../../utils/paginate');
 
 // Xato xabarlarida vaqtni har doim Toshkent vaqti bilan, "10:10 01.01.2026"
 // shaklida ko'rsatish uchun (server qaysi timezone'da ishlashidan qat'i nazar)
@@ -171,7 +172,8 @@ const submitAttempt = async (attemptId, studentId, answers) => {
     await attempt.save();
     throw new ApiError(
       400,
-      `Vaqt tugagan (${effectiveTimeLimit} daqiqa) — bu urinish bekor qilindi`
+      `Vaqt tugagan (${effectiveTimeLimit} daqiqa) — bu urinish bekor qilindi`,
+      'ATTEMPT_EXPIRED'
     );
   }
 
@@ -435,6 +437,53 @@ const deleteAttempt = async (attemptId) => {
   await attempt.deleteOne();
 };
 
+// GET /quizzes/pending-reviews — avval oxirgi N ta faol testning har biri uchun
+// GET /:id/results chaqirilib, status='submitted' bo'lganlar yig'ilardi. Endi
+// bitta so'rov bilan, eng eski submittedAt birinchi (navbat tartibida)
+const getPendingReviews = async ({ quizId, page, limit }, teacherId, role) => {
+  const { skip, limit: pageLimit } = getPagination({ page, limit });
+
+  const filter = { status: 'submitted' };
+
+  if (quizId) {
+    if (role === 'teacher') {
+      const quiz = await Quiz.findById(quizId);
+      if (!quiz || quiz.createdBy.toString() !== teacherId.toString()) {
+        throw new ApiError(403, "Siz bu quiz natijalarini ko'ra olmaysiz");
+      }
+    }
+    filter.quiz = quizId;
+  } else if (role === 'teacher') {
+    const myQuizIds = await Quiz.find({ createdBy: teacherId }).distinct('_id');
+    filter.quiz = { $in: myQuizIds };
+  }
+  // admin/superadmin, quizId berilmagan bo'lsa — hamma quizlar bo'yicha
+
+  const [items, total] = await Promise.all([
+    QuizAttempt.find(filter)
+      .populate('student', 'name grade avatar')
+      .populate('quiz', 'title')
+      .sort({ submittedAt: 1 })
+      .skip(skip)
+      .limit(pageLimit),
+    QuizAttempt.countDocuments(filter),
+  ]);
+
+  return { items, total };
+};
+
+// GET /quizzes/pending-reviews/count — menyudagi son belgisi uchun yengil endpoint
+const getPendingReviewsCount = async (teacherId, role) => {
+  const filter = { status: 'submitted' };
+
+  if (role === 'teacher') {
+    const myQuizIds = await Quiz.find({ createdBy: teacherId }).distinct('_id');
+    filter.quiz = { $in: myQuizIds };
+  }
+
+  return QuizAttempt.countDocuments(filter);
+};
+
 module.exports = {
   startAttempt,
   submitAttempt,
@@ -443,4 +492,6 @@ module.exports = {
   reviewOpenEnded,
   getAttemptById,
   deleteAttempt,
+  getPendingReviews,
+  getPendingReviewsCount,
 };

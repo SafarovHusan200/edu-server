@@ -42,6 +42,41 @@ router.get('/status', dailySpinController.getStatus);
 
 /**
  * @swagger
+ * /daily-spin/history:
+ *   get:
+ *     summary: "So'nggi aylantirishlar tarixi"
+ *     tags: [DailySpin]
+ *     description: "Ruxsat: student. Barabon sahifasidagi \"So'nggi yutuqlar\" bloki uchun."
+ *     parameters:
+ *       - { name: limit, in: query, schema: { type: integer, default: 10, maximum: 50 } }
+ *     responses:
+ *       200:
+ *         description: Tarix
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         history:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               diamondsWon: { type: integer }
+ *                               createdAt: { type: string, format: date-time }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
+// GET /api/v1/daily-spin/history
+router.get('/history', dailySpinController.getHistory);
+
+/**
+ * @swagger
  * /daily-spin/spin:
  *   post:
  *     summary: Kunlik barabonni aylantirish (diamond yutish)

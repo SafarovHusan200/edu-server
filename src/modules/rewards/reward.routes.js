@@ -60,7 +60,7 @@ router.get(
  *     tags: [Rewards]
  *     description: "Ruxsat: admin, superadmin"
  *     parameters:
- *       - { name: status, in: query, schema: { type: string, enum: [pending, delivered, rejected] } }
+ *       - { name: status, in: query, schema: { type: string }, description: "Bitta holat (pending/approved/rejected/delivered) yoki bir nechtasi vergul bilan, masalan 'delivered,rejected' (Arxiv tabi uchun)" }
  *     responses:
  *       200:
  *         description: Almashtirishlar ro'yxati

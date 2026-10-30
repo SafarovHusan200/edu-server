@@ -10,8 +10,18 @@ const QuizAttempt = require('../quiz-attempts/quizAttempt.model');
 const Lesson = require('../lessons/lesson.model');
 const Book = require('../books/book.model');
 const User = require('../users/user.model');
+const RewardRedemption = require('../rewards/redemption.model');
+const Certificate = require('../certificates/certificate.model');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { ACTIVITY_WEIGHTS } = require('../../config/teacherActivity');
+
+// Asia/Tashkent — doim UTC+5, DST yo'q — shuning uchun oddiy soat qo'shish/ayirish
+// bilan "Toshkent oyi boshlanishi"ning haqiqiy UTC lahzasini aniq hisoblash mumkin
+const getTashkentMonthStart = (date = new Date()) => {
+  const shifted = new Date(date.getTime() + 5 * 60 * 60 * 1000);
+  const monthStartShifted = new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), 1));
+  return new Date(monthStartShifted.getTime() - 5 * 60 * 60 * 1000);
+};
 
 // GET /stats/teacher — login qilgan teacherning barcha kurslari bo'yicha umumiy dashboard
 const getTeacherStats = async (teacherId) => {
@@ -80,7 +90,7 @@ const getTeacherStats = async (teacherId) => {
 // ko'rsatkich sifatida ko'rsatiladi (sifat/ta'sir haqida tasavvur berish uchun).
 // Har bir kontent turi bo'yicha alohida $group orqali hisoblanadi (N+1 emas —
 // teacherlar soni qancha bo'lishidan qat'i nazar, doim sobit son so'rov).
-const getTopTeachers = async ({ page, limit }) => {
+const getTopTeachers = async ({ page, limit }, requesterId, requesterRole) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
   const [courseCounts, quizCounts, bookCounts, lessonCounts, studentCounts, ratingAgg, teachers] =
@@ -162,7 +172,83 @@ const getTopTeachers = async ({ page, limit }) => {
     ...row,
   }));
 
-  return { teachers: paged, meta: buildMeta(total, currentPage, pageLimit) };
+  // "Mening o'rnim" — ro'yxat qaysi sahifada bo'lishidan qat'i nazar, o'qituvchi
+  // o'z o'rnini ko'rishi uchun (rows allaqachon activityScore bo'yicha saralangan)
+  let me = null;
+  if (requesterRole === 'teacher') {
+    const index = rows.findIndex((row) => row._id.toString() === requesterId?.toString());
+    if (index !== -1) {
+      me = { rank: index + 1, activityScore: rows[index].activityScore };
+    }
+  }
+
+  return { teachers: paged, me, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
-module.exports = { getTeacherStats, getTopTeachers };
+// GET /stats/admin — admin/superadmin dashboard: 7 ta alohida so'rov o'rniga bitta chaqiruv
+const getAdminStats = async () => {
+  const now = new Date();
+  const monthStart = getTashkentMonthStart(now);
+
+  const [students, teachers, pendingUsers, pendingRedemptions, activePremium, paymentsAgg] =
+    await Promise.all([
+      User.countDocuments({ role: 'student' }),
+      User.countDocuments({ role: 'teacher' }),
+      User.countDocuments({ isVerified: false }),
+      RewardRedemption.countDocuments({ status: 'pending' }),
+      // tarif='premium' bo'lsa-da, muddati chindan ham o'tmagan bo'lishi kerak —
+      // downgradeIfPremiumExpired faqat login/authenticate vaqtida ishlaydi, shuning
+      // uchun bazadagi tarif maydoni ba'zi userlarda eskirgan (stale) bo'lishi mumkin
+      User.countDocuments({
+        tarif: 'premium',
+        $or: [{ premiumExpiresAt: null }, { premiumExpiresAt: { $gt: now } }],
+      }),
+      Payment.aggregate([
+        { $match: { status: 'success', createdAt: { $gte: monthStart } } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+    ]);
+
+  return {
+    students,
+    teachers,
+    pendingUsers,
+    pendingRedemptions,
+    activePremium,
+    paymentsThisMonth: {
+      total: paymentsAgg[0]?.total ?? 0,
+      count: paymentsAgg[0]?.count ?? 0,
+    },
+  };
+};
+
+// GET /stats/student — o'quvchi dashboard
+const getStudentStats = async (studentId) => {
+  const [enrollments, certificatesCount, student] = await Promise.all([
+    Enrollment.find({ student: studentId }).select('completedLessons'),
+    Certificate.countDocuments({ student: studentId }),
+    User.findById(studentId).select('grade diamonds'),
+  ]);
+
+  const completedLessons = enrollments.reduce((sum, e) => sum + e.completedLessons.length, 0);
+
+  const rank = student
+    ? (await User.countDocuments({ role: 'student', diamonds: { $gt: student.diamonds } })) + 1
+    : null;
+
+  const activeQuizzesCount = student?.grade?.number
+    ? await Quiz.countDocuments({
+        isActive: true,
+        targetGrades: {
+          $elemMatch: {
+            number: student.grade.number,
+            $or: [{ letter: null }, { letter: student.grade.letter }],
+          },
+        },
+      })
+    : 0;
+
+  return { completedLessons, certificatesCount, rank, activeQuizzesCount };
+};
+
+module.exports = { getTeacherStats, getTopTeachers, getAdminStats, getStudentStats };

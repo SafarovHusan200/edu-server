@@ -140,7 +140,8 @@ const getMyRedemptions = async (studentId, { page, limit }) => {
 const getAllRedemptions = async ({ page, limit, status }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
   const filter = {};
-  if (status) filter.status = status;
+  // "status=delivered,rejected" kabi bir nechta holatni ham qabul qiladi (Arxiv tabi uchun)
+  if (status) filter.status = status.includes(',') ? { $in: status.split(',') } : status;
 
   const [redemptions, total] = await Promise.all([
     RewardRedemption.find(filter)

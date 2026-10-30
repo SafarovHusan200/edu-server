@@ -8,7 +8,7 @@ const { toPublicPath } = require('../../middleware/upload');
 
 // POST /api/v1/courses/:id/lessons
 const createLesson = asyncHandler(async (req, res) => {
-  const { title, description, content, videoUrl, order } = req.body;
+  const { title, description, content, videoUrl, order, durationMinutes } = req.body;
 
   const lesson = await lessonService.createLesson(req.params.id, req.user.id, req.user.role, {
     title,
@@ -16,9 +16,24 @@ const createLesson = asyncHandler(async (req, res) => {
     content,
     videoUrl,
     order,
+    durationMinutes,
   });
 
   res.status(201).json(new ApiResponse(201, "Dars qo'shildi", { lesson }));
+});
+
+// PATCH /api/v1/courses/:id/lessons/reorder
+const reorderLessons = asyncHandler(async (req, res) => {
+  const { lessonIds } = req.body;
+
+  const lessons = await lessonService.reorderLessons(
+    req.params.id,
+    req.user.id,
+    req.user.role,
+    lessonIds
+  );
+
+  res.status(200).json(new ApiResponse(200, 'Darslar tartiblandi', { lessons }));
 });
 
 // GET /api/v1/courses/:id/lessons
@@ -91,6 +106,7 @@ module.exports = {
   getLessonsByCourse,
   getLessonById,
   updateLesson,
+  reorderLessons,
   deleteLesson,
   addMaterial,
   completeLesson,

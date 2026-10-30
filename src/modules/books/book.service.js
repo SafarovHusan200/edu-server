@@ -131,7 +131,7 @@ const setCoverImage = async (bookId, userId, role, publicPath) => {
   return book;
 };
 
-const setFile = async (bookId, userId, role, publicPath) => {
+const setFile = async (bookId, userId, role, publicPath, fileSize) => {
   const book = await Book.findById(bookId);
   if (!book) throw new ApiError(404, 'Kitob topilmadi');
 
@@ -141,6 +141,7 @@ const setFile = async (bookId, userId, role, publicPath) => {
 
   deleteUploadedFile(book.file);
   book.file = publicPath;
+  book.fileSize = fileSize ?? null;
   await book.save();
   return book;
 };

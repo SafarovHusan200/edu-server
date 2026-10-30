@@ -125,7 +125,7 @@ const getMyPayments = asyncHandler(async (req, res) => {
 // GET /api/v1/payment — Private, admin/superadmin (barcha to'lovlar)
 // ─────────────────────────────────────────
 const getAllPayments = asyncHandler(async (req, res) => {
-  const { page, limit, purpose, status, userId } = req.query;
+  const { page, limit, purpose, status, userId, from, to } = req.query;
 
   const { payments, meta } = await paymentService.getAllPayments({
     page,
@@ -133,6 +133,8 @@ const getAllPayments = asyncHandler(async (req, res) => {
     purpose,
     status,
     userId,
+    from,
+    to,
   });
 
   res.status(200).json(new ApiResponse(200, "Barcha to'lovlar", { payments, meta }));

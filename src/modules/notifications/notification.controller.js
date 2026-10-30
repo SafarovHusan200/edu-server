@@ -18,6 +18,13 @@ const getMyNotifications = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, 'Bildirishnomalar', { notifications, unreadCount, meta }));
 });
 
+// GET /api/v1/notifications/unread-count
+const getUnreadCount = asyncHandler(async (req, res) => {
+  const count = await notificationService.getUnreadCount(req.user.id);
+
+  res.status(200).json(new ApiResponse(200, "O'qilmagan bildirishnomalar soni", { count }));
+});
+
 // PATCH /api/v1/notifications/:id/read
 const markAsRead = asyncHandler(async (req, res) => {
   const notification = await notificationService.markAsRead(req.params.id, req.user.id);
@@ -41,6 +48,7 @@ const deleteNotification = asyncHandler(async (req, res) => {
 
 module.exports = {
   getMyNotifications,
+  getUnreadCount,
   markAsRead,
   markAllAsRead,
   deleteNotification,

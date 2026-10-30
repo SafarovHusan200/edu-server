@@ -83,7 +83,8 @@ const uploadFile = asyncHandler(async (req, res) => {
     req.params.id,
     req.user.id,
     req.user.role,
-    toPublicPath(req.file.path)
+    toPublicPath(req.file.path),
+    req.file.size
   );
 
   res.status(200).json(new ApiResponse(200, 'Kitob fayli yuklandi', { book }));

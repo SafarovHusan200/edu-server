@@ -62,9 +62,16 @@ const createUser = asyncHandler(async (req, res) => {
 
 // GET /api/v1/users — admin
 const getUsers = asyncHandler(async (req, res) => {
-  const { page, limit, role, search, isVerified } = req.query;
+  const { page, limit, role, search, isVerified, isBlocked } = req.query;
 
-  const { users, meta } = await userService.getUsers({ page, limit, role, search, isVerified });
+  const { users, meta } = await userService.getUsers({
+    page,
+    limit,
+    role,
+    search,
+    isVerified,
+    isBlocked,
+  });
 
   res.status(200).json(new ApiResponse(200, "Foydalanuvchilar ro'yxati", { users, meta }));
 });
@@ -139,9 +146,13 @@ const unlinkTelegram = asyncHandler(async (req, res) => {
 const getLeaderboard = asyncHandler(async (req, res) => {
   const { page, limit } = req.query;
 
-  const { leaderboard, meta } = await userService.getLeaderboard({ page, limit });
+  const { leaderboard, me, meta } = await userService.getLeaderboard(
+    { page, limit },
+    req.user.id,
+    req.user.role
+  );
 
-  res.status(200).json(new ApiResponse(200, 'Reyting', { leaderboard, meta }));
+  res.status(200).json(new ApiResponse(200, 'Reyting', { leaderboard, me, meta }));
 });
 
 // GET /api/v1/users/teachers — testni ulashish uchun o'qituvchi tanlash (select/qidiruv)

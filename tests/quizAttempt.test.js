@@ -230,4 +230,185 @@ describe('Quiz attempts', () => {
 
     expect(res.status).toBe(403);
   });
+
+  test('vaqt tugashi xatosida code: "ATTEMPT_EXPIRED" keladi', async () => {
+    const { user: teacher } = await createUser({ role: 'teacher' });
+    const { token: studentToken } = await createUser({ role: 'student' });
+    const { quiz, mcq, tf } = await setupQuiz(teacher._id, { timeLimit: 10 });
+
+    const startRes = await request(app)
+      .post(`/api/v1/quizzes/${quiz._id}/start`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    const attemptId = startRes.body.data.attempt._id;
+
+    await QuizAttempt.findByIdAndUpdate(attemptId, {
+      startedAt: new Date(Date.now() - 20 * 60 * 1000),
+    });
+
+    const submitRes = await request(app)
+      .post(`/api/v1/quizzes/attempts/${attemptId}/submit`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        answers: [
+          { questionId: mcq._id.toString(), givenAnswer: 1 },
+          { questionId: tf._id.toString(), givenAnswer: true },
+        ],
+      });
+
+    expect(submitRes.status).toBe(400);
+    expect(submitRes.body.code).toBe('ATTEMPT_EXPIRED');
+  });
+
+  test('GET /quizzes — har bir test uchun questionsCount va student uchun myAttempts qaytadi', async () => {
+    // premium teacher — aks holda maxAttempts standart tarifda 1gacha cheklanadi
+    const { user: teacher } = await createUser({ role: 'teacher', tarif: 'premium' });
+    const { token: studentToken } = await createUser({ role: 'student' });
+    const { quiz, mcq, tf } = await setupQuiz(teacher._id, { maxAttempts: 3 });
+
+    const beforeRes = await request(app)
+      .get('/api/v1/quizzes')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(beforeRes.status).toBe(200);
+    const beforeQuiz = beforeRes.body.data.quizzes.find((q) => q._id === quiz._id.toString());
+    expect(beforeQuiz.questionsCount).toBe(2);
+    expect(beforeQuiz.myAttempts).toEqual({
+      attemptsUsed: 0,
+      attemptsRemaining: 3,
+      maxAttempts: 3,
+      bestScorePercent: null,
+      hasInProgress: false,
+      lastStatus: null,
+    });
+
+    const startRes = await request(app)
+      .post(`/api/v1/quizzes/${quiz._id}/start`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    const attemptId = startRes.body.data.attempt._id;
+
+    await request(app)
+      .post(`/api/v1/quizzes/attempts/${attemptId}/submit`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        answers: [
+          { questionId: mcq._id.toString(), givenAnswer: 1 },
+          { questionId: tf._id.toString(), givenAnswer: true },
+        ],
+      });
+
+    const afterRes = await request(app)
+      .get('/api/v1/quizzes')
+      .set('Authorization', `Bearer ${studentToken}`);
+    const afterQuiz = afterRes.body.data.quizzes.find((q) => q._id === quiz._id.toString());
+
+    expect(afterQuiz.myAttempts).toEqual({
+      attemptsUsed: 1,
+      attemptsRemaining: 2,
+      maxAttempts: 3,
+      bestScorePercent: 100,
+      hasInProgress: false,
+      lastStatus: 'reviewed',
+    });
+
+    // Login qilinmagan (anonim) so'rovda myAttempts umuman bo'lmasligi kerak
+    const anonRes = await request(app).get('/api/v1/quizzes');
+    const anonQuiz = anonRes.body.data.quizzes.find((q) => q._id === quiz._id.toString());
+    expect(anonQuiz.myAttempts).toBeUndefined();
+  });
+
+  test('GET /quizzes/my — har bir testga stats qo\'shiladi', async () => {
+    const { user: teacher, token: teacherToken } = await createUser({ role: 'teacher' });
+    const { token: studentToken } = await createUser({ role: 'student' });
+    const { quiz, mcq, tf } = await setupQuiz(teacher._id, { maxAttempts: 3 });
+
+    const startRes = await request(app)
+      .post(`/api/v1/quizzes/${quiz._id}/start`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    const attemptId = startRes.body.data.attempt._id;
+
+    await request(app)
+      .post(`/api/v1/quizzes/attempts/${attemptId}/submit`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        answers: [
+          { questionId: mcq._id.toString(), givenAnswer: 1 },
+          { questionId: tf._id.toString(), givenAnswer: true },
+        ],
+      });
+
+    const res = await request(app)
+      .get('/api/v1/quizzes/my')
+      .set('Authorization', `Bearer ${teacherToken}`);
+
+    expect(res.status).toBe(200);
+    const myQuiz = res.body.data.quizzes.find((q) => q._id === quiz._id.toString());
+
+    expect(myQuiz.stats).toEqual({
+      attemptsCount: 1,
+      avgScorePercent: 100,
+      passRate: 100,
+      pendingReviews: 0,
+    });
+  });
+
+  test('GET /quizzes/pending-reviews — ochiq savolli urinishlar navbati, eng eskisi birinchi', async () => {
+    const { user: teacher, token: teacherToken } = await createUser({ role: 'teacher' });
+    const { token: otherTeacherToken } = await createUser({ role: 'teacher' });
+    const { token: studentToken } = await createUser({ role: 'student' });
+
+    const quiz = await Quiz.create({
+      title: 'Ochiq savolli test',
+      targetType: 'standalone',
+      createdBy: teacher._id,
+      timeLimit: 30,
+      isActive: true,
+      targetGrades: [{ number: 5, letter: null }],
+    });
+
+    const openQ = await Question.create({
+      quiz: quiz._id,
+      text: 'Fikringizni yozing',
+      type: 'open_ended',
+      points: 5,
+      order: 1,
+    });
+
+    const startRes = await request(app)
+      .post(`/api/v1/quizzes/${quiz._id}/start`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    const attemptId = startRes.body.data.attempt._id;
+
+    const submitRes = await request(app)
+      .post(`/api/v1/quizzes/attempts/${attemptId}/submit`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ answers: [{ questionId: openQ._id.toString(), givenAnswer: 'mening fikrim' }] });
+
+    expect(submitRes.body.data.attempt.status).toBe('submitted');
+
+    const countRes = await request(app)
+      .get('/api/v1/quizzes/pending-reviews/count')
+      .set('Authorization', `Bearer ${teacherToken}`);
+    expect(countRes.status).toBe(200);
+    expect(countRes.body.data.count).toBe(1);
+
+    const listRes = await request(app)
+      .get('/api/v1/quizzes/pending-reviews')
+      .set('Authorization', `Bearer ${teacherToken}`);
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.data.total).toBe(1);
+    expect(listRes.body.data.items).toHaveLength(1);
+    expect(listRes.body.data.items[0].quiz.title).toBe('Ochiq savolli test');
+    expect(listRes.body.data.items[0].student.name).toBeDefined();
+
+    // Boshqa teacher (bu testning egasi emas) — navbatida ko'rinmaydi
+    const otherListRes = await request(app)
+      .get('/api/v1/quizzes/pending-reviews')
+      .set('Authorization', `Bearer ${otherTeacherToken}`);
+    expect(otherListRes.body.data.total).toBe(0);
+
+    const otherCountRes = await request(app)
+      .get('/api/v1/quizzes/pending-reviews/count')
+      .set('Authorization', `Bearer ${otherTeacherToken}`);
+    expect(otherCountRes.body.data.count).toBe(0);
+  });
 });

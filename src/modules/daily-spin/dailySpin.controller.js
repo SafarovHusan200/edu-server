@@ -18,4 +18,13 @@ const spin = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, 'Barabon aylantirildi', result));
 });
 
-module.exports = { getStatus, spin };
+// GET /api/v1/daily-spin/history
+const getHistory = asyncHandler(async (req, res) => {
+  const { limit } = req.query;
+
+  const history = await dailySpinService.getHistory(req.user.id, limit);
+
+  res.status(200).json(new ApiResponse(200, "So'nggi yutuqlar", { history }));
+});
+
+module.exports = { getStatus, spin, getHistory };

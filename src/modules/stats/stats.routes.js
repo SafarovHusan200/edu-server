@@ -69,9 +69,88 @@ router.get(
  *                               studentsCount: { type: integer, description: "Noyob o'quvchilar soni" }
  *                               avgRating: { type: number }
  *                               activityScore: { type: number, description: "Saralash shu bo'yicha amalga oshadi" }
+ *                         me:
+ *                           type: object
+ *                           nullable: true
+ *                           description: "So'ragan foydalanuvchi teacher bo'lsa va reytingda bo'lsa — o'z o'rni"
+ *                           properties:
+ *                             rank: { type: integer }
+ *                             activityScore: { type: number }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 // GET /api/v1/stats/top-teachers — istalgan login qilgan foydalanuvchi ko'ra oladi
 router.get('/top-teachers', authenticate, statsController.getTopTeachers);
+
+/**
+ * @swagger
+ * /stats/admin:
+ *   get:
+ *     summary: Admin dashboard statistikasi (7 ta alohida so'rov o'rniga bitta chaqiruv)
+ *     tags: [Stats]
+ *     description: "Ruxsat: admin, superadmin"
+ *     responses:
+ *       200:
+ *         description: Statistika
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         stats:
+ *                           type: object
+ *                           properties:
+ *                             students: { type: integer }
+ *                             teachers: { type: integer }
+ *                             pendingUsers: { type: integer, description: "isVerified=false" }
+ *                             pendingRedemptions: { type: integer }
+ *                             activePremium: { type: integer, description: "tarif='premium' VA muddati hali o'tmagan" }
+ *                             paymentsThisMonth:
+ *                               type: object
+ *                               description: "Joriy kalendar oyi, Toshkent vaqti bo'yicha"
+ *                               properties:
+ *                                 total: { type: integer, description: 'Tiyinda' }
+ *                                 count: { type: integer }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
+// GET /api/v1/stats/admin
+router.get('/admin', authenticate, authorize('admin', 'superadmin'), statsController.getAdminStats);
+
+/**
+ * @swagger
+ * /stats/student:
+ *   get:
+ *     summary: O'quvchi dashboard statistikasi
+ *     tags: [Stats]
+ *     description: "Ruxsat: login qilgan foydalanuvchi (amalda student uchun mo'ljallangan)"
+ *     responses:
+ *       200:
+ *         description: Statistika
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         stats:
+ *                           type: object
+ *                           properties:
+ *                             completedLessons: { type: integer }
+ *                             certificatesCount: { type: integer }
+ *                             rank: { type: integer, nullable: true, description: "Diamond reytingidagi o'rni" }
+ *                             activeQuizzesCount: { type: integer, description: "O'z sinfiga mo'ljallangan, faol testlar soni" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+// GET /api/v1/stats/student
+router.get('/student', authenticate, statsController.getStudentStats);
 
 module.exports = router;

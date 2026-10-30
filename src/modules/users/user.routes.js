@@ -165,6 +165,10 @@ router.delete('/me/telegram', userController.unlinkTelegram);
  *   get:
  *     summary: Diamond bo'yicha reyting jadvalini olish
  *     tags: [Users]
+ *     description: "`data.me` — so'ragan foydalanuvchining o'z o'rni (faqat role='student' bo'lsa, aks holda null). Ro'yxat qaysi sahifada bo'lishidan qat'i nazar hisoblanadi."
+ *     parameters:
+ *       - { name: page, in: query, schema: { type: integer, default: 1 } }
+ *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
  *     responses:
  *       200:
  *         description: Reyting ro'yxati
@@ -176,8 +180,17 @@ router.delete('/me/telegram', userController.unlinkTelegram);
  *                 - type: object
  *                   properties:
  *                     data:
- *                       type: array
- *                       items: { $ref: '#/components/schemas/User' }
+ *                       type: object
+ *                       properties:
+ *                         leaderboard:
+ *                           type: array
+ *                           items: { $ref: '#/components/schemas/User' }
+ *                         me:
+ *                           type: object
+ *                           nullable: true
+ *                           properties:
+ *                             rank: { type: integer }
+ *                             diamonds: { type: integer }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 // GET /api/v1/users/leaderboard — istalgan login qilgan foydalanuvchi ko'ra oladi
@@ -231,6 +244,7 @@ router.get('/teachers', userController.searchTeachers);
  *     parameters:
  *       - { name: role, in: query, schema: { type: string, enum: [student, teacher, admin, superadmin] } }
  *       - { name: isVerified, in: query, schema: { type: boolean }, description: "false — tasdiqlashni kutayotgan userlarni ko'rish uchun" }
+ *       - { name: isBlocked, in: query, schema: { type: boolean }, description: "Admin paneldagi \"Bloklangan\" tabi uchun" }
  *       - { name: search, in: query, schema: { type: string } }
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }

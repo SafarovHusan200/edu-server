@@ -183,6 +183,8 @@ router.get('/my', authenticate, paymentController.getMyPayments);
  *       - { name: userId, in: query, schema: { type: string } }
  *       - { name: purpose, in: query, schema: { type: string, enum: [wallet, course, premium, donation] } }
  *       - { name: status, in: query, schema: { type: string, enum: [draft, progress, billing, hold, success, error, revert] } }
+ *       - { name: from, in: query, schema: { type: string, format: date-time }, description: "createdAt >= shu sana (ISO format)" }
+ *       - { name: to, in: query, schema: { type: string, format: date-time }, description: "createdAt <= shu sana (ISO format)" }
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
  *     responses:

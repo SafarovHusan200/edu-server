@@ -100,4 +100,14 @@ const spin = async (userId) => {
   };
 };
 
-module.exports = { getStatus, spin };
+// GET /daily-spin/history — "So'nggi yutuqlar" ro'yxati uchun
+const getHistory = async (userId, limit = 10) => {
+  const safeLimit = Math.min(50, Math.max(1, Number(limit) || 10));
+
+  return DailySpin.find({ user: userId })
+    .select('diamondsWon createdAt')
+    .sort({ createdAt: -1 })
+    .limit(safeLimit);
+};
+
+module.exports = { getStatus, spin, getHistory };

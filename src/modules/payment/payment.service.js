@@ -426,6 +426,15 @@ const getStatusByInvoiceId = async (invoiceId, userId, role) => {
 // GET /payment/premium-plans — frontend narxlar jadvalini shu yerdan oladi
 const getPremiumPlans = () => PREMIUM_PLANS;
 
+// Frontend karta/balans ekanini `cardPan` bor-yo'qligidan taxmin qilib kelgan —
+// bu allaqachon saqlanayotgan `method` ('multicard'/'balance') asosida aniq qiymat
+// qo'shamiz. Mavjud `method` maydoni o'zgarishsiz qoladi, bu faqat qo'shimcha.
+const withPaymentMethod = (payment) => {
+  const obj = payment.toObject();
+  obj.paymentMethod = obj.method === 'balance' ? 'balance' : 'card';
+  return obj;
+};
+
 // GET /payment/my — foydalanuvchining o'z to'lovlar tarixi
 const getMyPayments = async (userId, { page, limit, purpose, status }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
@@ -443,18 +452,23 @@ const getMyPayments = async (userId, { page, limit, purpose, status }) => {
     Payment.countDocuments(filter),
   ]);
 
-  return { payments, meta: buildMeta(total, currentPage, pageLimit) };
+  return { payments: payments.map(withPaymentMethod), meta: buildMeta(total, currentPage, pageLimit) };
 };
 
 // GET /payment — admin/superadmin: barcha to'lovlar (masalan "draft" holatida
 // tiqilib qolganlarni topish uchun ham foydali)
-const getAllPayments = async ({ page, limit, purpose, status, userId }) => {
+const getAllPayments = async ({ page, limit, purpose, status, userId, from, to }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
   const filter = {};
   if (purpose) filter.purpose = purpose;
   if (status) filter.status = status;
   if (userId) filter.user = userId;
+  if (from || to) {
+    filter.createdAt = {};
+    if (from) filter.createdAt.$gte = new Date(from);
+    if (to) filter.createdAt.$lte = new Date(to);
+  }
 
   const [payments, total] = await Promise.all([
     Payment.find(filter)
@@ -466,7 +480,7 @@ const getAllPayments = async ({ page, limit, purpose, status, userId }) => {
     Payment.countDocuments(filter),
   ]);
 
-  return { payments, meta: buildMeta(total, currentPage, pageLimit) };
+  return { payments: payments.map(withPaymentMethod), meta: buildMeta(total, currentPage, pageLimit) };
 };
 
 module.exports = {

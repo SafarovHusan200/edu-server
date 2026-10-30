@@ -7,6 +7,10 @@ const QuizAttempt = require('../src/modules/quiz-attempts/quizAttempt.model');
 const Lesson = require('../src/modules/lessons/lesson.model');
 const Book = require('../src/modules/books/book.model');
 const BookCategory = require('../src/modules/book-categories/bookCategory.model');
+const RewardRedemption = require('../src/modules/rewards/redemption.model');
+const Reward = require('../src/modules/rewards/reward.model');
+const Certificate = require('../src/modules/certificates/certificate.model');
+const User = require('../src/modules/users/user.model');
 const { createUser, createCategory, createCourse } = require('./helpers');
 
 describe('Stats', () => {
@@ -148,5 +152,124 @@ describe('Stats', () => {
       expect(idleRow.activityScore).toBe(0);
       expect(activeRow.rank).toBeLessThan(idleRow.rank);
     }
+  });
+
+  test('GET /stats/top-teachers — data.me so\'ragan teacherning o\'z o\'rnini beradi', async () => {
+    const { teacherToken } = await setupCourseWithData();
+    await createUser({ role: 'teacher' }); // boshqa, faolroq emas teacher
+
+    const res = await request(app)
+      .get('/api/v1/stats/top-teachers')
+      .set('Authorization', `Bearer ${teacherToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.me).not.toBeNull();
+    expect(res.body.data.me.rank).toBe(1);
+    expect(res.body.data.me.activityScore).toBeGreaterThan(0);
+
+    const { token: studentToken } = await createUser({ role: 'student' });
+    const studentRes = await request(app)
+      .get('/api/v1/stats/top-teachers')
+      .set('Authorization', `Bearer ${studentToken}`);
+    expect(studentRes.body.data.me).toBeNull();
+  });
+
+  test('GET /stats/admin — 7 ta ko\'rsatkichni bitta chaqiruvda beradi', async () => {
+    await createUser({ role: 'student' });
+    await createUser({ role: 'student', isVerified: false });
+    await createUser({ role: 'teacher' });
+    const { user: premiumStudent } = await createUser({ role: 'student' });
+    await User.findByIdAndUpdate(premiumStudent._id, {
+      tarif: 'premium',
+      premiumExpiresAt: new Date(Date.now() + 86400000),
+    });
+    const { user: expiredPremiumStudent } = await createUser({ role: 'student' });
+    await User.findByIdAndUpdate(expiredPremiumStudent._id, {
+      tarif: 'premium',
+      premiumExpiresAt: new Date(Date.now() - 86400000),
+    });
+
+    const { user: rewardStudent } = await createUser({ role: 'student' });
+    const reward = await Reward.create({ title: 'Sovga', cost: 10 });
+    await RewardRedemption.create({ student: rewardStudent._id, reward: reward._id, diamondsSpent: 10 });
+
+    await Payment.create({
+      user: rewardStudent._id,
+      invoiceId: `ord_admin_stats_${Date.now()}`,
+      amount: 100000,
+      purpose: 'wallet',
+      status: 'success',
+    });
+
+    const { token: adminToken } = await createUser({ role: 'admin' });
+
+    const res = await request(app)
+      .get('/api/v1/stats/admin')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    const { stats } = res.body.data;
+
+    expect(stats.students).toBeGreaterThanOrEqual(5);
+    expect(stats.teachers).toBeGreaterThanOrEqual(1);
+    expect(stats.pendingUsers).toBeGreaterThanOrEqual(1);
+    expect(stats.pendingRedemptions).toBe(1);
+    expect(stats.activePremium).toBe(1); // faqat muddati o'tmagani hisoblanadi
+    expect(stats.paymentsThisMonth.total).toBeGreaterThanOrEqual(100000);
+    expect(stats.paymentsThisMonth.count).toBeGreaterThanOrEqual(1);
+
+    const { token: teacherToken } = await createUser({ role: 'teacher' });
+    const forbidden = await request(app)
+      .get('/api/v1/stats/admin')
+      .set('Authorization', `Bearer ${teacherToken}`);
+    expect(forbidden.status).toBe(403);
+  });
+
+  test('GET /stats/student — o\'quvchi o\'z dashboard statistikasini oladi', async () => {
+    const { user: teacher } = await createUser({ role: 'teacher' });
+    const { user: student, token: studentToken } = await createUser({
+      role: 'student',
+      grade: { number: 7, letter: 'A' },
+    });
+    const category = await createCategory();
+    const course = await createCourse({ teacherId: teacher._id, categoryId: category._id });
+
+    await Enrollment.create({
+      student: student._id,
+      course: course._id,
+      status: 'active',
+      completedLessons: [
+        { lesson: new (require('mongoose').Types.ObjectId)() },
+        { lesson: new (require('mongoose').Types.ObjectId)() },
+      ],
+    });
+
+    await Certificate.create({
+      student: student._id,
+      course: course._id,
+      certificateNumber: `CERT-STATS-${Date.now()}`,
+      pdfPath: '/uploads/certificates/test.pdf',
+    });
+
+    await Quiz.create({
+      title: 'Faol test',
+      targetType: 'standalone',
+      createdBy: teacher._id,
+      timeLimit: 20,
+      isActive: true,
+      targetGrades: [{ number: 7, letter: null }],
+    });
+
+    const res = await request(app)
+      .get('/api/v1/stats/student')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    const { stats } = res.body.data;
+
+    expect(stats.completedLessons).toBe(2);
+    expect(stats.certificatesCount).toBe(1);
+    expect(stats.rank).toBeGreaterThan(0);
+    expect(stats.activeQuizzesCount).toBe(1);
   });
 });

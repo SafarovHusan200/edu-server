@@ -13,7 +13,7 @@ const validate = require('../../middleware/validate');
 const { uploadImage } = require('../../middleware/upload');
 
 const { courseValidation } = require('./course.validation');
-const { lessonValidation } = require('../lessons/lesson.validation');
+const { lessonValidation, reorderLessonsValidation } = require('../lessons/lesson.validation');
 const { reviewValidation } = require('../reviews/review.validation');
 
 const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
@@ -33,6 +33,8 @@ const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
  *     parameters:
  *       - { name: category, in: query, schema: { type: string } }
  *       - { name: search, in: query, schema: { type: string } }
+ *       - { name: sort, in: query, schema: { type: string, enum: [popular, rating, newest, price_asc, price_desc] }, description: "Berilmasa 'newest'" }
+ *       - { name: isFree, in: query, schema: { type: boolean }, description: 'true — faqat bepul (price=0), false — faqat pullik' }
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
  *     responses:
@@ -59,7 +61,7 @@ router.get('/', authenticate.optional, courseController.getCourses);
  *     summary: Kursni ID bo'yicha olish
  *     tags: [Courses]
  *     security: []
- *     description: "Login qilingan bo'lsa to'liq kontent (masalan enrollment holati) aniqlanadi"
+ *     description: "Login qilingan bo'lsa to'liq kontent (masalan enrollment holati) aniqlanadi. `data.quizzesCount` — shu kursga tegishli testlar soni."
  *     parameters:
  *       - { $ref: '#/components/parameters/IdParam' }
  *     responses:
@@ -72,7 +74,11 @@ router.get('/', authenticate.optional, courseController.getCourses);
  *                 - $ref: '#/components/schemas/SuccessResponse'
  *                 - type: object
  *                   properties:
- *                     data: { $ref: '#/components/schemas/Course' }
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         course: { $ref: '#/components/schemas/Course' }
+ *                         quizzesCount: { type: integer }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
 // GET /api/v1/courses/:id — public (login bo'lsa to'liq kontent aniqlanadi)
@@ -296,6 +302,7 @@ router.get('/:id/lessons', lessonController.getLessonsByCourse);
  *               content: { type: string }
  *               videoUrl: { type: string, format: uri }
  *               order: { type: integer, minimum: 0 }
+ *               durationMinutes: { type: integer, minimum: 0, description: 'Video davomiyligi, daqiqada (ixtiyoriy)' }
  *     responses:
  *       201:
  *         description: Dars yaratildi
@@ -319,6 +326,58 @@ router.post(
   lessonValidation,
   validate,
   lessonController.createLesson
+);
+
+/**
+ * @swagger
+ * /courses/{id}/lessons/reorder:
+ *   patch:
+ *     summary: Kursdagi darslarni qayta tartiblash (sudrab tashlash uchun)
+ *     tags: [Courses]
+ *     description: "Ruxsat: teacher (egasi), admin, superadmin"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [lessonIds]
+ *             properties:
+ *               lessonIds:
+ *                 type: array
+ *                 items: { type: string }
+ *                 description: "Kursdagi BARCHA darslarning ID'lari, yangi tartibda"
+ *     responses:
+ *       200:
+ *         description: Tartiblandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         lessons:
+ *                           type: array
+ *                           items: { $ref: '#/components/schemas/Lesson' }
+ *       400: { description: "lessonIds kursdagi darslar bilan mos kelmaydi" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+// PATCH /api/v1/courses/:id/lessons/reorder
+router.patch(
+  '/:id/lessons/reorder',
+  authenticate,
+  authorize(...TEACHING_ROLES),
+  reorderLessonsValidation,
+  validate,
+  lessonController.reorderLessons
 );
 
 // ───────────────────────────────────────────────────────

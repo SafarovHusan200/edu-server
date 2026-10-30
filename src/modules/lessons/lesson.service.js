@@ -18,14 +18,19 @@ const findCourseOrThrow = async (courseId) => {
   return course;
 };
 
-const createLesson = async (courseId, userId, role, { title, description, content, videoUrl, order }) => {
+const createLesson = async (
+  courseId,
+  userId,
+  role,
+  { title, description, content, videoUrl, order, durationMinutes }
+) => {
   const course = await findCourseOrThrow(courseId);
 
   if (!courseService.isOwnerOrStaff(course, userId, role)) {
     throw new ApiError(403, 'Siz bu kursga dars qo\'sha olmaysiz');
   }
 
-  return Lesson.create({ course: courseId, title, description, content, videoUrl, order });
+  return Lesson.create({ course: courseId, title, description, content, videoUrl, order, durationMinutes });
 };
 
 // GET /courses/:id/lessons — ruxsatga qarab to'liq yoki qulflangan ko'rinishda qaytaradi
@@ -68,6 +73,39 @@ const updateLesson = async (lessonId, userId, role, updateData) => {
   Object.assign(lesson, updateData);
   await lesson.save();
   return lesson;
+};
+
+// PATCH /courses/:id/lessons/reorder — darslarni sudrab tartiblash (drag & drop) uchun.
+// lessonIds — kursdagi barcha darslarning ID'lari, yangi tartibda. Ro'yxat kursdagi
+// darslar bilan AYNAN bir xil to'plam bo'lishi shart (yo'q qolgan/ortiqcha bo'lmasligi uchun).
+const reorderLessons = async (courseId, userId, role, lessonIds) => {
+  const course = await findCourseOrThrow(courseId);
+
+  if (!courseService.isOwnerOrStaff(course, userId, role)) {
+    throw new ApiError(403, "Siz bu kursning darslarini tartiblay olmaysiz");
+  }
+
+  const existingLessons = await Lesson.find({ course: courseId }).select('_id');
+  const existingIds = new Set(existingLessons.map((l) => l._id.toString()));
+  const providedIds = lessonIds.map(String);
+
+  const sameSet =
+    existingIds.size === providedIds.length &&
+    providedIds.every((id) => existingIds.has(id)) &&
+    new Set(providedIds).size === providedIds.length;
+
+  if (!sameSet) {
+    throw new ApiError(
+      400,
+      "lessonIds kursdagi barcha darslarni, aynan bittadan va takrorlanmasdan o'z ichiga olishi kerak"
+    );
+  }
+
+  await Promise.all(
+    providedIds.map((lessonId, index) => Lesson.findByIdAndUpdate(lessonId, { order: index }))
+  );
+
+  return Lesson.find({ course: courseId }).sort({ order: 1 });
 };
 
 const deleteLesson = async (lessonId, userId, role) => {
@@ -158,6 +196,7 @@ module.exports = {
   getLessonsByCourse,
   getLessonById,
   updateLesson,
+  reorderLessons,
   deleteLesson,
   addMaterial,
   completeLesson,

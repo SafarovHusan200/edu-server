@@ -41,6 +41,13 @@ const lessonSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // Video davomiyligi (daqiqada) — ixtiyoriy, frontendda "Video · 14 daq" ko'rinishida
+    durationMinutes: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
   },
   { timestamps: true }
 );

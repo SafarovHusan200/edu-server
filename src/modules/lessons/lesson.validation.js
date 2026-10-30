@@ -18,6 +18,19 @@ const lessonValidation = [
   body('videoUrl').optional().isURL().withMessage("videoUrl formati noto'g'ri"),
 
   body('order').optional().isInt({ min: 0 }).withMessage("order manfiy bo'lmagan son bo'lishi kerak"),
+
+  body('durationMinutes')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage("durationMinutes manfiy bo'lmagan son bo'lishi kerak"),
 ];
 
-module.exports = { lessonValidation };
+const reorderLessonsValidation = [
+  body('lessonIds')
+    .isArray({ min: 1 })
+    .withMessage('lessonIds kamida 1 ta elementdan iborat massiv bo\'lishi kerak'),
+
+  body('lessonIds.*').isMongoId().withMessage("lessonIds ichidagi qiymatlar noto'g'ri ID format"),
+];
+
+module.exports = { lessonValidation, reorderLessonsValidation };

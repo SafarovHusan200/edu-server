@@ -23,7 +23,7 @@ const createCourse = asyncHandler(async (req, res) => {
 
 // GET /api/v1/courses
 const getCourses = asyncHandler(async (req, res) => {
-  const { page, limit, category, teacher, search } = req.query;
+  const { page, limit, category, teacher, search, sort, isFree } = req.query;
 
   const { courses, meta } = await courseService.getCourses({
     page,
@@ -31,6 +31,8 @@ const getCourses = asyncHandler(async (req, res) => {
     category,
     teacher,
     search,
+    sort,
+    isFree,
     userId: req.user?.id,
     role: req.user?.role,
   });
@@ -40,13 +42,15 @@ const getCourses = asyncHandler(async (req, res) => {
 
 // GET /api/v1/courses/:id
 const getCourseById = asyncHandler(async (req, res) => {
-  const { course, lessons, hasAccess } = await courseService.getCourseById(
+  const { course, lessons, hasAccess, quizzesCount } = await courseService.getCourseById(
     req.params.id,
     req.user?.id,
     req.user?.role
   );
 
-  res.status(200).json(new ApiResponse(200, "Kurs ma'lumotlari", { course, lessons, hasAccess }));
+  res
+    .status(200)
+    .json(new ApiResponse(200, "Kurs ma'lumotlari", { course, lessons, hasAccess, quizzesCount }));
 });
 
 // PATCH /api/v1/courses/:id

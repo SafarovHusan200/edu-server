@@ -55,6 +55,13 @@ const getMyNotifications = async (userId, { page, limit }) => {
   return { notifications, unreadCount, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
+// GET /notifications/unread-count — header'dagi son belgisi uchun yengil endpoint
+// (har 60 soniyada to'liq ro'yxatni yuklamasdan)
+const getUnreadCount = async (userId) => {
+  const count = await Notification.countDocuments({ user: userId, isRead: false });
+  return count;
+};
+
 const markAsRead = async (notificationId, userId) => {
   const notification = await Notification.findById(notificationId);
   if (!notification) throw new ApiError(404, 'Bildirishnoma topilmadi');
@@ -86,6 +93,7 @@ const deleteNotification = async (notificationId, userId) => {
 module.exports = {
   createNotification,
   getMyNotifications,
+  getUnreadCount,
   markAsRead,
   markAllAsRead,
   deleteNotification,

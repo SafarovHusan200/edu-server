@@ -2,6 +2,8 @@
 
 const Quiz = require('./quiz.model');
 const Question = require('../questions/question.model');
+const QuizAttempt = require('../quiz-attempts/quizAttempt.model');
+const User = require('../users/user.model');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const {
@@ -144,7 +146,7 @@ const getStrictestGradeNumber = (targetGrades) => {
 // ─────────────────────────────────────────
 // GET QUIZZES — filter bo'yicha
 // ─────────────────────────────────────────
-const getQuizzes = async ({ targetType, targetId, page, limit }) => {
+const getQuizzes = async ({ targetType, targetId, page, limit }, requesterId, requesterRole) => {
   const filter = { isActive: true };
 
   if (targetType) filter.targetType = targetType;
@@ -154,14 +156,69 @@ const getQuizzes = async ({ targetType, targetId, page, limit }) => {
 
   const [quizzes, total] = await Promise.all([
     Quiz.find(filter)
-      .populate('createdBy', 'name phone')
+      .populate('createdBy', 'name phone tarif')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageLimit),
     Quiz.countDocuments(filter),
   ]);
 
-  return { quizzes, meta: buildMeta(total, currentPage, pageLimit) };
+  const quizIds = quizzes.map((q) => q._id);
+
+  // Har bir quiz uchun savollar soni — N+1 o'rniga bitta $group so'rov
+  const questionCounts = await Question.aggregate([
+    { $match: { quiz: { $in: quizIds } } },
+    { $group: { _id: '$quiz', count: { $sum: 1 } } },
+  ]);
+  const questionCountMap = new Map(questionCounts.map((q) => [q._id.toString(), q.count]));
+
+  // Student uchun: oldin har bir quiz uchun alohida GET /my-attempts chaqirilardi —
+  // endi shu yerning o'zida, bitta so'rov bilan hisoblanadi
+  let attemptsByQuiz = new Map();
+  let studentGrade;
+  if (requesterId && requesterRole === 'student') {
+    const student = await User.findById(requesterId).select('grade');
+    studentGrade = student?.grade;
+
+    const attempts = await QuizAttempt.find({ quiz: { $in: quizIds }, student: requesterId })
+      .select('quiz scorePercent status attemptNumber')
+      .sort({ attemptNumber: 1 });
+
+    for (const attempt of attempts) {
+      const key = attempt.quiz.toString();
+      if (!attemptsByQuiz.has(key)) attemptsByQuiz.set(key, []);
+      attemptsByQuiz.get(key).push(attempt);
+    }
+  }
+
+  const enrichedQuizzes = quizzes.map((quiz) => {
+    const questionsCount = questionCountMap.get(quiz._id.toString()) ?? 0;
+    const targetGrades = enrichTargetGrades(quiz, quiz.createdBy?.tarif);
+    const enriched = { ...quiz.toObject(), targetGrades, questionsCount };
+
+    if (requesterRole === 'student') {
+      const matchedGrade = findMatchingTargetGrade(quiz, studentGrade);
+      const maxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif, matchedGrade);
+      const quizAttempts = attemptsByQuiz.get(quiz._id.toString()) ?? [];
+      const attemptsUsed = quizAttempts.length;
+      const lastAttempt = quizAttempts[quizAttempts.length - 1] ?? null;
+
+      enriched.myAttempts = {
+        attemptsUsed,
+        attemptsRemaining: Math.max(0, maxAttempts - attemptsUsed),
+        maxAttempts,
+        bestScorePercent: attemptsUsed
+          ? Math.max(...quizAttempts.map((a) => a.scorePercent))
+          : null,
+        hasInProgress: quizAttempts.some((a) => a.status === 'in_progress'),
+        lastStatus: lastAttempt?.status ?? null,
+      };
+    }
+
+    return enriched;
+  });
+
+  return { quizzes: enrichedQuizzes, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
 // ─────────────────────────────────────────
@@ -184,13 +241,48 @@ const getQuizzesMy = async ({ id, targetType, targetId, page, limit }) => {
     Quiz.countDocuments(filter),
   ]);
 
-  const quizzesWithCounts = await Promise.all(
-    quizzes.map(async (quiz) => {
-      const questionsCount = await Question.countDocuments({ quiz: quiz._id });
-      const targetGrades = enrichTargetGrades(quiz, quiz.createdBy?.tarif);
-      return { ...quiz.toObject(), questionsCount, targetGrades };
-    })
-  );
+  const quizIds = quizzes.map((q) => q._id);
+
+  // Ikkalasi ham bitta $group so'rov — har bir quiz uchun alohida so'rov (N+1) o'rniga
+  const [questionCounts, attemptStatsAgg] = await Promise.all([
+    Question.aggregate([
+      { $match: { quiz: { $in: quizIds } } },
+      { $group: { _id: '$quiz', count: { $sum: 1 } } },
+    ]),
+    QuizAttempt.aggregate([
+      // passRate/avgScore — boshqa stats endpointlar (stats.service, course.service)
+      // bilan bir xil qoida: 'expired' urinishlar hisobga kirmaydi (texnik xato, baho emas)
+      { $match: { quiz: { $in: quizIds }, status: { $in: ['submitted', 'reviewed'] } } },
+      {
+        $group: {
+          _id: '$quiz',
+          attemptsCount: { $sum: 1 },
+          avgScore: { $avg: '$scorePercent' },
+          passedCount: { $sum: { $cond: ['$passed', 1, 0] } },
+          pendingReviews: { $sum: { $cond: [{ $eq: ['$status', 'submitted'] }, 1, 0] } },
+        },
+      },
+    ]),
+  ]);
+
+  const questionCountMap = new Map(questionCounts.map((q) => [q._id.toString(), q.count]));
+  const attemptStatsMap = new Map(attemptStatsAgg.map((s) => [s._id.toString(), s]));
+
+  const quizzesWithCounts = quizzes.map((quiz) => {
+    const key = quiz._id.toString();
+    const questionsCount = questionCountMap.get(key) ?? 0;
+    const targetGrades = enrichTargetGrades(quiz, quiz.createdBy?.tarif);
+    const s = attemptStatsMap.get(key);
+
+    const stats = {
+      attemptsCount: s?.attemptsCount ?? 0,
+      avgScorePercent: s?.avgScore ? Math.round(s.avgScore) : 0,
+      passRate: s?.attemptsCount ? Math.round((s.passedCount / s.attemptsCount) * 100) : 0,
+      pendingReviews: s?.pendingReviews ?? 0,
+    };
+
+    return { ...quiz.toObject(), questionsCount, targetGrades, stats };
+  });
 
   return {
     quizzes: quizzesWithCounts,

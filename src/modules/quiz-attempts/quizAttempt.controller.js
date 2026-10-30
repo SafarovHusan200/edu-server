@@ -84,6 +84,30 @@ const deleteAttempt = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, "Urinish o'chirildi"));
 });
 
+// ─────────────────────────────────────────
+// GET /api/v1/quizzes/pending-reviews  (teacher/admin/superadmin)
+// ─────────────────────────────────────────
+const getPendingReviews = asyncHandler(async (req, res) => {
+  const { quizId, page, limit } = req.query;
+
+  const { items, total } = await quizAttemptService.getPendingReviews(
+    { quizId, page, limit },
+    req.user.id,
+    req.user.role
+  );
+
+  res.status(200).json(new ApiResponse(200, 'Tekshirish navbati', { items, total }));
+});
+
+// ─────────────────────────────────────────
+// GET /api/v1/quizzes/pending-reviews/count  (teacher/admin/superadmin)
+// ─────────────────────────────────────────
+const getPendingReviewsCount = asyncHandler(async (req, res) => {
+  const count = await quizAttemptService.getPendingReviewsCount(req.user.id, req.user.role);
+
+  res.status(200).json(new ApiResponse(200, 'Tekshirish navbati soni', { count }));
+});
+
 module.exports = {
   startAttempt,
   submitAttempt,
@@ -92,4 +116,6 @@ module.exports = {
   reviewOpenEnded,
   getAttemptById,
   deleteAttempt,
+  getPendingReviews,
+  getPendingReviewsCount,
 };

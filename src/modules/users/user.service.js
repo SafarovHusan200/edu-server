@@ -152,12 +152,13 @@ const resetPassword = async (id, newPassword) => {
   return user;
 };
 
-const getUsers = async ({ page, limit, role, search, isVerified }) => {
+const getUsers = async ({ page, limit, role, search, isVerified, isBlocked }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
   const filter = {};
   if (role) filter.role = role;
   if (isVerified !== undefined) filter.isVerified = isVerified === 'true' || isVerified === true;
+  if (isBlocked !== undefined) filter.isBlocked = isBlocked === 'true' || isBlocked === true;
   if (search) {
     filter.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -275,7 +276,7 @@ const unlinkTelegram = async (userId) => {
 };
 
 // GET /users/leaderboard — eng ko'p diamond to'plagan studentlar
-const getLeaderboard = async ({ page, limit }) => {
+const getLeaderboard = async ({ page, limit }, requesterId, requesterRole) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
   const filter = { role: 'student' };
 
@@ -296,7 +297,19 @@ const getLeaderboard = async ({ page, limit }) => {
     diamonds: student.diamonds,
   }));
 
-  return { leaderboard, meta: buildMeta(total, currentPage, pageLimit) };
+  // "Mening o'rnim" — ro'yxat qaysi sahifada bo'lishidan qat'i nazar, student
+  // o'zining aniq o'rnini ko'rishi uchun (frontend oldin birinchi 100 tadan qidirib,
+  // topilmasa "100+" deb ko'rsatardi — endi aniq son beriladi)
+  let me = null;
+  if (requesterId && requesterRole === 'student') {
+    const myUser = await User.findById(requesterId).select('diamonds');
+    if (myUser) {
+      const rank = (await User.countDocuments({ role: 'student', diamonds: { $gt: myUser.diamonds } })) + 1;
+      me = { rank, diamonds: myUser.diamonds };
+    }
+  }
+
+  return { leaderboard, me, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
 // GET /users/teachers — testni ulashish uchun "kimga ulashish" select/qidiruv maydonini

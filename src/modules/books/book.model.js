@@ -53,6 +53,12 @@ const bookSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Fayl hajmi, baytda — frontendda "Hajmi 14.2 MB" ko'rinishida ko'rsatish uchun
+    fileSize: {
+      type: Number,
+      default: null,
+    },
+
     // Barcha kitoblar bepul — to'lov/kirish cheklovi yo'q
     isPublished: {
       type: Boolean,

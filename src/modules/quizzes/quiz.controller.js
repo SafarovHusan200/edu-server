@@ -44,7 +44,11 @@ const createQuiz = asyncHandler(async (req, res) => {
 const getQuizzes = asyncHandler(async (req, res) => {
   const { targetType, targetId, page, limit } = req.query;
 
-  const { quizzes, meta } = await quizService.getQuizzes({ targetType, targetId, page, limit });
+  const { quizzes, meta } = await quizService.getQuizzes(
+    { targetType, targetId, page, limit },
+    req.user?.id,
+    req.user?.role
+  );
 
   res.status(200).json(new ApiResponse(200, "Quizlar ro'yxati", { quizzes, meta }));
 });

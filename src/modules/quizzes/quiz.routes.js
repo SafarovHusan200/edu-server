@@ -27,40 +27,16 @@ const validate = require('../../middleware/validate');
  *     summary: Barcha testlarni olish
  *     tags: [Quizzes]
  *     security: []
+ *     description: >
+ *       Har bir quizda endi doim `questionsCount` keladi. Login qilgan student uchun
+ *       qo'shimcha `myAttempts: {attemptsUsed, attemptsRemaining, maxAttempts,
+ *       bestScorePercent, hasInProgress, lastStatus}` ham qaytadi — avval buning uchun
+ *       har bir quiz uchun alohida `GET /quizzes/:quizId/my-attempts` chaqirilardi.
  *     parameters:
  *       - { name: targetType, in: query, schema: { type: string, enum: [course, lesson, standalone] } }
  *     responses:
  *       200:
  *         description: Testlar ro'yxati
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/SuccessResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: array
- *                       items: { $ref: '#/components/schemas/Quiz' }
- */
-// Barcha quizlar (public)
-router.get('/', quizController.getQuizzes);
-
-/**
- * @swagger
- * /quizzes/my:
- *   get:
- *     summary: O'qituvchining o'zi yaratgan testlari
- *     tags: [Quizzes]
- *     description: "Ruxsat: login qilingan foydalanuvchi (odatda teacher/admin/superadmin)"
- *     parameters:
- *       - { name: targetType, in: query, schema: { type: string, enum: [course, lesson, standalone] } }
- *       - { name: targetId, in: query, schema: { type: string } }
- *       - { name: page, in: query, schema: { type: integer, default: 1 } }
- *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
- *     responses:
- *       200:
- *         description: Testlar ro'yxati (har birida questionsCount bilan)
  *         content:
  *           application/json:
  *             schema:
@@ -76,10 +52,152 @@ router.get('/', quizController.getQuizzes);
  *                           - type: object
  *                             properties:
  *                               questionsCount: { type: integer }
+ *                               myAttempts:
+ *                                 type: object
+ *                                 nullable: true
+ *                                 description: "Faqat login qilgan student uchun"
+ *                                 properties:
+ *                                   attemptsUsed: { type: integer }
+ *                                   attemptsRemaining: { type: integer }
+ *                                   maxAttempts: { type: integer }
+ *                                   bestScorePercent: { type: integer, nullable: true }
+ *                                   hasInProgress: { type: boolean }
+ *                                   lastStatus: { type: string, nullable: true, enum: [in_progress, submitted, reviewed, expired] }
+ */
+// Barcha quizlar (public, lekin login bo'lsa student uchun myAttempts qo'shiladi)
+router.get('/', authenticate.optional, quizController.getQuizzes);
+
+/**
+ * @swagger
+ * /quizzes/my:
+ *   get:
+ *     summary: O'qituvchining o'zi yaratgan testlari
+ *     tags: [Quizzes]
+ *     description: "Ruxsat: login qilingan foydalanuvchi (odatda teacher/admin/superadmin)"
+ *     parameters:
+ *       - { name: targetType, in: query, schema: { type: string, enum: [course, lesson, standalone] } }
+ *       - { name: targetId, in: query, schema: { type: string } }
+ *       - { name: page, in: query, schema: { type: integer, default: 1 } }
+ *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
+ *     responses:
+ *       200:
+ *         description: Testlar ro'yxati (har birida questionsCount va stats bilan)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         allOf:
+ *                           - $ref: '#/components/schemas/Quiz'
+ *                           - type: object
+ *                             properties:
+ *                               questionsCount: { type: integer }
+ *                               stats:
+ *                                 type: object
+ *                                 properties:
+ *                                   attemptsCount: { type: integer }
+ *                                   avgScorePercent: { type: integer }
+ *                                   passRate: { type: integer }
+ *                                   pendingReviews: { type: integer }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 // O'qituvchining o'z testlari
 router.get('/my', authenticate, quizController.getQuizzesMy);
+
+/**
+ * @swagger
+ * /quizzes/pending-reviews:
+ *   get:
+ *     summary: Ochiq savolli, hali tekshirilmagan urinishlar navbati
+ *     tags: [Quizzes]
+ *     description: >
+ *       Ruxsat: teacher (faqat o'z testlari), admin/superadmin (hammasi). Avval oxirgi
+ *       N ta faol testning har biri uchun alohida GET /quizzes/{id}/results chaqirilib,
+ *       status='submitted' bo'lganlar yig'ilardi — endi bitta so'rov. Eng eski
+ *       submittedAt birinchi (navbat tartibida).
+ *     parameters:
+ *       - { name: quizId, in: query, schema: { type: string }, description: 'Faqat bitta test uchun' }
+ *       - { name: page, in: query, schema: { type: integer, default: 1 } }
+ *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
+ *     responses:
+ *       200:
+ *         description: Navbat
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         items:
+ *                           type: array
+ *                           items:
+ *                             allOf:
+ *                               - $ref: '#/components/schemas/QuizAttempt'
+ *                               - type: object
+ *                                 properties:
+ *                                   student:
+ *                                     type: object
+ *                                     properties:
+ *                                       _id: { type: string }
+ *                                       name: { type: string }
+ *                                       grade: { type: object }
+ *                                       avatar: { type: string, nullable: true }
+ *                                   quiz:
+ *                                     type: object
+ *                                     properties:
+ *                                       _id: { type: string }
+ *                                       title: { type: string }
+ *                         total: { type: integer }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { description: "Teacher boshqasining testini quizId bilan so'rasa" }
+ */
+// GET /api/v1/quizzes/pending-reviews — /:id dan OLDIN ro'yxatdan o'tkazilishi shart
+router.get(
+  '/pending-reviews',
+  authenticate,
+  authorize('teacher', 'admin', 'superadmin'),
+  attemptController.getPendingReviews
+);
+
+/**
+ * @swagger
+ * /quizzes/pending-reviews/count:
+ *   get:
+ *     summary: Tekshirish navbatidagi urinishlar soni (menyu son belgisi uchun)
+ *     tags: [Quizzes]
+ *     description: "Ruxsat: teacher (faqat o'z testlari), admin/superadmin (hammasi)"
+ *     responses:
+ *       200:
+ *         description: Son
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         count: { type: integer }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+// GET /api/v1/quizzes/pending-reviews/count
+router.get(
+  '/pending-reviews/count',
+  authenticate,
+  authorize('teacher', 'admin', 'superadmin'),
+  attemptController.getPendingReviewsCount
+);
 
 /**
  * @swagger

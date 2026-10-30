@@ -1,5 +1,6 @@
 // src/modules/courses/course.service.js
 
+const mongoose = require('mongoose');
 const Course = require('./course.model');
 const Category = require('../categories/category.model');
 const Lesson = require('../lessons/lesson.model');
@@ -11,6 +12,13 @@ const QuizAttempt = require('../quiz-attempts/quizAttempt.model');
 const enrollmentService = require('../enrollment/enrollment.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
+
+const SORT_STAGES = {
+  newest: { createdAt: -1 },
+  rating: { ratingAvg: -1 },
+  price_asc: { price: 1 },
+  price_desc: { price: -1 },
+};
 
 const isOwnerOrStaff = (course, userId, role) => {
   // course.teacher populate qilingan bo'lishi mumkin (to'liq hujjat) — bu holda
@@ -42,7 +50,7 @@ const createCourse = async ({ title, description, category, price, teacherId }) 
   });
 };
 
-const getCourses = async ({ page, limit, category, teacher, search, userId, role }) => {
+const getCourses = async ({ page, limit, category, teacher, search, sort, isFree, userId, role }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
   const isStaff = ['admin', 'superadmin'].includes(role);
@@ -56,12 +64,71 @@ const getCourses = async ({ page, limit, category, teacher, search, userId, role
   if (category) filter.category = category;
   if (teacher) filter.teacher = teacher;
   if (search) filter.title = { $regex: search, $options: 'i' };
+  if (isFree !== undefined) {
+    const free = isFree === 'true' || isFree === true;
+    filter.price = free ? 0 : { $gt: 0 };
+  }
+
+  // "popular" — yozilganlar soni bo'yicha saralanadi, bu Course hujjatida saqlanmagan
+  // (Enrollment'dan hisoblanadi), shuning uchun oddiy find().sort() o'rniga aggregation
+  // pipeline kerak. Qolgan sort turlari uchun oddiy find() yetarli va tezroq.
+  if (sort === 'popular') {
+    // Mongoose faqat find()/countDocuments() uchun stringlarni avtomatik ObjectId'ga
+    // o'giradi — aggregate() $match'ida buni qo'lda qilish kerak, aks holda
+    // category/teacher bo'yicha filtr aggregate'da hech narsaga mos kelmaydi
+    const aggregateFilter = { ...filter };
+    if (aggregateFilter.category) {
+      aggregateFilter.category = new mongoose.Types.ObjectId(aggregateFilter.category);
+    }
+    if (aggregateFilter.teacher) {
+      aggregateFilter.teacher = new mongoose.Types.ObjectId(aggregateFilter.teacher);
+    }
+
+    const [facetResult] = await Course.aggregate([
+      { $match: aggregateFilter },
+      {
+        $lookup: {
+          from: 'enrollments',
+          let: { courseId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $and: [{ $eq: ['$course', '$$courseId'] }, { $ne: ['$status', 'cancelled'] }] },
+              },
+            },
+            { $count: 'count' },
+          ],
+          as: 'enrollmentInfo',
+        },
+      },
+      { $addFields: { enrollmentCount: { $ifNull: [{ $first: '$enrollmentInfo.count' }, 0] } } },
+      { $sort: { enrollmentCount: -1 } },
+      {
+        $facet: {
+          data: [{ $skip: skip }, { $limit: pageLimit }, { $project: { _id: 1 } }],
+          totalCount: [{ $count: 'count' }],
+        },
+      },
+    ]);
+
+    const total = facetResult.totalCount[0]?.count ?? 0;
+    const orderedIds = facetResult.data.map((c) => c._id);
+
+    const courses = await Course.find({ _id: { $in: orderedIds } })
+      .populate('category', 'name slug')
+      .populate('teacher', 'name phone');
+
+    const orderIndex = new Map(orderedIds.map((id, index) => [id.toString(), index]));
+    courses.sort((a, b) => orderIndex.get(a._id.toString()) - orderIndex.get(b._id.toString()));
+
+    return { courses, meta: buildMeta(total, currentPage, pageLimit) };
+  }
 
   const [courses, total] = await Promise.all([
     Course.find(filter)
       .populate('category', 'name slug')
       .populate('teacher', 'name phone')
-      .sort({ createdAt: -1 })
+      .sort(SORT_STAGES[sort] ?? { createdAt: -1 })
       .skip(skip)
       .limit(pageLimit),
 
@@ -96,7 +163,9 @@ const getCourseById = async (courseId, userId, role) => {
         }
   );
 
-  return { course, lessons: lessonList, hasAccess: access };
+  const quizzesCount = await Quiz.countDocuments({ targetType: 'course', targetId: courseId });
+
+  return { course, lessons: lessonList, hasAccess: access, quizzesCount };
 };
 
 const updateCourse = async (courseId, userId, role, updateData) => {

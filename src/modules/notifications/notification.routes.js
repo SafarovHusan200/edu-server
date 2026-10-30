@@ -34,6 +34,32 @@ router.get('/', notificationController.getMyNotifications);
 
 /**
  * @swagger
+ * /notifications/unread-count:
+ *   get:
+ *     summary: O'qilmagan bildirishnomalar sonini olish
+ *     tags: [Notifications]
+ *     description: "To'liq ro'yxatni yuklamasdan, header'dagi son belgisi uchun yengil endpoint"
+ *     responses:
+ *       200:
+ *         description: Son
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         count: { type: integer }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+// GET /api/v1/notifications/unread-count
+router.get('/unread-count', notificationController.getUnreadCount);
+
+/**
+ * @swagger
  * /notifications/read-all:
  *   patch:
  *     summary: Barcha bildirishnomalarni o'qilgan deb belgilash
