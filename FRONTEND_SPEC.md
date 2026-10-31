@@ -336,7 +336,7 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 ### Courses (`/courses`) — lesson/review creation nested here
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | /courses | public (ixtiyoriy token) | Ro'yxat — filtr: `category,search,page,limit` |
+| GET | /courses | public (ixtiyoriy token) | Ro'yxat — filtr: `category,search,sort(popular\|rating\|newest\|price_asc\|price_desc),isFree,excludeEnrolled,page,limit`. **YANGI** `excludeEnrolled=true` — "Kurslarim" ostidagi katalogda student allaqachon yozilgan kurslarni chiqarib tashlash uchun (faqat student + token bo'lsa ishlaydi, aks holda e'tiborsiz qoldiriladi). Javob: `{courses:[...], meta:{total,page,limit,totalPages}}` — filtr sahifalashdan oldin qo'llanadi, shuning uchun `meta` har doim to'g'ri |
 | GET | /courses/:id | public (ixtiyoriy token) | Bitta kurs |
 | POST | /courses | teacher, admin, superadmin | Yaratish: `title,description,category,price` |
 | PATCH | /courses/:id | teacher, admin, superadmin | Tahrirlash (`isPublished` shu orqali ham) |
@@ -354,7 +354,8 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 | GET | /lessons/:id | public (token ixtiyoriy) | Bitta dars. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. Qulf holatida `{_id,title,order,course,locked:true}` (endi `course` ham bor — frontend kurs sahifasiga yo'naltira oladi) |
 | PATCH | /lessons/:id | teacher, admin, superadmin | Tahrirlash: `title,description,content,videoUrl,order` |
 | DELETE | /lessons/:id | teacher, admin, superadmin | O'chirish |
-| POST | /lessons/:id/material | teacher, admin, superadmin | Material (fayl) biriktirish (multipart: `material`) |
+| POST | /lessons/:id/material | teacher, admin, superadmin | Qo'shimcha material (rasm/pdf/video, 20MB gacha) biriktirish — `attachments`ga qo'shiladi (multipart: `material`) |
+| POST | /lessons/:id/video | teacher, admin, superadmin | **YANGI** — darsning ASOSIY videosini yuklash, `lesson.videoUrl`ni belgilaydi (multipart: `video`, ixtiyoriy `durationMinutes`). `attachments`ga qo'shilmaydi, eski video almashtirilganda o'chiriladi. Max 300MB, `video/mp4\|webm\|quicktime` |
 | POST | /lessons/:id/complete | student | Darsni "tugatildi" deb belgilash |
 
 ### Reviews (`/reviews`) — single-review operations only

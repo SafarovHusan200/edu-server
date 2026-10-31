@@ -8,7 +8,7 @@ const router = express.Router();
 const lessonController = require('./lesson.controller');
 const authenticate = require('../../middleware/authenticate');
 const authorize = require('../../middleware/authorize');
-const { uploadMaterial } = require('../../middleware/upload');
+const { uploadMaterial, uploadVideo } = require('../../middleware/upload');
 
 const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
 
@@ -142,6 +142,54 @@ router.post(
   authorize(...TEACHING_ROLES),
   uploadMaterial('lessons').single('material'),
   lessonController.addMaterial
+);
+
+/**
+ * @swagger
+ * /lessons/{id}/video:
+ *   post:
+ *     summary: Darsga asosiy video yuklash (videoUrl'ni belgilaydi)
+ *     tags: [Lessons]
+ *     description: >
+ *       Ruxsat: teacher, admin, superadmin. `/lessons/:id/material`dan farqli —
+ *       bu yerda yuklangan fayl darsning ASOSIY videosi bo'ladi (`lesson.videoUrl`),
+ *       `attachments`ga qo'shilmaydi. Eski video o'zimiz yuklagan fayl bo'lsa,
+ *       almashtirilganda diskdan o'chiriladi. Max hajm: 300MB.
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [video]
+ *             properties:
+ *               video: { type: string, format: binary, description: "video/mp4, video/webm yoki video/quicktime" }
+ *               durationMinutes: { type: integer, minimum: 0, description: "Ixtiyoriy — video davomiyligi (daqiqada)" }
+ *     responses:
+ *       200:
+ *         description: Video yuklandi, videoUrl yangilandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Lesson' }
+ *       400: { description: "Video fayl yuborilmagan yoki ruxsat etilmagan fayl turi" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+// POST /api/v1/lessons/:id/video
+router.post(
+  '/:id/video',
+  authenticate,
+  authorize(...TEACHING_ROLES),
+  uploadVideo('lessons').single('video'),
+  lessonController.setVideo
 );
 
 /**

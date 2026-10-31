@@ -50,7 +50,18 @@ const createCourse = async ({ title, description, category, price, teacherId }) 
   });
 };
 
-const getCourses = async ({ page, limit, category, teacher, search, sort, isFree, userId, role }) => {
+const getCourses = async ({
+  page,
+  limit,
+  category,
+  teacher,
+  search,
+  sort,
+  isFree,
+  excludeEnrolled,
+  userId,
+  role,
+}) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
   const isStaff = ['admin', 'superadmin'].includes(role);
@@ -67,6 +78,24 @@ const getCourses = async ({ page, limit, category, teacher, search, sort, isFree
   if (isFree !== undefined) {
     const free = isFree === 'true' || isFree === true;
     filter.price = free ? 0 : { $gt: 0 };
+  }
+
+  // "Kurslarim" sahifasida katalogdan o'zi yozilgan kurslarni chiqarib tashlash uchun.
+  // Faqat student uchun ma'noga ega (token yo'q yoki boshqa rol bo'lsa — e'tiborsiz
+  // qoldiriladi, xato qaytarilmaydi) — filtr sahifalashdan OLDIN qo'llanadi, shuning
+  // uchun total/totalPages to'g'ri chiqadi.
+  if (excludeEnrolled && userId && role === 'student') {
+    const exclude = excludeEnrolled === 'true' || excludeEnrolled === true;
+    if (exclude) {
+      const enrolledCourseIds = await Enrollment.find({
+        student: userId,
+        status: { $ne: 'cancelled' },
+      }).distinct('course');
+
+      if (enrolledCourseIds.length) {
+        filter._id = { $nin: enrolledCourseIds };
+      }
+    }
   }
 
   // "popular" — yozilganlar soni bo'yicha saralanadi, bu Course hujjatida saqlanmagan

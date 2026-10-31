@@ -9,6 +9,7 @@ const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
 
 const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MATERIAL_MIME_TYPES = [...IMAGE_MIME_TYPES, 'application/pdf', 'video/mp4'];
+const VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 
 const buildStorage = (subdir) => {
   const dest = path.join(UPLOADS_ROOT, subdir);
@@ -49,10 +50,19 @@ const uploadMaterial = (subdir) =>
     fileFilter: buildFileFilter(MATERIAL_MIME_TYPES),
   });
 
+// Darsning asosiy videosi (lesson.videoUrl) — material (qo'shimcha fayl)dan farqli,
+// haqiqiy video darslar odatda 20MB'dan ancha katta bo'lgani uchun limit kattaroq
+const uploadVideo = (subdir) =>
+  multer({
+    storage: buildStorage(subdir),
+    limits: { fileSize: 300 * 1024 * 1024 },
+    fileFilter: buildFileFilter(VIDEO_MIME_TYPES),
+  });
+
 // req.file.path (diskdagi to'liq yo'l) ni /uploads/... ommaviy URL'ga aylantiradi
 const toPublicPath = (absolutePath) => {
   const relative = path.relative(UPLOADS_ROOT, absolutePath).split(path.sep).join('/');
   return `/uploads/${relative}`;
 };
 
-module.exports = { uploadImage, uploadMaterial, toPublicPath, UPLOADS_ROOT };
+module.exports = { uploadImage, uploadMaterial, uploadVideo, toPublicPath, UPLOADS_ROOT };

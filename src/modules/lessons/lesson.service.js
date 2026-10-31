@@ -1,5 +1,7 @@
 // src/modules/lessons/lesson.service.js
 
+const fs = require('fs');
+const path = require('path');
 const Lesson = require('./lesson.model');
 const Course = require('../courses/course.model');
 const Enrollment = require('../enrollment/enrollment.model');
@@ -11,6 +13,21 @@ const ApiError = require('../../utils/ApiError');
 const { LESSON_COMPLETE_REWARD } = require('../../config/gamification');
 const { applyDiamondMultiplier } = require('../../utils/diamonds');
 const { frontendLinks } = require('../../config/frontendLinks');
+const { UPLOADS_ROOT } = require('../../middleware/upload');
+
+// Eski videoni almashtirishda diskdagi faylni o'chiradi. videoUrl tashqi havola
+// (masalan YouTube) bo'lishi ham mumkin — faqat o'zimiz /uploads/ ostiga
+// yuklagan fayllarnigina o'chirishga urinamiz
+const deleteUploadedVideo = (publicPath) => {
+  if (!publicPath || !publicPath.startsWith('/uploads/')) return;
+
+  const absolutePath = path.join(UPLOADS_ROOT, publicPath.replace('/uploads/', ''));
+  fs.unlink(absolutePath, (error) => {
+    if (error && error.code !== 'ENOENT') {
+      console.error("Video faylni o'chirishda xato:", error.message);
+    }
+  });
+};
 
 const findCourseOrThrow = async (courseId) => {
   const course = await Course.findById(courseId);
@@ -134,6 +151,28 @@ const addMaterial = async (lessonId, userId, role, publicPath) => {
   return lesson;
 };
 
+// POST /lessons/:id/video — darsning ASOSIY videosini yuklash (lesson.videoUrl'ni
+// belgilaydi). addMaterial'dan farqli: attachments'ga qo'shilmaydi, va eski video
+// fayl bo'lsa (tashqi havola emas, o'zimiz yuklagan bo'lsa) almashtirishda o'chiriladi.
+const setVideo = async (lessonId, userId, role, publicPath, durationMinutes) => {
+  const lesson = await Lesson.findById(lessonId);
+  if (!lesson) throw new ApiError(404, 'Dars topilmadi');
+
+  const course = await findCourseOrThrow(lesson.course);
+  if (!courseService.isOwnerOrStaff(course, userId, role)) {
+    throw new ApiError(403, 'Siz bu darsni tahrirlay olmaysiz');
+  }
+
+  deleteUploadedVideo(lesson.videoUrl);
+  lesson.videoUrl = publicPath;
+  if (durationMinutes !== undefined) {
+    lesson.durationMinutes = durationMinutes;
+  }
+
+  await lesson.save();
+  return lesson;
+};
+
 // POST /lessons/:id/complete — student darsni tugatgani uchun diamond oladi (idempotent)
 const completeLesson = async (lessonId, studentId) => {
   const lesson = await Lesson.findById(lessonId);
@@ -199,5 +238,6 @@ module.exports = {
   reorderLessons,
   deleteLesson,
   addMaterial,
+  setVideo,
   completeLesson,
 };

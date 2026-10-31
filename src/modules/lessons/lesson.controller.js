@@ -87,6 +87,23 @@ const addMaterial = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, 'Material yuklandi', { lesson }));
 });
 
+// POST /api/v1/lessons/:id/video
+const setVideo = asyncHandler(async (req, res) => {
+  if (!req.file) throw new ApiError(400, 'Video fayl yuborilishi shart');
+
+  const { durationMinutes } = req.body;
+
+  const lesson = await lessonService.setVideo(
+    req.params.id,
+    req.user.id,
+    req.user.role,
+    toPublicPath(req.file.path),
+    durationMinutes !== undefined ? Number(durationMinutes) : undefined
+  );
+
+  res.status(200).json(new ApiResponse(200, 'Video yuklandi', { lesson }));
+});
+
 // POST /api/v1/lessons/:id/complete
 const completeLesson = asyncHandler(async (req, res) => {
   const { enrollment, alreadyCompleted } = await lessonService.completeLesson(
@@ -109,5 +126,6 @@ module.exports = {
   reorderLessons,
   deleteLesson,
   addMaterial,
+  setVideo,
   completeLesson,
 };

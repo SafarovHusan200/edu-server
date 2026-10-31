@@ -35,6 +35,7 @@ const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
  *       - { name: search, in: query, schema: { type: string } }
  *       - { name: sort, in: query, schema: { type: string, enum: [popular, rating, newest, price_asc, price_desc] }, description: "Berilmasa 'newest'" }
  *       - { name: isFree, in: query, schema: { type: boolean }, description: 'true — faqat bepul (price=0), false — faqat pullik' }
+ *       - { name: excludeEnrolled, in: query, schema: { type: boolean, default: false }, description: "true bo'lsa, so'rov yuborgan student allaqachon yozilgan (enrollment) kurslarni natijadan chiqarib tashlaydi. Faqat login qilgan student uchun ishlaydi — token yo'q yoki boshqa rol bo'lsa e'tiborsiz qoldiriladi" }
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
  *     responses:

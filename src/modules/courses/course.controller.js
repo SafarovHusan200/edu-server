@@ -23,7 +23,7 @@ const createCourse = asyncHandler(async (req, res) => {
 
 // GET /api/v1/courses
 const getCourses = asyncHandler(async (req, res) => {
-  const { page, limit, category, teacher, search, sort, isFree } = req.query;
+  const { page, limit, category, teacher, search, sort, isFree, excludeEnrolled } = req.query;
 
   const { courses, meta } = await courseService.getCourses({
     page,
@@ -33,6 +33,7 @@ const getCourses = asyncHandler(async (req, res) => {
     search,
     sort,
     isFree,
+    excludeEnrolled,
     userId: req.user?.id,
     role: req.user?.role,
   });

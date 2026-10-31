@@ -145,6 +145,61 @@ describe('Courses', () => {
     expect(ids.indexOf(popularId)).toBeLessThan(ids.indexOf(unpopularId));
   });
 
+  test('excludeEnrolled=true — studentning yozilgan kurslari natijadan chiqariladi, sahifalash DBda to\'g\'ri hisoblanadi', async () => {
+    const { token: teacherToken } = await createUser({ role: 'teacher' });
+    const { user: student, token: studentToken } = await createUser({ role: 'student' });
+    const category = await createCategory();
+
+    const createPublished = async (title) => {
+      const res = await request(app)
+        .post('/api/v1/courses')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({ title, category: category._id.toString() });
+      const id = res.body.data.course._id;
+      await request(app)
+        .patch(`/api/v1/courses/${id}`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({ isPublished: true });
+      return id;
+    };
+
+    const allIds = [];
+    for (let i = 0; i < 20; i += 1) {
+      allIds.push(await createPublished(`Kurs ${i}`));
+    }
+
+    const enrolledIds = allIds.slice(0, 3);
+    await Promise.all(enrolledIds.map((courseId) => Enrollment.create({ student: student._id, course: courseId })));
+
+    const res = await request(app)
+      .get('/api/v1/courses')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .query({ excludeEnrolled: true, limit: 12, page: 1, category: category._id.toString() });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.courses).toHaveLength(12);
+    expect(res.body.data.meta).toMatchObject({ total: 17, page: 1, limit: 12, totalPages: 2 });
+
+    const returnedIds = res.body.data.courses.map((c) => c._id);
+    for (const enrolledId of enrolledIds) {
+      expect(returnedIds).not.toContain(enrolledId);
+    }
+
+    // Token bo'lmasa yoki student bo'lmasa — e'tiborsiz qoldiriladi, xato qaytmaydi
+    const anonRes = await request(app)
+      .get('/api/v1/courses')
+      .query({ excludeEnrolled: true, category: category._id.toString(), limit: 50 });
+    expect(anonRes.status).toBe(200);
+    expect(anonRes.body.data.meta.total).toBe(20);
+
+    const teacherRes = await request(app)
+      .get('/api/v1/courses')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .query({ excludeEnrolled: true, category: category._id.toString(), limit: 50 });
+    expect(teacherRes.status).toBe(200);
+    expect(teacherRes.body.data.meta.total).toBe(20);
+  });
+
   test('GET /courses/:id — quizzesCount shu kursga tegishli testlar sonini beradi', async () => {
     const { user: teacher, token: teacherToken } = await createUser({ role: 'teacher' });
     const category = await createCategory();

@@ -145,3 +145,67 @@ describe('Lessons — access control', () => {
     expect(lessonRes.body.data.lesson.content).toBe('maxfiy');
   });
 });
+
+describe('POST /lessons/:id/video', () => {
+  test('video yuklanganda attachments\'ga emas, videoUrl\'ga saqlanadi; durationMinutes ham qo\'shiladi', async () => {
+    const { user: teacher, token: teacherToken } = await createUser({ role: 'teacher' });
+    const category = await createCategory();
+    const course = await createCourse({
+      teacherId: teacher._id,
+      categoryId: category._id,
+      price: 50000,
+      isPublished: true,
+    });
+    const lesson = await Lesson.create({ course: course._id, title: 'Kirish darsi', order: 0 });
+
+    const res = await request(app)
+      .post(`/api/v1/lessons/${lesson._id}/video`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .field('durationMinutes', '14')
+      .attach('video', Buffer.from('fake mp4 bytes'), { filename: 'kirish.mp4', contentType: 'video/mp4' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.lesson.videoUrl).toMatch(/^\/uploads\/lessons\/.+\.mp4$/);
+    expect(res.body.data.lesson.durationMinutes).toBe(14);
+    expect(res.body.data.lesson.attachments).toEqual([]);
+  });
+
+  test('boshqa o\'qituvchi video yuklay olmaydi (403)', async () => {
+    const { user: teacher } = await createUser({ role: 'teacher' });
+    const { token: otherTeacherToken } = await createUser({ role: 'teacher' });
+    const category = await createCategory();
+    const course = await createCourse({
+      teacherId: teacher._id,
+      categoryId: category._id,
+      price: 50000,
+      isPublished: true,
+    });
+    const lesson = await Lesson.create({ course: course._id, title: 'Kirish darsi', order: 0 });
+
+    const res = await request(app)
+      .post(`/api/v1/lessons/${lesson._id}/video`)
+      .set('Authorization', `Bearer ${otherTeacherToken}`)
+      .attach('video', Buffer.from('fake mp4 bytes'), { filename: 'kirish.mp4', contentType: 'video/mp4' });
+
+    expect(res.status).toBe(403);
+  });
+
+  test('pdf fayl video sifatida rad etiladi', async () => {
+    const { user: teacher, token: teacherToken } = await createUser({ role: 'teacher' });
+    const category = await createCategory();
+    const course = await createCourse({
+      teacherId: teacher._id,
+      categoryId: category._id,
+      price: 50000,
+      isPublished: true,
+    });
+    const lesson = await Lesson.create({ course: course._id, title: 'Kirish darsi', order: 0 });
+
+    const res = await request(app)
+      .post(`/api/v1/lessons/${lesson._id}/video`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .attach('video', Buffer.from('%PDF-1.4'), { filename: 'hujjat.pdf', contentType: 'application/pdf' });
+
+    expect(res.status).toBe(400);
+  });
+});
