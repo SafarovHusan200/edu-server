@@ -336,14 +336,14 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 ### Courses (`/courses`) — lesson/review creation nested here
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | /courses | public (ixtiyoriy token) | Ro'yxat — filtr: `category,search,sort(popular\|rating\|newest\|price_asc\|price_desc),isFree,excludeEnrolled,page,limit`. **YANGI** `excludeEnrolled=true` — "Kurslarim" ostidagi katalogda student allaqachon yozilgan kurslarni chiqarib tashlash uchun (faqat student + token bo'lsa ishlaydi, aks holda e'tiborsiz qoldiriladi). Javob: `{courses:[...], meta:{total,page,limit,totalPages}}` — filtr sahifalashdan oldin qo'llanadi, shuning uchun `meta` har doim to'g'ri |
-| GET | /courses/:id | public (ixtiyoriy token) | Bitta kurs |
+| GET | /courses | public (ixtiyoriy token) | Ro'yxat — filtr: `category,search,sort(popular\|rating\|newest\|price_asc\|price_desc),isFree,excludeEnrolled,page,limit`. `excludeEnrolled=true` — "Kurslarim" ostidagi katalogda student allaqachon yozilgan kurslarni chiqarib tashlash uchun (faqat student + token bo'lsa ishlaydi, aks holda e'tiborsiz qoldiriladi). Javob: `{courses:[...], meta:{total,page,limit,totalPages}}` — filtr sahifalashdan oldin qo'llanadi, shuning uchun `meta` har doim to'g'ri. **YANGI**: har bir kurs `lessonsCount` (darslar soni) va `studentsCount` (yozilganlar soni) bilan qaytadi |
+| GET | /courses/:id | public (ixtiyoriy token) | Bitta kurs. **YANGI**: `data.course` endi `lessonsCount` va `studentsCount` ham o'z ichiga oladi |
 | POST | /courses | teacher, admin, superadmin | Yaratish: `title,description,category,price` |
 | PATCH | /courses/:id | teacher, admin, superadmin | Tahrirlash (`isPublished` shu orqali ham) |
 | DELETE | /courses/:id | teacher, admin, superadmin | O'chirish |
 | POST | /courses/:id/thumbnail | teacher, admin, superadmin | Muqova yuklash (multipart: `thumbnail`) |
 | GET | /courses/:id/stats | teacher, admin, superadmin | Kurs statistikasi (yozilganlar, daromad) |
-| GET | /courses/:id/lessons | public (token ixtiyoriy) | Kursdagi darslar ro'yxati. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi |
+| GET | /courses/:id/lessons | public (token ixtiyoriy) | Kursdagi darslar ro'yxati. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. To'liq darslardagi `videoUrl`/`attachments` endi imzolangan `/media/lessons/...` havolasi (pastga qarang) |
 | POST | /courses/:id/lessons | teacher, admin, superadmin | Yangi dars: `title,description,content,videoUrl,order` |
 | GET | /courses/:id/reviews | public | Kurs sharhlari |
 | POST | /courses/:id/reviews | student | Sharh qoldirish: `rating,comment` |
@@ -351,12 +351,17 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 ### Lessons (`/lessons`) — single-lesson operations only
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | /lessons/:id | public (token ixtiyoriy) | Bitta dars. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. Qulf holatida `{_id,title,order,course,locked:true}` (endi `course` ham bor — frontend kurs sahifasiga yo'naltira oladi) |
+| GET | /lessons/:id | public (token ixtiyoriy) | Bitta dars. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. Qulf holatida `{_id,title,order,course,locked:true}` (`course` bor — frontend kurs sahifasiga yo'naltira oladi, `videoUrl`/`attachments` umuman berilmaydi). To'liq javobda `videoUrl`/`attachments` endi imzolangan `/media/lessons/...` havolasi |
 | PATCH | /lessons/:id | teacher, admin, superadmin | Tahrirlash: `title,description,content,videoUrl,order` |
 | DELETE | /lessons/:id | teacher, admin, superadmin | O'chirish |
-| POST | /lessons/:id/material | teacher, admin, superadmin | Qo'shimcha material (rasm/pdf/video, 20MB gacha) biriktirish — `attachments`ga qo'shiladi (multipart: `material`) |
-| POST | /lessons/:id/video | teacher, admin, superadmin | **YANGI** — darsning ASOSIY videosini yuklash, `lesson.videoUrl`ni belgilaydi (multipart: `video`, ixtiyoriy `durationMinutes`). `attachments`ga qo'shilmaydi, eski video almashtirilganda o'chiriladi. Max 300MB, `video/mp4\|webm\|quicktime` |
-| POST | /lessons/:id/complete | student | Darsni "tugatildi" deb belgilash |
+| POST | /lessons/:id/material | teacher, admin, superadmin | Qo'shimcha material (rasm/pdf/video, 20MB gacha) biriktirish — `attachments`ga qo'shiladi (multipart: `material`). Javobdagi havola ham imzolangan |
+| POST | /lessons/:id/video | teacher, admin, superadmin | Darsning ASOSIY videosini yuklash, `lesson.videoUrl`ni belgilaydi (multipart: `video`, ixtiyoriy `durationMinutes`). `attachments`ga qo'shilmaydi, eski video almashtirilganda o'chiriladi. Max 300MB, `video/mp4\|webm\|quicktime`. Javobdagi `videoUrl` ham imzolangan |
+| POST | /lessons/:id/complete | student | Darsni "tugatildi" deb belgilash. Enrollment'ning `progress`ini (0-100) qayta hisoblaydi |
+
+### Media (`/media`) — **YANGI**, himoyalangan dars fayllari
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | /media/lessons/:filename?exp&uid&sig | token kerak emas, imzo kerak | Dars video/materialining haqiqiy fayli. `GET /lessons/:id` yoki `GET /courses/:id/lessons` javobidagi `videoUrl`/`attachments` ichida TAYYOR holda keladi — frontend bu URL'ni **o'zgartirmasdan, to'g'ridan-to'g'ri** `<video src>`/`<a href>`ga qo'yadi. 15 daqiqadan keyin havola eskiradi (sahifa qayta yuklansa yangisi keladi). Range so'rovlari (video oldinga surish) qo'llab-quvvatlanadi. **Eski `/uploads/lessons/...` havolalari endi ishlamaydi (404)** — agar frontendda qayerdadir bu yo'l qattiq yozilgan (hardcoded) bo'lsa, albatta javobdagi yangi `videoUrl`ga almashtiring |
 
 ### Reviews (`/reviews`) — single-review operations only
 | Method | Path | Auth | Description |
@@ -368,8 +373,8 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | POST | /enrollment | student | Bepul kursga yozilish: `courseId` |
-| GET | /enrollment/my | login | O'z yozilishlarim |
-| GET | /enrollment/:id | login | Bitta yozilish |
+| GET | /enrollment/my | login | O'z yozilishlarim. **YANGI**: har bir element `progress` (0-100, haqiqiy qiymat — ilgari doim 0 edi) va `course.lessonsCount`, `course.teacher.name` bilan qaytadi |
+| GET | /enrollment/:id | login | Bitta yozilish. **YANGI**: `course.lessonsCount` ham bor |
 
 ### Notifications (`/notifications`)
 | Method | Path | Auth | Description |

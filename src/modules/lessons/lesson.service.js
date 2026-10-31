@@ -13,15 +13,16 @@ const ApiError = require('../../utils/ApiError');
 const { LESSON_COMPLETE_REWARD } = require('../../config/gamification');
 const { applyDiamondMultiplier } = require('../../utils/diamonds');
 const { frontendLinks } = require('../../config/frontendLinks');
-const { UPLOADS_ROOT } = require('../../middleware/upload');
+const { LESSONS_STORAGE_DIR } = require('../../middleware/upload');
+const { LESSON_FILE_PREFIX, signLessonMedia } = require('../../utils/mediaSigning');
 
 // Eski videoni almashtirishda diskdagi faylni o'chiradi. videoUrl tashqi havola
-// (masalan YouTube) bo'lishi ham mumkin — faqat o'zimiz /uploads/ ostiga
-// yuklagan fayllarnigina o'chirishga urinamiz
+// (masalan YouTube) bo'lishi ham mumkin — faqat o'zimiz yuklagan (himoyalangan
+// STORAGE_ROOT/lessons'dagi) fayllarnigina o'chirishga urinamiz
 const deleteUploadedVideo = (publicPath) => {
-  if (!publicPath || !publicPath.startsWith('/uploads/')) return;
+  if (!publicPath || !publicPath.startsWith(LESSON_FILE_PREFIX)) return;
 
-  const absolutePath = path.join(UPLOADS_ROOT, publicPath.replace('/uploads/', ''));
+  const absolutePath = path.join(LESSONS_STORAGE_DIR, path.basename(publicPath));
   fs.unlink(absolutePath, (error) => {
     if (error && error.code !== 'ENOENT') {
       console.error("Video faylni o'chirishda xato:", error.message);
@@ -79,22 +80,23 @@ const createLesson = async (
   return lesson;
 };
 
-// GET /courses/:id/lessons — ruxsatga qarab to'liq yoki qulflangan ko'rinishda qaytaradi
+// GET /courses/:id/lessons — ruxsatga qarab to'liq yoki qulflangan ko'rinishda qaytaradi.
+// Qulflanmagan darslarda videoUrl/attachments xom yo'l o'rniga imzolangan havola bo'ladi.
 const getLessonsByCourse = async (courseId, userId, role) => {
   const course = await findCourseOrThrow(courseId);
   const access = await courseService.hasCourseAccess(course, userId, role);
 
-  const lessons = await Lesson.find({ course: courseId }).sort({ order: 1 });
+  const lessons = await Lesson.find({ course: courseId }).sort({ order: 1 }).lean();
 
   return lessons.map((lesson) =>
     access
-      ? lesson
+      ? signLessonMedia(lesson, userId)
       : { _id: lesson._id, title: lesson.title, order: lesson.order, course: lesson.course, locked: true }
   );
 };
 
 const getLessonById = async (lessonId, userId, role) => {
-  const lesson = await Lesson.findById(lessonId);
+  const lesson = await Lesson.findById(lessonId).lean();
   if (!lesson) throw new ApiError(404, 'Dars topilmadi');
 
   const course = await findCourseOrThrow(lesson.course);
@@ -104,7 +106,7 @@ const getLessonById = async (lessonId, userId, role) => {
     return { _id: lesson._id, title: lesson.title, order: lesson.order, course: lesson.course, locked: true };
   }
 
-  return lesson;
+  return signLessonMedia(lesson, userId);
 };
 
 const updateLesson = async (lessonId, userId, role, updateData) => {

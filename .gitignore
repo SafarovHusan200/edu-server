@@ -55,6 +55,9 @@ temp/
 uploads/
 public/uploads/
 
+# Himoyalangan dars video/materiallari (uploads/ bilan bir xil sabab)
+storage/
+
 # Database files (agar lokal ishlatsa)
 *.sqlite
 *.sqlite3

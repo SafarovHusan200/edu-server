@@ -36,6 +36,14 @@ const errorHandler = (err, req, res, next) => {
     message = 'Token muddati tugagan';
   }
 
+  // Production'da ApiError bo'lmagan kutilmagan (masalan fs/tizim) xatolarning o'z xabari
+  // server fayl yo'llarini yoki boshqa ichki tafsilotlarni oshkor qilishi mumkin — shuning
+  // uchun bunday hollarda xabar umumiy matn bilan almashtiriladi (stack allaqachon faqat
+  // development'da qaytadi)
+  if (process.env.NODE_ENV === 'production' && statusCode === 500 && !(err instanceof ApiError)) {
+    message = 'Server xatosi';
+  }
+
   res.status(statusCode).json({
     success: false,
     statusCode,

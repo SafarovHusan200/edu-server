@@ -165,7 +165,11 @@ describe('POST /lessons/:id/video', () => {
       .attach('video', Buffer.from('fake mp4 bytes'), { filename: 'kirish.mp4', contentType: 'video/mp4' });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.lesson.videoUrl).toMatch(/^\/uploads\/lessons\/.+\.mp4$/);
+    // videoUrl endi xom /uploads/lessons/... yo'l emas — 15 daqiqalik imzolangan
+    // /media/lessons/... havolasi (uploads/lessons endi static'dan yopilgan)
+    expect(res.body.data.lesson.videoUrl).toMatch(
+      /^\/api\/v1\/media\/lessons\/.+\.mp4\?exp=\d+&uid=.+&sig=.+$/
+    );
     expect(res.body.data.lesson.durationMinutes).toBe(14);
     expect(res.body.data.lesson.attachments).toEqual([]);
   });

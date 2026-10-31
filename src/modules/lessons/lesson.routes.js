@@ -22,7 +22,9 @@ const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
  *     description: >
  *       Token yuborilsa (ixtiyoriy) va foydalanuvchi shu kursga yozilgan bo'lsa —
  *       to'liq dars (content, videoUrl, attachments) qaytadi. Aks holda faqat
- *       `{_id, title, order, course, locked:true}` qaytadi.
+ *       `{_id, title, order, course, locked:true}` qaytadi. To'liq javobdagi
+ *       `videoUrl`/`attachments` endi xom fayl yo'li emas — 15 daqiqa amal qiladigan
+ *       imzolangan `/media/lessons/...` havolasi (GET /media/lessons/{filename}ga qarang).
  *     parameters:
  *       - { $ref: '#/components/parameters/IdParam' }
  *     responses:

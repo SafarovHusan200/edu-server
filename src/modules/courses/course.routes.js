@@ -271,7 +271,8 @@ router.get('/:id/stats', authenticate, authorize(...TEACHING_ROLES), courseContr
  *     description: >
  *       Token yuborilsa (ixtiyoriy) va foydalanuvchi shu kursga yozilgan bo'lsa —
  *       har bir dars to'liq qaytadi. Aks holda har biri qisqa
- *       `{_id, title, order, course, locked:true}` ko'rinishida qaytadi.
+ *       `{_id, title, order, course, locked:true}` ko'rinishida qaytadi. To'liq
+ *       darslardagi `videoUrl`/`attachments` imzolangan `/media/lessons/...` havolasi.
  *     parameters:
  *       - { $ref: '#/components/parameters/IdParam' }
  *     responses:

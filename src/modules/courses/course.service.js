@@ -13,6 +13,7 @@ const enrollmentService = require('../enrollment/enrollment.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { countLessonsByCourse, countStudentsByCourse } = require('../../utils/lessonsCount');
+const { signLessonMedia } = require('../../utils/mediaSigning');
 
 // Har bir kursga lessonsCount (darslar soni) va studentsCount (yozilganlar soni)
 // qo'shadi — courses plain object bo'lishi kerak (find().lean() orqali olingan)
@@ -200,10 +201,10 @@ const getCourseById = async (courseId, userId, role) => {
 
   const access = await hasCourseAccess(course, userId, role);
 
-  const lessons = await Lesson.find({ course: courseId }).sort({ order: 1 });
+  const lessons = await Lesson.find({ course: courseId }).sort({ order: 1 }).lean();
   const lessonList = lessons.map((lesson) =>
     access
-      ? lesson
+      ? signLessonMedia(lesson, userId)
       : {
           _id: lesson._id,
           title: lesson.title,

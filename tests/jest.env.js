@@ -3,6 +3,7 @@
 process.env.NODE_ENV = 'test';
 process.env.JWT_TOKEN_SECRET = 'test_jwt_secret';
 process.env.JWT_EXPIRE = '1d';
+process.env.MEDIA_SECRET = 'test_media_secret';
 process.env.PAGE_LIMIT = '10';
 
 process.env.MULTICARD_APP_ID = 'test_app_id';

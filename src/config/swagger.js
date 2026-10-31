@@ -41,6 +41,7 @@ const definition = {
     { name: 'Stats', description: "Statistika (o'qituvchi)" },
     { name: 'PromoCodes', description: 'Promokodlar' },
     { name: 'DailySpin', description: "Kunlik barabon (streak va diamond yutuqlari)" },
+    { name: 'Media', description: "Himoyalangan dars video/material fayllari (imzolangan havola)" },
   ],
   components: {
     securitySchemes: {

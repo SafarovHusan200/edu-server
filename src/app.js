@@ -51,7 +51,11 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev')); // Request logger
 }
 
-// Yuklangan fayllar (avatar, kurs muqovasi, dars materiali)
+// Dars video/materiallari (lessons) endi ochiq statik papkadan berilmaydi — eski
+// /uploads/lessons/<fayl> havolasi endi tokensiz yuklab olinmasligi uchun yopiladi.
+// Bunday fayllar GET /media/lessons/:file orqali, faqat imzolangan havola bilan beriladi
+// (src/utils/mediaSigning.js). Kurs muqovalari, avatarlar va h.k. ochiq qolaveradi.
+app.use('/uploads/lessons', (req, res) => res.status(404).json({ success: false, statusCode: 404, message: 'Topilmadi' }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // ─────────────────────────────────────────
