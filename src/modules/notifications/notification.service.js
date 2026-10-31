@@ -8,6 +8,21 @@ const { sendTelegramMessage } = require('../../bot/telegramNotifier');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 
+// Emojilar faqat Telegram xabarida qoladi — ilova ichidagi (frontend) bildirishnomalar
+// matnli bo'lishi uchun DB'ga yozishdan oldin har bir qatordan emoji olib tashlanadi.
+const stripEmoji = (text) => {
+  if (!text) return text;
+  return text
+    .split('\n')
+    .map((line) =>
+      line
+        .replace(/\p{Extended_Pictographic}|️|‍/gu, '')
+        .replace(/[ \t]+/g, ' ')
+        .trim()
+    )
+    .join('\n');
+};
+
 // url/buttonText berilsa — Telegram xabari ostiga "ochish" (sayt) tugmasi qo'shiladi,
 // va shu havola notification.meta.url'ga ham yoziladi (frontend in-app bildirishnomada
 // deep-link sifatida ishlatishi mumkin). callbackData/callbackButtonText berilsa —
@@ -25,11 +40,18 @@ const createNotification = async ({
   callbackButtonText,
 }) => {
   const fullMeta = url ? { ...meta, url } : meta;
-  const notification = await Notification.create({ user: userId, type, title, message, meta: fullMeta });
+  const notification = await Notification.create({
+    user: userId,
+    type,
+    title: stripEmoji(title),
+    message: stripEmoji(message),
+    meta: fullMeta,
+  });
 
   const user = await User.findById(userId).select('telegramId');
   if (user?.telegramId) {
-    // Fire-and-forget — Telegram sekin/ishlamasa ham asosiy oqim kutib turmaydi
+    // Fire-and-forget — Telegram sekin/ishlamasa ham asosiy oqim kutib turmaydi.
+    // Telegram xabari hali ham asl (emojili) title/message'dan foydalanadi.
     const text = `<b>${title}</b>\n${message}`;
     if (url || callbackData) {
       sendTelegramMessage(user.telegramId, text, { url, buttonText, callbackData, callbackButtonText });
