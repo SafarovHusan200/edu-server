@@ -200,8 +200,9 @@ describe('Courses', () => {
     expect(teacherRes.body.data.meta.total).toBe(20);
   });
 
-  test('GET /courses ro\'yxatidagi har bir kurs lessonsCount qaytaradi', async () => {
+  test('GET /courses ro\'yxatidagi har bir kurs lessonsCount va studentsCount qaytaradi', async () => {
     const { token: teacherToken } = await createUser({ role: 'teacher' });
+    const { token: studentToken } = await createUser({ role: 'student' });
     const category = await createCategory();
 
     const createRes = await request(app)
@@ -224,12 +225,22 @@ describe('Courses', () => {
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ title: 'Ikkinchi dars' });
 
+    await request(app)
+      .post('/api/v1/enrollment')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ courseId });
+
     const res = await request(app)
       .get('/api/v1/courses')
       .query({ category: category._id.toString() });
 
     const course = res.body.data.courses.find((c) => c._id === courseId);
     expect(course.lessonsCount).toBe(2);
+    expect(course.studentsCount).toBe(1);
+
+    const detailRes = await request(app).get(`/api/v1/courses/${courseId}`);
+    expect(detailRes.body.data.course.lessonsCount).toBe(2);
+    expect(detailRes.body.data.course.studentsCount).toBe(1);
   });
 
   test('GET /courses/:id — quizzesCount shu kursga tegishli testlar sonini beradi', async () => {

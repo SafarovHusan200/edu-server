@@ -48,6 +48,10 @@ router.post('/', authorize('student'), enrollmentController.enroll);
  *   get:
  *     summary: O'zining barcha kursga yozilishlarini olish
  *     tags: [Enrollment]
+ *     description: >
+ *       `progress` (0-100) — completedLessons soni / kursdagi darslar soni * 100,
+ *       har bir `/lessons/:id/complete`da qayta hisoblanadi. Populate qilingan
+ *       `course` ichida `lessonsCount` va `teacher.name` ham qaytadi.
  *     responses:
  *       200:
  *         description: Yozilishlar ro'yxati
@@ -72,6 +76,7 @@ router.get('/my', enrollmentController.getMyEnrollments);
  *   get:
  *     summary: Yozilishni ID bo'yicha olish
  *     tags: [Enrollment]
+ *     description: "Populate qilingan `course` ichida `lessonsCount` ham qaytadi."
  *     parameters:
  *       - { $ref: '#/components/parameters/IdParam' }
  *     responses:

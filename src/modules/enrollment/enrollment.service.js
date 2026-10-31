@@ -2,6 +2,7 @@
 
 const Enrollment = require('./enrollment.model');
 const Course = require('../courses/course.model');
+const Lesson = require('../lessons/lesson.model');
 const paymentService = require('../payment/payment.service');
 const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
@@ -73,7 +74,11 @@ const getMyEnrollments = async (studentId, { page, limit }) => {
 
   const [enrollments, total] = await Promise.all([
     Enrollment.find(filter)
-      .populate('course', 'title thumbnail price ratingAvg')
+      .populate({
+        path: 'course',
+        select: 'title thumbnail price ratingAvg teacher',
+        populate: { path: 'teacher', select: 'name' },
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageLimit)
@@ -97,7 +102,8 @@ const getMyEnrollments = async (studentId, { page, limit }) => {
 const getEnrollmentById = async (enrollmentId, userId, role) => {
   const enrollment = await Enrollment.findById(enrollmentId)
     .populate('course', 'title thumbnail price teacher')
-    .populate('student', 'name phone');
+    .populate('student', 'name phone')
+    .lean();
 
   if (!enrollment) throw new ApiError(404, 'Enrollment topilmadi');
 
@@ -106,6 +112,10 @@ const getEnrollmentById = async (enrollmentId, userId, role) => {
 
   if (!isOwner && !isStaff) {
     throw new ApiError(403, "Siz bu enrollmentni ko'ra olmaysiz");
+  }
+
+  if (enrollment.course) {
+    enrollment.course.lessonsCount = await Lesson.countDocuments({ course: enrollment.course._id });
   }
 
   return enrollment;

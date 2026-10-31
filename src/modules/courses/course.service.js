@@ -12,15 +12,21 @@ const QuizAttempt = require('../quiz-attempts/quizAttempt.model');
 const enrollmentService = require('../enrollment/enrollment.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
-const { countLessonsByCourse } = require('../../utils/lessonsCount');
+const { countLessonsByCourse, countStudentsByCourse } = require('../../utils/lessonsCount');
 
-// Har bir kursga lessonsCount (darslar soni) qo'shadi — courses plain object
-// bo'lishi kerak (find().lean() orqali olingan)
-const attachLessonsCount = async (courses) => {
-  const countMap = await countLessonsByCourse(courses.map((c) => c._id));
+// Har bir kursga lessonsCount (darslar soni) va studentsCount (yozilganlar soni)
+// qo'shadi — courses plain object bo'lishi kerak (find().lean() orqali olingan)
+const attachCourseCounts = async (courses) => {
+  const courseIds = courses.map((c) => c._id);
+  const [lessonsCountMap, studentsCountMap] = await Promise.all([
+    countLessonsByCourse(courseIds),
+    countStudentsByCourse(courseIds),
+  ]);
+
   return courses.map((course) => ({
     ...course,
-    lessonsCount: countMap.get(course._id.toString()) ?? 0,
+    lessonsCount: lessonsCountMap.get(course._id.toString()) ?? 0,
+    studentsCount: studentsCountMap.get(course._id.toString()) ?? 0,
   }));
 };
 
@@ -162,7 +168,7 @@ const getCourses = async ({
     const orderIndex = new Map(orderedIds.map((id, index) => [id.toString(), index]));
     courses.sort((a, b) => orderIndex.get(a._id.toString()) - orderIndex.get(b._id.toString()));
 
-    return { courses: await attachLessonsCount(courses), meta: buildMeta(total, currentPage, pageLimit) };
+    return { courses: await attachCourseCounts(courses), meta: buildMeta(total, currentPage, pageLimit) };
   }
 
   const [courses, total] = await Promise.all([
@@ -177,13 +183,14 @@ const getCourses = async ({
     Course.countDocuments(filter),
   ]);
 
-  return { courses: await attachLessonsCount(courses), meta: buildMeta(total, currentPage, pageLimit) };
+  return { courses: await attachCourseCounts(courses), meta: buildMeta(total, currentPage, pageLimit) };
 };
 
 const getCourseById = async (courseId, userId, role) => {
   const course = await Course.findById(courseId)
     .populate('category', 'name slug')
-    .populate('teacher', 'name phone');
+    .populate('teacher', 'name phone')
+    .lean();
 
   if (!course) throw new ApiError(404, 'Kurs topilmadi');
 
@@ -205,7 +212,13 @@ const getCourseById = async (courseId, userId, role) => {
         }
   );
 
-  const quizzesCount = await Quiz.countDocuments({ targetType: 'course', targetId: courseId });
+  const [quizzesCount, studentsCount] = await Promise.all([
+    Quiz.countDocuments({ targetType: 'course', targetId: courseId }),
+    Enrollment.countDocuments({ course: courseId, status: { $ne: 'cancelled' } }),
+  ]);
+
+  course.lessonsCount = lessons.length;
+  course.studentsCount = studentsCount;
 
   return { course, lessons: lessonList, hasAccess: access, quizzesCount };
 };

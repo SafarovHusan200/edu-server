@@ -29,7 +29,10 @@ const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
  *     summary: Kurslar ro'yxatini olish
  *     tags: [Courses]
  *     security: []
- *     description: "Login qilingan bo'lsa (ixtiyoriy token) o'zining draft kurslari ham ko'rinadi"
+ *     description: >
+ *       Login qilingan bo'lsa (ixtiyoriy token) o'zining draft kurslari ham ko'rinadi.
+ *       Har bir kurs `lessonsCount` (darslar soni) va `studentsCount` (yozilganlar soni)
+ *       bilan qaytadi.
  *     parameters:
  *       - { name: category, in: query, schema: { type: string } }
  *       - { name: search, in: query, schema: { type: string } }
@@ -62,7 +65,10 @@ router.get('/', authenticate.optional, courseController.getCourses);
  *     summary: Kursni ID bo'yicha olish
  *     tags: [Courses]
  *     security: []
- *     description: "Login qilingan bo'lsa to'liq kontent (masalan enrollment holati) aniqlanadi. `data.quizzesCount` — shu kursga tegishli testlar soni."
+ *     description: >
+ *       Login qilingan bo'lsa to'liq kontent (masalan enrollment holati) aniqlanadi.
+ *       `data.quizzesCount` — shu kursga tegishli testlar soni. `data.course.lessonsCount`
+ *       va `data.course.studentsCount` ham qaytadi.
  *     parameters:
  *       - { $ref: '#/components/parameters/IdParam' }
  *     responses:

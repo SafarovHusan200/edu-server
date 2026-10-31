@@ -35,6 +35,23 @@ const findCourseOrThrow = async (courseId) => {
   return course;
 };
 
+// Kursga dars qo'shilsa/o'chirilsa, darslar soni (maxraj) o'zgaradi — shu kursdagi
+// (bekor qilinmagan) barcha enrollment'larning progress'i qayta hisoblanadi
+const recalcProgressForCourse = async (courseId) => {
+  const totalLessons = await Lesson.countDocuments({ course: courseId });
+  const enrollments = await Enrollment.find({ course: courseId, status: { $ne: 'cancelled' } });
+
+  await Promise.all(
+    enrollments.map((enrollment) => {
+      const progress =
+        totalLessons > 0 ? Math.round((enrollment.completedLessons.length / totalLessons) * 100) : 0;
+      if (progress === enrollment.progress) return null;
+      enrollment.progress = progress;
+      return enrollment.save();
+    })
+  );
+};
+
 const createLesson = async (
   courseId,
   userId,
@@ -47,7 +64,19 @@ const createLesson = async (
     throw new ApiError(403, 'Siz bu kursga dars qo\'sha olmaysiz');
   }
 
-  return Lesson.create({ course: courseId, title, description, content, videoUrl, order, durationMinutes });
+  const lesson = await Lesson.create({
+    course: courseId,
+    title,
+    description,
+    content,
+    videoUrl,
+    order,
+    durationMinutes,
+  });
+
+  await recalcProgressForCourse(courseId);
+
+  return lesson;
 };
 
 // GET /courses/:id/lessons — ruxsatga qarab to'liq yoki qulflangan ko'rinishda qaytaradi
@@ -135,6 +164,7 @@ const deleteLesson = async (lessonId, userId, role) => {
   }
 
   await lesson.deleteOne();
+  await recalcProgressForCourse(course._id);
 };
 
 const addMaterial = async (lessonId, userId, role, publicPath) => {
