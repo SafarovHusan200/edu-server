@@ -12,6 +12,17 @@ const QuizAttempt = require('../quiz-attempts/quizAttempt.model');
 const enrollmentService = require('../enrollment/enrollment.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
+const { countLessonsByCourse } = require('../../utils/lessonsCount');
+
+// Har bir kursga lessonsCount (darslar soni) qo'shadi — courses plain object
+// bo'lishi kerak (find().lean() orqali olingan)
+const attachLessonsCount = async (courses) => {
+  const countMap = await countLessonsByCourse(courses.map((c) => c._id));
+  return courses.map((course) => ({
+    ...course,
+    lessonsCount: countMap.get(course._id.toString()) ?? 0,
+  }));
+};
 
 const SORT_STAGES = {
   newest: { createdAt: -1 },
@@ -145,12 +156,13 @@ const getCourses = async ({
 
     const courses = await Course.find({ _id: { $in: orderedIds } })
       .populate('category', 'name slug')
-      .populate('teacher', 'name phone');
+      .populate('teacher', 'name phone')
+      .lean();
 
     const orderIndex = new Map(orderedIds.map((id, index) => [id.toString(), index]));
     courses.sort((a, b) => orderIndex.get(a._id.toString()) - orderIndex.get(b._id.toString()));
 
-    return { courses, meta: buildMeta(total, currentPage, pageLimit) };
+    return { courses: await attachLessonsCount(courses), meta: buildMeta(total, currentPage, pageLimit) };
   }
 
   const [courses, total] = await Promise.all([
@@ -159,12 +171,13 @@ const getCourses = async ({
       .populate('teacher', 'name phone')
       .sort(SORT_STAGES[sort] ?? { createdAt: -1 })
       .skip(skip)
-      .limit(pageLimit),
+      .limit(pageLimit)
+      .lean(),
 
     Course.countDocuments(filter),
   ]);
 
-  return { courses, meta: buildMeta(total, currentPage, pageLimit) };
+  return { courses: await attachLessonsCount(courses), meta: buildMeta(total, currentPage, pageLimit) };
 };
 
 const getCourseById = async (courseId, userId, role) => {

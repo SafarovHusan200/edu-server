@@ -36,6 +36,15 @@ const enrollmentSchema = new mongoose.Schema(
       },
     ],
 
+    // completedLessons.length / kursdagi darslar soni * 100 — har bir
+    // /lessons/:id/complete chaqiruvida qayta hisoblanadi
+    progress: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+
     enrolledAt: {
       type: Date,
       default: Date.now,

@@ -200,6 +200,10 @@ const completeLesson = async (lessonId, studentId) => {
   enrollment.completedLessons.push({ lesson: lessonId });
 
   const totalLessons = await Lesson.countDocuments({ course: course._id });
+  enrollment.progress = totalLessons > 0
+    ? Math.round((enrollment.completedLessons.length / totalLessons) * 100)
+    : 0;
+
   const justCompletedCourse =
     enrollment.status !== 'completed' && enrollment.completedLessons.length >= totalLessons;
 

@@ -200,6 +200,38 @@ describe('Courses', () => {
     expect(teacherRes.body.data.meta.total).toBe(20);
   });
 
+  test('GET /courses ro\'yxatidagi har bir kurs lessonsCount qaytaradi', async () => {
+    const { token: teacherToken } = await createUser({ role: 'teacher' });
+    const category = await createCategory();
+
+    const createRes = await request(app)
+      .post('/api/v1/courses')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ title: 'Darslar soni kursi', category: category._id.toString() });
+    const courseId = createRes.body.data.course._id;
+
+    await request(app)
+      .patch(`/api/v1/courses/${courseId}`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ isPublished: true });
+
+    await request(app)
+      .post(`/api/v1/courses/${courseId}/lessons`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ title: 'Birinchi dars' });
+    await request(app)
+      .post(`/api/v1/courses/${courseId}/lessons`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ title: 'Ikkinchi dars' });
+
+    const res = await request(app)
+      .get('/api/v1/courses')
+      .query({ category: category._id.toString() });
+
+    const course = res.body.data.courses.find((c) => c._id === courseId);
+    expect(course.lessonsCount).toBe(2);
+  });
+
   test('GET /courses/:id — quizzesCount shu kursga tegishli testlar sonini beradi', async () => {
     const { user: teacher, token: teacherToken } = await createUser({ role: 'teacher' });
     const category = await createCategory();

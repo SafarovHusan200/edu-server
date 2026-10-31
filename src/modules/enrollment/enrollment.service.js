@@ -6,6 +6,7 @@ const paymentService = require('../payment/payment.service');
 const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
+const { countLessonsByCourse } = require('../../utils/lessonsCount');
 const { frontendLinks } = require('../../config/frontendLinks');
 
 const ACTIVE_STATUSES = ['active', 'completed'];
@@ -75,11 +76,22 @@ const getMyEnrollments = async (studentId, { page, limit }) => {
       .populate('course', 'title thumbnail price ratingAvg')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(pageLimit),
+      .limit(pageLimit)
+      .lean(),
     Enrollment.countDocuments(filter),
   ]);
 
-  return { enrollments, meta: buildMeta(total, currentPage, pageLimit) };
+  const countMap = await countLessonsByCourse(
+    enrollments.map((e) => e.course?._id).filter(Boolean)
+  );
+  const enrollmentsWithLessonsCount = enrollments.map((enrollment) => ({
+    ...enrollment,
+    course: enrollment.course
+      ? { ...enrollment.course, lessonsCount: countMap.get(enrollment.course._id.toString()) ?? 0 }
+      : enrollment.course,
+  }));
+
+  return { enrollments: enrollmentsWithLessonsCount, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
 const getEnrollmentById = async (enrollmentId, userId, role) => {
