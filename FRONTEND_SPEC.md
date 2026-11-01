@@ -343,7 +343,7 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 | DELETE | /courses/:id | teacher, admin, superadmin | O'chirish |
 | POST | /courses/:id/thumbnail | teacher, admin, superadmin | Muqova yuklash (multipart: `thumbnail`) |
 | GET | /courses/:id/stats | teacher, admin, superadmin | Kurs statistikasi (yozilganlar, daromad) |
-| GET | /courses/:id/lessons | public (token ixtiyoriy) | Kursdagi darslar ro'yxati. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. To'liq darslardagi `videoUrl`/`attachments` endi imzolangan `/media/lessons/...` havolasi (pastga qarang) |
+| GET | /courses/:id/lessons | public (token ixtiyoriy) | Kursdagi darslar ro'yxati. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. To'liq darslardagi `videoUrl`/`attachments` endi imzolangan `/media/lessons/...` havolasi, har birida `watermark` ham bor (pastga qarang) |
 | POST | /courses/:id/lessons | teacher, admin, superadmin | Yangi dars: `title,description,content,videoUrl,order` |
 | GET | /courses/:id/reviews | public | Kurs sharhlari |
 | POST | /courses/:id/reviews | student | Sharh qoldirish: `rating,comment` |
@@ -351,7 +351,7 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 ### Lessons (`/lessons`) — single-lesson operations only
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | /lessons/:id | public (token ixtiyoriy) | Bitta dars. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. Qulf holatida `{_id,title,order,course,locked:true}` (`course` bor — frontend kurs sahifasiga yo'naltira oladi, `videoUrl`/`attachments` umuman berilmaydi). To'liq javobda `videoUrl`/`attachments` endi imzolangan `/media/lessons/...` havolasi |
+| GET | /lessons/:id | public (token ixtiyoriy) | Bitta dars. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. Qulf holatida `{_id,title,order,course,locked:true}` (`course` bor — frontend kurs sahifasiga yo'naltira oladi, `videoUrl`/`attachments` umuman berilmaydi). To'liq javobda `videoUrl`/`attachments` endi imzolangan `/media/lessons/...` havolasi, shuningdek **YANGI** `watermark` (string, masalan `"Alisher Nazarov • +998901234567"`) — video ustiga shaffof overlay sifatida chiqarilishi kerak (pastga, "Suv belgisi" bo'limiga qarang) |
 | PATCH | /lessons/:id | teacher, admin, superadmin | Tahrirlash: `title,description,content,videoUrl,order` |
 | DELETE | /lessons/:id | teacher, admin, superadmin | O'chirish |
 | POST | /lessons/:id/material | teacher, admin, superadmin | Qo'shimcha material (rasm/pdf/video, 20MB gacha) biriktirish — `attachments`ga qo'shiladi (multipart: `material`). Javobdagi havola ham imzolangan |
@@ -361,7 +361,39 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 ### Media (`/media`) — **YANGI**, himoyalangan dars fayllari
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | /media/lessons/:filename?exp&uid&sig | token kerak emas, imzo kerak | Dars video/materialining haqiqiy fayli. `GET /lessons/:id` yoki `GET /courses/:id/lessons` javobidagi `videoUrl`/`attachments` ichida TAYYOR holda keladi — frontend bu URL'ni **o'zgartirmasdan, to'g'ridan-to'g'ri** `<video src>`/`<a href>`ga qo'yadi. 15 daqiqadan keyin havola eskiradi (sahifa qayta yuklansa yangisi keladi). Range so'rovlari (video oldinga surish) qo'llab-quvvatlanadi. **Eski `/uploads/lessons/...` havolalari endi ishlamaydi (404)** — agar frontendda qayerdadir bu yo'l qattiq yozilgan (hardcoded) bo'lsa, albatta javobdagi yangi `videoUrl`ga almashtiring |
+| GET | /media/lessons/:filename?exp&uid&sig | token kerak emas, imzo kerak | Dars video/materialining haqiqiy fayli. `GET /lessons/:id` yoki `GET /courses/:id/lessons` javobidagi `videoUrl`/`attachments` ichida TAYYOR holda keladi — frontend bu URL'ni **o'zgartirmasdan, to'g'ridan-to'g'ri** `<video src>`/`<a href>`ga qo'yadi. 10 daqiqadan keyin havola eskiradi (sahifa qayta yuklansa yangisi keladi). Range so'rovlari (video oldinga surish) qo'llab-quvvatlanadi. **MUHIM (2026-10-31):** endi so'rov faqat sayt ichidan (`Referer` sayt domeni bilan mos kelsa) qabul qilinadi — havolani yangi tabda ochish, boshqa saytga/messenjerga ulashish 403 qaytaradi. Shuning uchun bu URL faqat `<video>`/`<a>` kabi sahifa ichidagi elementlarda ishlatilishi kerak, `window.open`/tashqi ulashish tugmasida emas. **Eski `/uploads/lessons/...` havolalari endi ishlamaydi (404)** — agar frontendda qayerdadir bu yo'l qattiq yozilgan (hardcoded) bo'lsa, albatta javobdagi yangi `videoUrl`ga almashtiring |
+
+#### Suv belgisi (watermark) — **YANGI (2026-10-31)**
+To'liq huquqli dars javobida (`GET /lessons/:id`, `GET /courses/:id/lessons`, `GET /courses/:id`) endi `lesson.watermark` (string, masalan `"Alisher Nazarov • +998901234567"`) keladi — ko'rayotgan foydalanuvchining o'zi. Bu burned-in (videoga o'zi yopishtirilgan) emas, balki frontendda `<video>` ustiga shaffof overlay sifatida chiqariladi — maqsad: video sizib chiqsa, kim tarqatganini bilish (caydiruvchi himoya, to'liq DRM emas).
+
+Qo'llash tartibi:
+1. Video konteynerini `position: relative` qiling, ichiga `pointer-events: none; user-select: none;` bilan matn qatlamini qo'shing.
+2. Matn shaffof (opacity ~0.3-0.4), kichik shrift, soyali (video fonidan ajralib turishi uchun).
+3. Ekran tasvirga olinganda bitta burchakni kesib tashlab himoyani yo'qqa chiqarmaslik uchun, overlay pozitsiyasini har 5-8 soniyada avtomatik almashtiring (masalan 4 burchak orasida aylanadigan `setInterval`).
+
+Namuna (CSS + JS):
+```html
+<div style="position: relative;">
+  <video id="player" src="..."></video>
+  <div id="watermark" style="
+    position: absolute; pointer-events: none; user-select: none;
+    color: #fff; opacity: 0.35; font-size: 13px;
+    text-shadow: 0 0 3px rgba(0,0,0,.8); white-space: nowrap;
+    transition: all .5s ease;">
+  </div>
+</div>
+<script>
+  const positions = [
+    { top: '8%', left: '6%' }, { top: '8%', left: '60%' },
+    { top: '80%', left: '6%' }, { top: '80%', left: '60%' },
+  ];
+  let i = 0;
+  const el = document.getElementById('watermark');
+  el.textContent = lesson.watermark; // API javobidan
+  setInterval(() => Object.assign(el.style, positions[i++ % positions.length]), 6000);
+</script>
+```
+`watermark` bo'sh/`undefined` bo'lsa (masalan foydalanuvchi aniqlanmagan holatda), overlay umuman ko'rsatilmasin.
 
 ### Reviews (`/reviews`) — single-review operations only
 | Method | Path | Auth | Description |

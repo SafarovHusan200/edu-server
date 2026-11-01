@@ -82,7 +82,7 @@ const createLesson = async (
 
 // GET /courses/:id/lessons — ruxsatga qarab to'liq yoki qulflangan ko'rinishda qaytaradi.
 // Qulflanmagan darslarda videoUrl/attachments xom yo'l o'rniga imzolangan havola bo'ladi.
-const getLessonsByCourse = async (courseId, userId, role) => {
+const getLessonsByCourse = async (courseId, userId, role, watermarkText) => {
   const course = await findCourseOrThrow(courseId);
   const access = await courseService.hasCourseAccess(course, userId, role);
 
@@ -90,12 +90,12 @@ const getLessonsByCourse = async (courseId, userId, role) => {
 
   return lessons.map((lesson) =>
     access
-      ? signLessonMedia(lesson, userId)
+      ? signLessonMedia(lesson, userId, watermarkText)
       : { _id: lesson._id, title: lesson.title, order: lesson.order, course: lesson.course, locked: true }
   );
 };
 
-const getLessonById = async (lessonId, userId, role) => {
+const getLessonById = async (lessonId, userId, role, watermarkText) => {
   const lesson = await Lesson.findById(lessonId).lean();
   if (!lesson) throw new ApiError(404, 'Dars topilmadi');
 
@@ -106,7 +106,7 @@ const getLessonById = async (lessonId, userId, role) => {
     return { _id: lesson._id, title: lesson.title, order: lesson.order, course: lesson.course, locked: true };
   }
 
-  return signLessonMedia(lesson, userId);
+  return signLessonMedia(lesson, userId, watermarkText);
 };
 
 const updateLesson = async (lessonId, userId, role, updateData) => {

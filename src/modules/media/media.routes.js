@@ -33,7 +33,10 @@ const mediaLimiter = rateLimit({
  *       Token talab qilinmaydi — himoya `sig` imzosining o'zida. `exp`, `uid`, `sig`
  *       GET /lessons/{id} yoki GET /courses/{id}/lessons javobidagi `videoUrl`/`attachments`
  *       ichida tayyor keladi; frontend bu havolani o'zgartirmasdan ishlatadi. Havola 15
- *       daqiqadan keyin eskiradi (403). Video oldinga surish uchun Range so'rovlari
+ *       daqiqadan keyin eskiradi (403). Shuningdek faqat frontend sahifasidan (video
+ *       tegi) kelgan so'rovlar qabul qilinadi — havolani manzil qatoriga joylashtirib
+ *       to'g'ridan-to'g'ri ochish yoki boshqa saytga ulashish Referer mos kelmagani
+ *       uchun 403 bilan rad etiladi. Video oldinga surish uchun Range so'rovlari
  *       (206 Partial Content) qo'llab-quvvatlanadi.
  *     parameters:
  *       - { name: filename, in: path, required: true, schema: { type: string } }

@@ -5,6 +5,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
 const ApiError = require('../../utils/ApiError');
 const { toPublicPath } = require('../../middleware/upload');
+const { buildWatermarkText } = require('../../utils/mediaSigning');
 
 // POST /api/v1/courses
 const createCourse = asyncHandler(async (req, res) => {
@@ -46,7 +47,8 @@ const getCourseById = asyncHandler(async (req, res) => {
   const { course, lessons, hasAccess, quizzesCount } = await courseService.getCourseById(
     req.params.id,
     req.user?.id,
-    req.user?.role
+    req.user?.role,
+    buildWatermarkText(req.user)
   );
 
   res

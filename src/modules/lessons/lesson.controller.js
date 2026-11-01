@@ -5,7 +5,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
 const ApiError = require('../../utils/ApiError');
 const { toPublicPath, toProtectedPath } = require('../../middleware/upload');
-const { signLessonMedia } = require('../../utils/mediaSigning');
+const { signLessonMedia, buildWatermarkText } = require('../../utils/mediaSigning');
 
 // POST /api/v1/courses/:id/lessons
 const createLesson = asyncHandler(async (req, res) => {
@@ -42,7 +42,8 @@ const getLessonsByCourse = asyncHandler(async (req, res) => {
   const lessons = await lessonService.getLessonsByCourse(
     req.params.id,
     req.user?.id,
-    req.user?.role
+    req.user?.role,
+    buildWatermarkText(req.user)
   );
 
   res.status(200).json(new ApiResponse(200, "Darslar ro'yxati", { lessons }));
@@ -50,14 +51,20 @@ const getLessonsByCourse = asyncHandler(async (req, res) => {
 
 // GET /api/v1/lessons/:id
 const getLessonById = asyncHandler(async (req, res) => {
-  const lesson = await lessonService.getLessonById(req.params.id, req.user?.id, req.user?.role);
+  const lesson = await lessonService.getLessonById(
+    req.params.id,
+    req.user?.id,
+    req.user?.role,
+    buildWatermarkText(req.user)
+  );
 
   res.status(200).json(new ApiResponse(200, "Dars ma'lumotlari", { lesson }));
 });
 
 // Teacher/admin o'zi yuklagan materialini/videosini ko'rishi uchun (tahrirlash sahifasi) —
 // upload javobidagi videoUrl/attachments ham imzolangan havola bo'lishi kerak
-const toSignedLessonResponse = (lesson, userId) => signLessonMedia(lesson.toObject(), userId);
+const toSignedLessonResponse = (lesson, userId, watermarkText) =>
+  signLessonMedia(lesson.toObject(), userId, watermarkText);
 
 // PATCH /api/v1/lessons/:id
 const updateLesson = asyncHandler(async (req, res) => {
@@ -89,9 +96,11 @@ const addMaterial = asyncHandler(async (req, res) => {
     toProtectedPath(req.file.path)
   );
 
-  res
-    .status(200)
-    .json(new ApiResponse(200, 'Material yuklandi', { lesson: toSignedLessonResponse(lesson, req.user.id) }));
+  res.status(200).json(
+    new ApiResponse(200, 'Material yuklandi', {
+      lesson: toSignedLessonResponse(lesson, req.user.id, buildWatermarkText(req.user)),
+    })
+  );
 });
 
 // POST /api/v1/lessons/:id/video
@@ -108,9 +117,11 @@ const setVideo = asyncHandler(async (req, res) => {
     durationMinutes !== undefined ? Number(durationMinutes) : undefined
   );
 
-  res
-    .status(200)
-    .json(new ApiResponse(200, 'Video yuklandi', { lesson: toSignedLessonResponse(lesson, req.user.id) }));
+  res.status(200).json(
+    new ApiResponse(200, 'Video yuklandi', {
+      lesson: toSignedLessonResponse(lesson, req.user.id, buildWatermarkText(req.user)),
+    })
+  );
 });
 
 // POST /api/v1/lessons/:id/complete

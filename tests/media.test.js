@@ -10,6 +10,10 @@ const { createUser, createCategory, createCourse } = require('./helpers');
 const sign = (filename, exp, uid) =>
   crypto.createHmac('sha256', process.env.MEDIA_SECRET).update(`${filename}:${exp}:${uid}`).digest('hex');
 
+// media.controller.js endi faqat frontend sahifasidan (video tegi) kelgan so'rovlarni
+// qabul qiladi (FRONTEND_URL, default https://edu-platform.uz) — shu Referer'ni taqlid qilamiz
+const VALID_REFERER = 'https://edu-platform.uz/student/courses/abc';
+
 describe('Himoyalangan dars fayllari (/media/lessons)', () => {
   const setupLessonWithVideo = async () => {
     const { user: teacher, token: teacherToken } = await createUser({ role: 'teacher' });
@@ -53,11 +57,21 @@ describe('Himoyalangan dars fayllari (/media/lessons)', () => {
     const studentVideoUrl = lessonRes.body.data.lesson.videoUrl;
     expect(studentVideoUrl).toMatch(/^\/api\/v1\/media\/lessons\/.+\.mp4\?exp=\d+&uid=.+&sig=.+$/);
 
-    const fileRes = await request(app).get(studentVideoUrl);
+    const fileRes = await request(app).get(studentVideoUrl).set('Referer', VALID_REFERER);
     expect(fileRes.status).toBe(200);
     expect(fileRes.headers['content-type']).toBe('video/mp4');
     expect(fileRes.headers['accept-ranges']).toBe('bytes');
     expect(fileRes.headers['cache-control']).toBe('private, max-age=900');
+  });
+
+  test('GET /lessons/:id javobida watermark (student ismi + telefoni) qaytadi', async () => {
+    const { studentToken, student, lesson } = await setupLessonWithVideo();
+
+    const res = await request(app)
+      .get(`/api/v1/lessons/${lesson._id}`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.body.data.lesson.watermark).toBe(`${student.name} • ${student.phone}`);
   });
 
   test('yozilmagan student uchun locked:true qaytadi, videoUrl umuman berilmaydi', async () => {
@@ -83,7 +97,7 @@ describe('Himoyalangan dars fayllari (/media/lessons)', () => {
   test('Range so\'rovi 206 Partial Content qaytaradi (video oldinga surish)', async () => {
     const { videoUrl } = await setupLessonWithVideo();
 
-    const res = await request(app).get(videoUrl).set('Range', 'bytes=0-4');
+    const res = await request(app).get(videoUrl).set('Range', 'bytes=0-4').set('Referer', VALID_REFERER);
 
     expect(res.status).toBe(206);
     expect(res.headers['content-range']).toMatch(/^bytes 0-4\//);
@@ -116,5 +130,21 @@ describe('Himoyalangan dars fayllari (/media/lessons)', () => {
   test('noto\'g\'ri fayl nomi (path traversal urinishi) 403 qaytaradi', async () => {
     const res = await request(app).get('/api/v1/media/lessons/..%2F..%2F.env?exp=9999999999&uid=x&sig=x');
     expect([403, 404]).toContain(res.status);
+  });
+
+  test('to\'g\'ri imzo, lekin Referer bo\'lmasa (havola manzil qatoriga joylashtirilsa) 403 qaytaradi', async () => {
+    const { videoUrl } = await setupLessonWithVideo();
+
+    const res = await request(app).get(videoUrl);
+
+    expect(res.status).toBe(403);
+  });
+
+  test('to\'g\'ri imzo, lekin Referer boshqa domendan bo\'lsa 403 qaytaradi', async () => {
+    const { videoUrl } = await setupLessonWithVideo();
+
+    const res = await request(app).get(videoUrl).set('Referer', 'https://boshqa-sayt.uz/video');
+
+    expect(res.status).toBe(403);
   });
 });

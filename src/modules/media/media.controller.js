@@ -7,8 +7,25 @@ const fs = require('fs');
 const path = require('path');
 const { LESSONS_STORAGE_DIR } = require('../../middleware/upload');
 const { verifySignature } = require('../../utils/mediaSigning');
+const { FRONTEND_URL } = require('../../config/frontendLinks');
 const ApiError = require('../../utils/ApiError');
 const asyncHandler = require('../../utils/asyncHandler');
+
+// Imzolangan havola amal qilish muddati ichida ham to'g'ridan-to'g'ri manzil qatoriga
+// joylashtirib ochish/ulashishning oldini olish uchun: faqat o'z frontendimizdan (video
+// tegi orqali) kelgan so'rovlar qabul qilinadi — Referer bo'lmasa (qo'lda joylashtirilgan
+// havola) yoki boshqa domendan bo'lsa, 403
+const ALLOWED_REFERER_HOST = new URL(FRONTEND_URL).host;
+
+const isAllowedReferer = (req) => {
+  const referer = req.headers.referer;
+  if (!referer) return false;
+  try {
+    return new URL(referer).host === ALLOWED_REFERER_HOST;
+  } catch {
+    return false;
+  }
+};
 
 const MIME_TYPES = {
   '.mp4': 'video/mp4',
@@ -31,6 +48,10 @@ const getLessonFile = asyncHandler(async (req, res) => {
   // Fayl nomi papka chegarasidan chiqmasligi kerak (path traversal himoyasi)
   if (!filename || filename !== path.basename(filename) || filename.includes('..')) {
     throw new ApiError(403, "Ruxsat yo'q");
+  }
+
+  if (!isAllowedReferer(req)) {
+    throw new ApiError(403, "Ruxsat yo'q (noto'g'ri manba)");
   }
 
   if (!verifySignature({ filename, exp, uid, sig })) {

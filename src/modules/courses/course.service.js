@@ -187,7 +187,7 @@ const getCourses = async ({
   return { courses: await attachCourseCounts(courses), meta: buildMeta(total, currentPage, pageLimit) };
 };
 
-const getCourseById = async (courseId, userId, role) => {
+const getCourseById = async (courseId, userId, role, watermarkText) => {
   const course = await Course.findById(courseId)
     .populate('category', 'name slug')
     .populate('teacher', 'name phone')
@@ -204,7 +204,7 @@ const getCourseById = async (courseId, userId, role) => {
   const lessons = await Lesson.find({ course: courseId }).sort({ order: 1 }).lean();
   const lessonList = lessons.map((lesson) =>
     access
-      ? signLessonMedia(lesson, userId)
+      ? signLessonMedia(lesson, userId, watermarkText)
       : {
           _id: lesson._id,
           title: lesson.title,

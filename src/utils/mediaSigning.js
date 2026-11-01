@@ -7,7 +7,9 @@
 
 const crypto = require('crypto');
 
-const EXPIRY_SECONDS = 15 * 60;
+// 2026-10-31: 15 daqiqadan 10 daqiqaga qisqartirildi — havolani qo'lda ulashish oynasini
+// kamaytirish uchun (Referer tekshiruvi bilan birga, media.controller.js)
+const EXPIRY_SECONDS = 10 * 60;
 const LESSON_FILE_PREFIX = '/uploads/lessons/';
 
 const getSecret = () => {
@@ -47,16 +49,32 @@ const signLessonFileUrl = (rawPath, userId) => {
   return `/api/v1/media/lessons/${encodeURIComponent(filename)}?exp=${exp}&uid=${uid}&sig=${sig}`;
 };
 
+// Ekrandan yozib olishni butunlay to'xtatolmaymiz, lekin video ustiga ko'rayotgan
+// foydalanuvchini fosh qiluvchi matn chiqarish (frontendda overlay sifatida) sizib
+// chiqqan videoni kim tarqatganini aniqlashga yordam beradi — caydiruvchi himoya
+const buildWatermarkText = (user) => {
+  if (!user || !user.name) return null;
+  return `${user.name}${user.phone ? ' • ' + user.phone : ''}`;
+};
+
 // Bitta dars (plain object — lean/toObject) uchun videoUrl va attachments'dagi har bir
-// yo'lni imzolangan havolaga aylantirib, yangi obyekt qaytaradi
-const signLessonMedia = (lesson, userId) => {
+// yo'lni imzolangan havolaga aylantirib, yangi obyekt qaytaradi. watermarkText berilsa
+// (ko'rayotgan foydalanuvchining ismi/telefoni), javobga `watermark` maydoni qo'shiladi —
+// frontend buni video ustida shaffof overlay sifatida chiqaradi
+const signLessonMedia = (lesson, userId, watermarkText) => {
   if (!lesson) return lesson;
 
-  return {
+  const signed = {
     ...lesson,
     videoUrl: signLessonFileUrl(lesson.videoUrl, userId),
     attachments: (lesson.attachments || []).map((filePath) => signLessonFileUrl(filePath, userId)),
   };
+
+  if (watermarkText) {
+    signed.watermark = watermarkText;
+  }
+
+  return signed;
 };
 
 module.exports = {
@@ -65,4 +83,5 @@ module.exports = {
   verifySignature,
   signLessonFileUrl,
   signLessonMedia,
+  buildWatermarkText,
 };
