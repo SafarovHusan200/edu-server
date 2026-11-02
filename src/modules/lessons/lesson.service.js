@@ -15,6 +15,8 @@ const { applyDiamondMultiplier } = require('../../utils/diamonds');
 const { frontendLinks } = require('../../config/frontendLinks');
 const { LESSONS_STORAGE_DIR } = require('../../middleware/upload');
 const { LESSON_FILE_PREFIX, signLessonMedia } = require('../../utils/mediaSigning');
+const { convertLessonVideo, deleteHlsOutput } = require('../../utils/hlsConverter');
+const { enqueueConversion } = require('../../utils/conversionQueue');
 
 // Eski videoni almashtirishda diskdagi faylni o'chiradi. videoUrl tashqi havola
 // (masalan YouTube) bo'lishi ham mumkin — faqat o'zimiz yuklagan (himoyalangan
@@ -26,6 +28,27 @@ const deleteUploadedVideo = (publicPath) => {
   fs.unlink(absolutePath, (error) => {
     if (error && error.code !== 'ENOENT') {
       console.error("Video faylni o'chirishda xato:", error.message);
+    }
+  });
+};
+
+// setVideo'da yangi mp4 yuklangandan keyin fonda (navbatda) HLS+AES-128'ga o'tkazadi.
+// Natija lesson.videoStatus="ready"/"failed" sifatida DB'ga yoziladi — javob tayyor
+// bo'lgandan keyin keyingi GET /lessons/:id so'rovida avtomatik aks etadi.
+const queueHlsConversion = (lessonId, sourceAbsolutePath) => {
+  // Testlarda ffmpeg odatda o'rnatilmagan va bu fon ishi deterministik bo'lmagan tarzda
+  // DB'ni o'zgartirib yuboradi — shuning uchun test muhitida butunlay o'tkazib yuboriladi.
+  // hls.controller.js testlari (tests/hls.test.js) videoStatus:"ready" holatini va kerakli
+  // fayllarni to'g'ridan-to'g'ri (ffmpeg'siz) tayyorlab qo'yadi.
+  if (process.env.NODE_ENV === 'test') return;
+
+  enqueueConversion(async () => {
+    try {
+      await convertLessonVideo(lessonId, sourceAbsolutePath);
+      await Lesson.findByIdAndUpdate(lessonId, { videoStatus: 'ready' });
+    } catch (error) {
+      console.error(`Dars ${lessonId} videosini HLS'ga o'tkazishda xato:`, error.message);
+      await Lesson.findByIdAndUpdate(lessonId, { videoStatus: 'failed' });
     }
   });
 };
@@ -166,6 +189,7 @@ const deleteLesson = async (lessonId, userId, role) => {
   }
 
   await lesson.deleteOne();
+  deleteHlsOutput(lesson._id);
   await recalcProgressForCourse(course._id);
 };
 
@@ -196,12 +220,18 @@ const setVideo = async (lessonId, userId, role, publicPath, durationMinutes) => 
   }
 
   deleteUploadedVideo(lesson.videoUrl);
+  deleteHlsOutput(lesson._id);
   lesson.videoUrl = publicPath;
+  lesson.videoStatus = 'processing';
   if (durationMinutes !== undefined) {
     lesson.durationMinutes = durationMinutes;
   }
 
   await lesson.save();
+
+  const absolutePath = path.join(LESSONS_STORAGE_DIR, path.basename(publicPath));
+  queueHlsConversion(lesson._id, absolutePath);
+
   return lesson;
 };
 

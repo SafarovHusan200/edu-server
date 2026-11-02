@@ -21,10 +21,11 @@ const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
  *     security: []
  *     description: >
  *       Token yuborilsa (ixtiyoriy) va foydalanuvchi shu kursga yozilgan bo'lsa —
- *       to'liq dars (content, videoUrl, attachments) qaytadi. Aks holda faqat
- *       `{_id, title, order, course, locked:true}` qaytadi. To'liq javobdagi
- *       `videoUrl`/`attachments` endi xom fayl yo'li emas — 15 daqiqa amal qiladigan
- *       imzolangan `/media/lessons/...` havolasi (GET /media/lessons/{filename}ga qarang).
+ *       to'liq dars (content, videoStatus, videoUrl/video, attachments) qaytadi. Aks
+ *       holda faqat `{_id, title, order, course, locked:true}` qaytadi. `videoStatus`
+ *       "ready" bo'lsa `video:{type:"hls",url}` (AES-128 shifrlangan, GET /media/hls/
+ *       {lessonId}/master.m3u8ga qarang), aks holda `videoUrl` — 10 daqiqa amal qiladigan
+ *       imzolangan `/media/lessons/...` havolasi. `attachments` ham shu tarzda imzolangan.
  *     parameters:
  *       - { $ref: '#/components/parameters/IdParam' }
  *     responses:

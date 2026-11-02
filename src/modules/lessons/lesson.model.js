@@ -48,6 +48,15 @@ const lessonSchema = new mongoose.Schema(
       min: 0,
       default: null,
     },
+
+    // O'zimiz yuklagan mp4 (videoUrl /uploads/lessons/... bo'lsa) HLS+AES-128'ga qayta
+    // kodlanganmi — tashqi havolalar (YouTube va h.k.) hech qachon shu jarayondan
+    // o'tmaydi, videoStatus ular uchun doim "none" qoladi (src/utils/hlsConverter.js)
+    videoStatus: {
+      type: String,
+      enum: ['none', 'processing', 'ready', 'failed'],
+      default: 'none',
+    },
   },
   { timestamps: true }
 );

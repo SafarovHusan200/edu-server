@@ -6,34 +6,9 @@
 const fs = require('fs');
 const path = require('path');
 const { LESSONS_STORAGE_DIR } = require('../../middleware/upload');
-const { verifySignature } = require('../../utils/mediaSigning');
-const { FRONTEND_URL } = require('../../config/frontendLinks');
+const { verifySignature, isAllowedMediaOrigin } = require('../../utils/mediaSigning');
 const ApiError = require('../../utils/ApiError');
 const asyncHandler = require('../../utils/asyncHandler');
-
-// Boshqa saytga "hotlink" qilinishining (masalan <img>/<video> boshqa domenga
-// joylashtirilishi) oldini olish uchun: Referer/Origin BERILGAN bo'lsa, u ruxsat etilgan
-// ro'yxatda bo'lishi kerak. Lekin ko'p holatlarda bu header umuman kelmaydi (Safari/Brave
-// maxfiylik rejimi, Telegram Mini App webview, ba'zi mobil ilovalar) — bunda rad ETILMAYDI,
-// chunki asosiy himoya imzoning o'zida (exp/uid/sig, src/utils/mediaSigning.js)
-const getAllowedOrigins = () =>
-  new Set(
-    (process.env.MEDIA_ALLOWED_ORIGINS || FRONTEND_URL)
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean)
-  );
-
-const isAllowedOrigin = (req) => {
-  const source = req.headers.referer || req.headers.origin;
-  if (!source) return true;
-
-  try {
-    return getAllowedOrigins().has(new URL(source).origin);
-  } catch {
-    return false;
-  }
-};
 
 const MIME_TYPES = {
   '.mp4': 'video/mp4',
@@ -58,7 +33,7 @@ const getLessonFile = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Ruxsat yo'q");
   }
 
-  if (!isAllowedOrigin(req)) {
+  if (!isAllowedMediaOrigin(req)) {
     throw new ApiError(403, "Ruxsat yo'q (noto'g'ri manba)");
   }
 

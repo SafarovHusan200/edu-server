@@ -351,20 +351,51 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 ### Lessons (`/lessons`) — single-lesson operations only
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | /lessons/:id | public (token ixtiyoriy) | Bitta dars. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. Qulf holatida `{_id,title,order,course,locked:true}` (`course` bor — frontend kurs sahifasiga yo'naltira oladi, `videoUrl`/`attachments` umuman berilmaydi). To'liq javobda `videoUrl`/`attachments` endi imzolangan `/media/lessons/...` havolasi, shuningdek **YANGI** `watermark` (string, masalan `"Alisher Nazarov • +998901234567"`) — video ustiga shaffof overlay sifatida chiqarilishi kerak (pastga, "Suv belgisi" bo'limiga qarang) |
+| GET | /lessons/:id | public (token ixtiyoriy) | Bitta dars. **MUHIM:** kursga yozilgan studentga to'liq ma'lumot berish uchun `Authorization` header albatta yuborilsin — bo'lmasa har doim `locked:true` qaytadi. Qulf holatida `{_id,title,order,course,locked:true}` (`course` bor — frontend kurs sahifasiga yo'naltira oladi, `videoUrl`/`video`/`attachments` umuman berilmaydi). To'liq javobda **YANGI (2026-11-02)** `videoStatus` (`none\|processing\|ready\|failed`) keladi: `ready` bo'lsa `videoUrl` o'rniga `video:{type:"hls",url:"..."}` (pastga, "HLS video" bo'limiga qarang), aks holda eski `videoUrl` (imzolangan `/media/lessons/...`) qaytadi. `attachments` ham imzolangan. Shuningdek `watermark` (string, faqat ism — masalan `"Alisher Nazarov"`) — video ustiga shaffof overlay sifatida chiqarilishi kerak, ID bilan birga (pastga, "Suv belgisi" bo'limiga qarang) |
 | PATCH | /lessons/:id | teacher, admin, superadmin | Tahrirlash: `title,description,content,videoUrl,order` |
 | DELETE | /lessons/:id | teacher, admin, superadmin | O'chirish |
-| POST | /lessons/:id/material | teacher, admin, superadmin | Qo'shimcha material (rasm/pdf/video, 20MB gacha) biriktirish — `attachments`ga qo'shiladi (multipart: `material`). Javobdagi havola ham imzolangan |
-| POST | /lessons/:id/video | teacher, admin, superadmin | Darsning ASOSIY videosini yuklash, `lesson.videoUrl`ni belgilaydi (multipart: `video`, ixtiyoriy `durationMinutes`). `attachments`ga qo'shilmaydi, eski video almashtirilganda o'chiriladi. Max 300MB, `video/mp4\|webm\|quicktime`. Javobdagi `videoUrl` ham imzolangan |
+| POST | /lessons/:id/material | teacher, admin, superadmin | Qo'shimcha material (rasm/pdf/video, 20MB gacha) biriktirish — `attachments`ga qo'shiladi (multipart: `material`). Javobdagi havola ham imzolangan. **Diqqat:** bu yerdagi mp4 materiallar HLS'ga o'tkazilmaydi, oddiy imzolangan mp4 bo'lib qoladi — faqat asosiy video (`/video` endpointi) HLS'ga o'tadi |
+| POST | /lessons/:id/video | teacher, admin, superadmin | Darsning ASOSIY videosini yuklash (multipart: `video`, ixtiyoriy `durationMinutes`). **YANGI:** yuklangandan keyin fonda avtomatik HLS+AES-128'ga o'tkaziladi — javobda darhol `videoStatus:"processing"` va vaqtincha eski (imzolangan mp4) `videoUrl` qaytadi; konvertatsiya tugagach (odatda bir necha daqiqa) keyingi `GET /lessons/:id`da `videoStatus:"ready"` va `video:{type:"hls",url}` keladi. Max 300MB, `video/mp4\|webm\|quicktime` |
 | POST | /lessons/:id/complete | student | Darsni "tugatildi" deb belgilash. Enrollment'ning `progress`ini (0-100) qayta hisoblaydi |
 
 ### Media (`/media`) — **YANGI**, himoyalangan dars fayllari
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | /media/lessons/:filename?exp&uid&sig | token kerak emas, imzo kerak | Dars video/materialining haqiqiy fayli. `GET /lessons/:id` yoki `GET /courses/:id/lessons` javobidagi `videoUrl`/`attachments` ichida TAYYOR holda keladi — frontend bu URL'ni **o'zgartirmasdan, to'g'ridan-to'g'ri** `<video src>`/`<a href>`ga qo'yadi. 10 daqiqadan keyin havola eskiradi (sahifa qayta yuklansa yangisi keladi). Range so'rovlari (video oldinga surish) qo'llab-quvvatlanadi. **MUHIM (2026-10-31):** endi so'rov faqat sayt ichidan (`Referer` sayt domeni bilan mos kelsa) qabul qilinadi — havolani yangi tabda ochish, boshqa saytga/messenjerga ulashish 403 qaytaradi. Shuning uchun bu URL faqat `<video>`/`<a>` kabi sahifa ichidagi elementlarda ishlatilishi kerak, `window.open`/tashqi ulashish tugmasida emas. **Eski `/uploads/lessons/...` havolalari endi ishlamaydi (404)** — agar frontendda qayerdadir bu yo'l qattiq yozilgan (hardcoded) bo'lsa, albatta javobdagi yangi `videoUrl`ga almashtiring |
+| GET | /media/hls/:lessonId/master.m3u8 va variant/segment havolalari | token kerak emas, imzo kerak | **YANGI (2026-11-02).** `lesson.video.url` ichida TAYYOR keladi — o'zgartirmasdan hls.js'ga beriladi (pastga, "HLS video" bo'limiga qarang). Frontend bu ichki havolalar bilan to'g'ridan-to'g'ri ishlamaydi, faqat `lesson.video.url`ni ishlatadi |
+| GET | /media/hls/:lessonId/key | **Bearer token SHART** | Shifrlash kaliti — hls.js so'rovi, `xhrSetup` orqali tokenni qo'lda qo'shish kerak (pastga qarang). Kursga yozilmagan/token yo'q bo'lsa 401/403 |
 
-#### Suv belgisi (watermark) — **YANGI (2026-10-31)**
-To'liq huquqli dars javobida (`GET /lessons/:id`, `GET /courses/:id/lessons`, `GET /courses/:id`) endi `lesson.watermark` (string, masalan `"Alisher Nazarov • +998901234567"`) keladi — ko'rayotgan foydalanuvchining o'zi. Bu burned-in (videoga o'zi yopishtirilgan) emas, balki frontendda `<video>` ustiga shaffof overlay sifatida chiqariladi — maqsad: video sizib chiqsa, kim tarqatganini bilish (caydiruvchi himoya, to'liq DRM emas).
+#### HLS video (shifrlangan) — **YANGI (2026-11-02)**
+Asosiy dars videosi (POST /lessons/:id/video orqali yuklangan) endi konvertatsiyadan keyin **HLS + AES-128 shifrlash** bilan beriladi — bitta yuklab olinadigan mp4 havola emas. `lesson.videoStatus:"ready"` bo'lsa, `lesson.video = { type:"hls", url:"<imzolangan master.m3u8>" }` keladi (`videoUrl` bu holatda umuman yo'q).
+
+Frontendda [hls.js](https://github.com/video-dev/hls.js) kutubxonasi orqali ishlatiladi (Safari'da native HLS bor, boshqa brauzerlarda hls.js kerak):
+```html
+<video id="player" controls></video>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+  if (Hls.isSupported()) {
+    const hls = new Hls();
+    hls.loadSource(lesson.video.url);
+    hls.attachMedia(document.getElementById('player'));
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    document.getElementById('player').src = lesson.video.url; // Safari
+  }
+</script>
+```
+hls.js shifrlash kalitini avtomatik so'raydi (`#EXT-X-KEY` qatoridagi havola orqali, token kerak — brauzer avtomatik `Authorization` header yubormaydi, shuning uchun hls.js'ning `xhrSetup` orqali tokenni qo'lda qo'shish kerak bo'ladi, FAQAT kalit so'rovi uchun):
+```js
+const hls = new Hls({
+  xhrSetup: (xhr, url) => {
+    if (url.includes('/media/hls/') && url.endsWith('/key')) {
+      xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+    }
+  },
+});
+```
+`videoStatus:"processing"` bo'lsa (yangi yuklangan, hali tayyor emas) — "Video tayyorlanmoqda, biroz kuting" ko'rsating va 15-30 soniyada `GET /lessons/:id`ni qayta chaqirib tekshiring. `"failed"` bo'lsa — xatolik haqida xabar bering, menga aytib qo'ying.
+
+#### Suv belgisi (watermark) — **YANGI, 2026-11-02'da yangilandi**
+To'liq huquqli dars javobida (`GET /lessons/:id`, `GET /courses/:id/lessons`, `GET /courses/:id`) `lesson.watermark` (string, **faqat ism**, masalan `"Alisher Nazarov"`) keladi — ko'rayotgan foydalanuvchining o'zi. **O'zgarish:** telefon raqam endi yo'q (maxfiylik) — frontend buni foydalanuvchining o'zidagi ID bilan birlashtirib ko'rsatishi mumkin, masalan `${lesson.watermark} #${currentUser._id.slice(-6)}`. Bu burned-in (videoga o'zi yopishtirilgan) emas, balki frontendda `<video>` ustiga shaffof overlay sifatida chiqariladi — maqsad: video sizib chiqsa, kim tarqatganini bilish (caydiruvchi himoya, to'liq DRM emas).
 
 Qo'llash tartibi:
 1. Video konteynerini `position: relative` qiling, ichiga `pointer-events: none; user-select: none;` bilan matn qatlamini qo'shing.

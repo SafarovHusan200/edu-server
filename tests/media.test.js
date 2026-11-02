@@ -64,14 +64,14 @@ describe('Himoyalangan dars fayllari (/media/lessons)', () => {
     expect(fileRes.headers['cache-control']).toBe('private, max-age=900');
   });
 
-  test('GET /lessons/:id javobida watermark (student ismi + telefoni) qaytadi', async () => {
+  test('GET /lessons/:id javobida watermark (student ismi, telefonsiz) qaytadi', async () => {
     const { studentToken, student, lesson } = await setupLessonWithVideo();
 
     const res = await request(app)
       .get(`/api/v1/lessons/${lesson._id}`)
       .set('Authorization', `Bearer ${studentToken}`);
 
-    expect(res.body.data.lesson.watermark).toBe(`${student.name} • ${student.phone}`);
+    expect(res.body.data.lesson.watermark).toBe(student.name);
   });
 
   test('yozilmagan student uchun locked:true qaytadi, videoUrl umuman berilmaydi', async () => {
