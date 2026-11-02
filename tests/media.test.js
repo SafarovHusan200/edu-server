@@ -132,19 +132,32 @@ describe('Himoyalangan dars fayllari (/media/lessons)', () => {
     expect([403, 404]).toContain(res.status);
   });
 
-  test('to\'g\'ri imzo, lekin Referer bo\'lmasa (havola manzil qatoriga joylashtirilsa) 403 qaytaradi', async () => {
+  test('to\'g\'ri imzo, Referer/Origin umuman bo\'lmasa (Safari/Brave maxfiylik rejimi, Telegram WebView) ham ishlaydi', async () => {
     const { videoUrl } = await setupLessonWithVideo();
 
     const res = await request(app).get(videoUrl);
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
   });
 
-  test('to\'g\'ri imzo, lekin Referer boshqa domendan bo\'lsa 403 qaytaradi', async () => {
+  test('to\'g\'ri imzo, lekin Referer ruxsat etilmagan (boshqa) domendan bo\'lsa 403 qaytaradi', async () => {
     const { videoUrl } = await setupLessonWithVideo();
 
     const res = await request(app).get(videoUrl).set('Referer', 'https://boshqa-sayt.uz/video');
 
     expect(res.status).toBe(403);
+  });
+
+  test('MEDIA_ALLOWED_ORIGINS orqali qo\'shilgan boshqa manba (masalan localhost dev) ham qabul qilinadi', async () => {
+    const { videoUrl } = await setupLessonWithVideo();
+    const original = process.env.MEDIA_ALLOWED_ORIGINS;
+    process.env.MEDIA_ALLOWED_ORIGINS = 'https://edu-platform.uz,http://localhost:3000';
+
+    try {
+      const res = await request(app).get(videoUrl).set('Referer', 'http://localhost:3000/student/lesson/1');
+      expect(res.status).toBe(200);
+    } finally {
+      process.env.MEDIA_ALLOWED_ORIGINS = original;
+    }
   });
 });

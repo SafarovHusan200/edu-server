@@ -11,17 +11,25 @@ const { FRONTEND_URL } = require('../../config/frontendLinks');
 const ApiError = require('../../utils/ApiError');
 const asyncHandler = require('../../utils/asyncHandler');
 
-// Imzolangan havola amal qilish muddati ichida ham to'g'ridan-to'g'ri manzil qatoriga
-// joylashtirib ochish/ulashishning oldini olish uchun: faqat o'z frontendimizdan (video
-// tegi orqali) kelgan so'rovlar qabul qilinadi — Referer bo'lmasa (qo'lda joylashtirilgan
-// havola) yoki boshqa domendan bo'lsa, 403
-const ALLOWED_REFERER_HOST = new URL(FRONTEND_URL).host;
+// Boshqa saytga "hotlink" qilinishining (masalan <img>/<video> boshqa domenga
+// joylashtirilishi) oldini olish uchun: Referer/Origin BERILGAN bo'lsa, u ruxsat etilgan
+// ro'yxatda bo'lishi kerak. Lekin ko'p holatlarda bu header umuman kelmaydi (Safari/Brave
+// maxfiylik rejimi, Telegram Mini App webview, ba'zi mobil ilovalar) — bunda rad ETILMAYDI,
+// chunki asosiy himoya imzoning o'zida (exp/uid/sig, src/utils/mediaSigning.js)
+const getAllowedOrigins = () =>
+  new Set(
+    (process.env.MEDIA_ALLOWED_ORIGINS || FRONTEND_URL)
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  );
 
-const isAllowedReferer = (req) => {
-  const referer = req.headers.referer;
-  if (!referer) return false;
+const isAllowedOrigin = (req) => {
+  const source = req.headers.referer || req.headers.origin;
+  if (!source) return true;
+
   try {
-    return new URL(referer).host === ALLOWED_REFERER_HOST;
+    return getAllowedOrigins().has(new URL(source).origin);
   } catch {
     return false;
   }
@@ -50,7 +58,7 @@ const getLessonFile = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Ruxsat yo'q");
   }
 
-  if (!isAllowedReferer(req)) {
+  if (!isAllowedOrigin(req)) {
     throw new ApiError(403, "Ruxsat yo'q (noto'g'ri manba)");
   }
 
