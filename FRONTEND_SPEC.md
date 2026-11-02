@@ -521,11 +521,24 @@ Namuna (CSS + JS):
 | GET | /stats/teacher | teacher, admin, superadmin | O'z dashboard statistikam |
 | GET | /stats/top-teachers | login | Eng faol o'qituvchilar reytingi |
 
-### Daily Spin (`/daily-spin`)
+### Daily Spin (`/daily-spin`) — **2026-11-02'da savol-javob mexanizmi qo'shildi**
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | /daily-spin/status | student | Holat (qolgan aylanishlar, streak) — aylantirmasdan |
-| POST | /daily-spin/spin | student | Aylantirish (diamond yutib olish) |
+| POST | /daily-spin/spin | student | **O'ZGARDI:** diamond endi darhol berilmaydi — `{question:{_id,question,options},answerWithinMinutes,streakCount,spinsUsedToday,spinsRemainingToday,maxSpinsToday}` qaytadi. Aylantirish shu zahoti ishlatilgan hisoblanadi (limit kamayadi) |
+| POST | /daily-spin/answer | student | **YANGI.** Body: `{selectedIndex}` (0-3). 5 daqiqa ichida chaqirilishi kerak. Javob: `{correct,diamondsWon,correctIndex,streakCount,spinsUsedToday,spinsRemainingToday,maxSpinsToday}`. `correctIndex` har doim qaytadi (noto'g'ri javobda ham) — o'rganish uchun to'g'ri javobni ko'rsating |
+
+**Frontend oqimi:** "Barabanni aylantirish" tugmasi bosilganda `POST /spin` chaqiriladi → javobdagi savol/variantlar modal/ekranda ko'rsatiladi → foydalanuvchi variant tanlaydi → `POST /answer` chaqiriladi → `correct:true` bo'lsa yutuq animatsiyasi + `diamondsWon`, `false` bo'lsa to'g'ri javobni (`correctIndex`) ko'rsatib "Afsuski, keyingi safar" deb bildiring. 5 daqiqadan keyin javob bermasa, keyingi `/answer` chaqiruvi 400 qaytaradi — "savol eskirdi" deb ko'rsatib, holatni `GET /status`dan yangilang.
+
+### Spin Questions (`/spin-questions`) — **YANGI**, faqat admin/superadmin
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | /spin-questions | admin, superadmin | Yangi savol: `{grade(1-11), question, options(4 ta), correctIndex(0-3), isActive?}` |
+| GET | /spin-questions?page&limit&grade | admin, superadmin | Ro'yxat (sinf bo'yicha filtrlash mumkin) — boshqaruv paneli uchun |
+| PATCH | /spin-questions/:id | admin, superadmin | Tahrirlash |
+| DELETE | /spin-questions/:id | admin, superadmin | O'chirish |
+
+Bu — admin panelga yangi bo'lim: har bir sinf (1-11) uchun savollar ro'yxati, qo'shish/tahrirlash/o'chirish/faollashtirish formasi kerak bo'ladi.
 
 ## 6. Out of Scope (deliberately not covered here)
 

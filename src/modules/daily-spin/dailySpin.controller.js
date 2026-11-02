@@ -15,7 +15,18 @@ const getStatus = asyncHandler(async (req, res) => {
 const spin = asyncHandler(async (req, res) => {
   const result = await dailySpinService.spin(req.user.id);
 
-  res.status(200).json(new ApiResponse(200, 'Barabon aylantirildi', result));
+  res.status(200).json(new ApiResponse(200, 'Barabon aylantirildi, savolga javob bering', result));
+});
+
+// POST /api/v1/daily-spin/answer
+const answer = asyncHandler(async (req, res) => {
+  const { selectedIndex } = req.body;
+
+  const result = await dailySpinService.answerSpin(req.user.id, selectedIndex);
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, result.correct ? "To'g'ri javob!" : "Noto'g'ri javob", result));
 });
 
 // GET /api/v1/daily-spin/history
@@ -27,4 +38,4 @@ const getHistory = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, "So'nggi yutuqlar", { history }));
 });
 
-module.exports = { getStatus, spin, getHistory };
+module.exports = { getStatus, spin, answer, getHistory };

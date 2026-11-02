@@ -128,6 +128,20 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // Barabon aylantirilgandan keyin chiqadigan savolga javob kutilayotgan holat
+    // (POST /daily-spin/answer shu yerni tekshiradi). Javob berilgandan yoki muddati
+    // o'tgandan keyin ikkisi ham null'ga qaytariladi.
+    pendingSpinQuestion: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SpinQuestion',
+      default: null,
+    },
+
+    pendingSpinExpiresAt: {
+      type: Date,
+      default: null,
+    },
+
     lastLogin: {
       type: Date,
       default: null,

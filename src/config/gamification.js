@@ -13,7 +13,8 @@ module.exports = {
   STANDARD_SPINS_PER_DAY: 1,
   PREMIUM_SPINS_PER_DAY: 3,
 
-  // Har bir aylantirishda tushishi mumkin bo'lgan diamond miqdorlari (teng ehtimollik
-  // bilan tanlanadi — kichik qiymatlar ko'proq takrorlangani uchun kamdan-kam katta yutuq tushadi)
+  // Barabon savoliga TO'G'RI javob berilganda tushishi mumkin bo'lgan diamond miqdorlari
+  // (teng ehtimollik bilan tanlanadi — kichik qiymatlar ko'proq takrorlangani uchun
+  // kamdan-kam katta yutuq tushadi). Noto'g'ri javobda 0 beriladi (dailySpin.service.js)
   SPIN_PRIZE_TABLE: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 5],
 };

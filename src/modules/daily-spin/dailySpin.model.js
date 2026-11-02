@@ -23,6 +23,13 @@ const dailySpinSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Barabon aylantirilgandan keyin chiqqan savolga to'g'ri javob berilganmi (2026-11-02'da
+    // qo'shilgan savol-javob mexanizmi) — eski yozuvlarda (savolsiz davr) bo'lmaydi
+    correct: {
+      type: Boolean,
+      default: null,
+    },
+
     // Shu aylantirish sodir bo'lgandagi streak qiymati — tarixiy kontekst uchun
     streakAtSpin: {
       type: Number,
