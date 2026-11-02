@@ -11,7 +11,7 @@ describe('Leaderboard', () => {
     const { user: teacher } = await createUser({ role: 'teacher' });
 
     await User.findByIdAndUpdate(low._id, { diamonds: 5 });
-    await User.findByIdAndUpdate(high._id, { diamonds: 100 });
+    await User.findByIdAndUpdate(high._id, { diamonds: 100, tarif: 'premium' });
     await User.findByIdAndUpdate(mid._id, { diamonds: 40 });
     await User.findByIdAndUpdate(teacher._id, { diamonds: 999 });
 
@@ -24,6 +24,8 @@ describe('Leaderboard', () => {
 
     expect(leaderboard.map((entry) => entry.diamonds)).toEqual([100, 40, 5]);
     expect(leaderboard[0].rank).toBe(1);
+    expect(leaderboard[0].tarif).toBe('premium');
+    expect(leaderboard[1].tarif).toBe('standart');
     expect(leaderboard.find((entry) => entry._id === teacher._id.toString())).toBeUndefined();
   });
 });

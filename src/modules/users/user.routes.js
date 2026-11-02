@@ -165,7 +165,11 @@ router.delete('/me/telegram', userController.unlinkTelegram);
  *   get:
  *     summary: Diamond bo'yicha reyting jadvalini olish
  *     tags: [Users]
- *     description: "`data.me` — so'ragan foydalanuvchining o'z o'rni (faqat role='student' bo'lsa, aks holda null). Ro'yxat qaysi sahifada bo'lishidan qat'i nazar hisoblanadi."
+ *     description: >
+ *       `data.me` — so'ragan foydalanuvchining o'z o'rni (faqat role='student' bo'lsa,
+ *       aks holda null). Ro'yxat qaysi sahifada bo'lishidan qat'i nazar hisoblanadi.
+ *       Har bir elementda **YANGI** `tarif` ('standart'|'premium') bor — premium
+ *       foydalanuvchini frontendda alohida rang/belgi bilan ajratish uchun.
  *     parameters:
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }

@@ -282,7 +282,7 @@ const getLeaderboard = async ({ page, limit }, requesterId, requesterRole) => {
 
   const [students, total] = await Promise.all([
     User.find(filter)
-      .select('name avatar diamonds')
+      .select('name avatar diamonds tarif')
       .sort({ diamonds: -1 })
       .skip(skip)
       .limit(pageLimit),
@@ -295,6 +295,7 @@ const getLeaderboard = async ({ page, limit }, requesterId, requesterRole) => {
     name: student.name,
     avatar: student.avatar,
     diamonds: student.diamonds,
+    tarif: student.tarif,
   }));
 
   // "Mening o'rnim" — ro'yxat qaysi sahifada bo'lishidan qat'i nazar, student
