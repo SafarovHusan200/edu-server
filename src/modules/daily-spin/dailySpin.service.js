@@ -86,7 +86,7 @@ const spin = async (userId) => {
     );
   }
 
-  const question = await spinQuestionService.getRandomQuestionForGrade(user.grade?.number);
+  const question = await spinQuestionService.getRandomSpinQuestion(user.grade?.number);
   if (!question) {
     throw new ApiError(
       400,

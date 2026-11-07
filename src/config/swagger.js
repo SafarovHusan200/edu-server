@@ -416,7 +416,8 @@ const definition = {
         type: 'object',
         properties: {
           _id: idProp,
-          grade: { type: 'integer', minimum: 1, maximum: 11 },
+          category: { type: 'string', enum: ['knowledge', 'logic'] },
+          grade: { type: 'integer', minimum: 1, maximum: 11, nullable: true, description: "category='logic' bo'lsa null" },
           question: { type: 'string' },
           options: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 },
           correctIndex: { type: 'integer', minimum: 0, maximum: 3 },

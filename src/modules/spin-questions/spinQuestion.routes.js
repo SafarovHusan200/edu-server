@@ -19,16 +19,21 @@ router.use(authenticate, authorize(...STAFF_ROLES));
  *   post:
  *     summary: Kunlik barabon uchun yangi savol qo'shish
  *     tags: [SpinQuestions]
- *     description: "Ruxsat: admin, superadmin. POST /daily-spin/spin'da shu sinfdagi (grade) faol savollardan tasodifiy biri chiqadi."
+ *     description: >
+ *       Ruxsat: admin, superadmin. category='knowledge' (standart) bo'lsa grade (1-11)
+ *       majburiy — POST /daily-spin/spin'da shu sinfdagi studentlarga tushadi.
+ *       category='logic' bo'lsa grade berilmaydi — bu savol SINFDAN QAT'I NAZAR
+ *       barcha studentlarga umumiy to'plamdan tasodifiy tushishi mumkin.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [grade, question, options, correctIndex]
+ *             required: [question, options, correctIndex]
  *             properties:
- *               grade: { type: integer, minimum: 1, maximum: 11 }
+ *               category: { type: string, enum: [knowledge, logic], default: knowledge }
+ *               grade: { type: integer, minimum: 1, maximum: 11, description: "category='knowledge' uchun majburiy, 'logic' uchun berilmasin" }
  *               question: { type: string }
  *               options: { type: array, items: { type: string }, minItems: 4, maxItems: 4 }
  *               correctIndex: { type: integer, minimum: 0, maximum: 3, description: "options massividagi to'g'ri javobning indeksi" }
@@ -61,6 +66,7 @@ router.post('/', spinQuestionValidation, validate, spinQuestionController.create
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
  *       - { name: grade, in: query, schema: { type: integer, minimum: 1, maximum: 11 } }
+ *       - { name: category, in: query, schema: { type: string, enum: [knowledge, logic] } }
  *     responses:
  *       200:
  *         description: Ro'yxat
@@ -95,6 +101,7 @@ router.get('/', spinQuestionController.getSpinQuestions);
  *           schema:
  *             type: object
  *             properties:
+ *               category: { type: string, enum: [knowledge, logic] }
  *               grade: { type: integer, minimum: 1, maximum: 11 }
  *               question: { type: string }
  *               options: { type: array, items: { type: string }, minItems: 4, maxItems: 4 }

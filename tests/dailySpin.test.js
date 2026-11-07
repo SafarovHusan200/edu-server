@@ -137,6 +137,24 @@ describe('Daily Spin — savol-javob orqali diamond (2026-11-02)', () => {
     expect(res.body.message).toMatch(/savollar qo'shilmagan/);
   });
 
+  test('mantiqiy (logic) savol sinfga qaramasdan har qanday studentga tushishi mumkin', async () => {
+    const { user: admin } = await createUser({ role: 'admin' });
+    await SpinQuestion.create({
+      category: 'logic',
+      question: 'Agar A>B va B>C bo\'lsa, A va C orasidagi munosabat qanday?',
+      options: ['A<C', 'A>C', 'A=C', 'Aniqlash mumkin emas'],
+      correctIndex: 1,
+      createdBy: admin._id,
+    });
+    // Bu sinf (9) uchun bilim savoli YO'Q — faqat umumiy mantiqiy savol bor
+    const { token } = await createUser({ role: 'student', grade: { number: 9, letter: 'A' } });
+
+    const res = await request(app).post('/api/v1/daily-spin/spin').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.question.question).toMatch(/A va C orasidagi/);
+  });
+
   test('selectedIndex noto\'g\'ri formatda bo\'lsa 422', async () => {
     await seedQuestion();
     const { token } = await createUser({ role: 'student', grade: { number: GRADE, letter: 'A' } });

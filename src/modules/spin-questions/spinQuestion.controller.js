@@ -6,9 +6,10 @@ const ApiResponse = require('../../utils/ApiResponse');
 
 // POST /api/v1/spin-questions
 const createSpinQuestion = asyncHandler(async (req, res) => {
-  const { grade, question, options, correctIndex, isActive } = req.body;
+  const { category, grade, question, options, correctIndex, isActive } = req.body;
 
   const spinQuestion = await spinQuestionService.createSpinQuestion(req.user.id, {
+    category,
     grade,
     question,
     options,
@@ -19,11 +20,11 @@ const createSpinQuestion = asyncHandler(async (req, res) => {
   res.status(201).json(new ApiResponse(201, 'Savol qo\'shildi', { question: spinQuestion }));
 });
 
-// GET /api/v1/spin-questions?page=&limit=&grade=
+// GET /api/v1/spin-questions?page=&limit=&grade=&category=
 const getSpinQuestions = asyncHandler(async (req, res) => {
-  const { page, limit, grade } = req.query;
+  const { page, limit, grade, category } = req.query;
 
-  const { questions, meta } = await spinQuestionService.getSpinQuestions({ page, limit, grade });
+  const { questions, meta } = await spinQuestionService.getSpinQuestions({ page, limit, grade, category });
 
   res.status(200).json(new ApiResponse(200, "Savollar ro'yxati", { questions, meta }));
 });

@@ -2,11 +2,21 @@
 
 const { body } = require('express-validator');
 
+// category='knowledge' bo'lsa grade (1-11) majburiy, category='logic' bo'lsa grade
+// umuman kerak emas (yuborilsa ham e'tiborga olinmaydi — model darajasida null qilinadi)
+const gradeRequiredForKnowledge = (value, { req }) => {
+  if (req.body.category === 'logic') return true;
+  return value !== undefined && value !== null && value !== '';
+};
+
 const spinQuestionValidation = [
+  body('category').optional().isIn(['knowledge', 'logic']).withMessage("category 'knowledge' yoki 'logic' bo'lishi kerak"),
+
   body('grade')
-    .notEmpty()
-    .withMessage('grade kiritilishi shart')
+    .custom(gradeRequiredForKnowledge)
+    .withMessage("category='knowledge' uchun grade (1-11) kiritilishi shart")
     .bail()
+    .if((value) => value !== undefined && value !== null && value !== '')
     .isInt({ min: 1, max: 11 })
     .withMessage("grade 1-11 oralig'ida bo'lishi kerak"),
 
@@ -33,6 +43,8 @@ const spinQuestionValidation = [
 ];
 
 const updateSpinQuestionValidation = [
+  body('category').optional().isIn(['knowledge', 'logic']).withMessage("category 'knowledge' yoki 'logic' bo'lishi kerak"),
+
   body('grade').optional().isInt({ min: 1, max: 11 }).withMessage("grade 1-11 oralig'ida bo'lishi kerak"),
 
   body('question').optional().trim().notEmpty().withMessage("question bo'sh bo'lmasligi kerak"),

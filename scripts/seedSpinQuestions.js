@@ -1,10 +1,14 @@
 // scripts/seedSpinQuestions.js
-// Kunlik barabon (daily-spin) uchun har bir sinf (1-11) bo'yicha boshlang'ich xalqaro
-// darajadagi bilim savollari. Bu — faqat BOSHLANG'ICH to'plam, admin keyinchalik
-// POST/PATCH/DELETE /spin-questions orqali o'zi ko'paytiradi/tahrirlaydi.
+// Kunlik barabon (daily-spin) uchun ikki toifadagi boshlang'ich savollar:
+//   1) QUESTIONS_BY_GRADE — har bir sinf (1-11) uchun xalqaro darajadagi bilim savollari
+//      (category='knowledge') — faqat shu sinfdagi studentlarga tushadi.
+//   2) LOGIC_QUESTIONS — sinfdan qat'i nazar BARCHA studentlarga umumiy to'plamdan
+//      tasodifiy tushadigan mantiqiy savollar (category='logic', 2026-11-07'da qo'shildi).
+// Bu — faqat BOSHLANG'ICH to'plam, admin keyinchalik POST/PATCH/DELETE /spin-questions
+// orqali o'zi ko'paytiradi/tahrirlaydi.
 //
-// Idempotent — bir xil (grade + question matni) allaqachon bazada bo'lsa, qayta
-// qo'shilmaydi, shuning uchun bir necha marta ishga tushirish xavfsiz.
+// Idempotent — bir xil savol matni allaqachon bazada bo'lsa, qayta qo'shilmaydi,
+// shuning uchun bir necha marta ishga tushirish xavfsiz.
 //
 // Ishlatilishi:
 //   node scripts/seedSpinQuestions.js
@@ -74,6 +78,62 @@ const QUESTIONS_BY_GRADE = {
   ],
 };
 
+// [savol, [4 variant], to'g'ri variant indeksi] — sinfdan qat'i nazar hammaga umumiy
+const LOGIC_QUESTIONS = [
+  ['2, 4, 8, 16, ? — ketma-ketlikda keyingi son nima?', ['18', '24', '32', '20'], 2],
+  ['1, 1, 2, 3, 5, 8, ? — Fibonachchi ketma-ketligida keyingi son nima?', ['10', '11', '13', '15'], 2],
+  [
+    'Agar A > B va B > C bo\'lsa, A va C orasidagi munosabat qanday?',
+    ['A < C', 'A > C', 'A = C', 'Aniqlash mumkin emas'],
+    1,
+  ],
+  [
+    'Agar barcha mushuklar sutqich bo\'lsa va Pushok mushuk bo\'lsa, Pushok haqida nima deyish mumkin?',
+    ['Pushok sutqich', 'Pushok sutqich emas', 'Aniqlash mumkin emas', 'Pushok mushuk emas'],
+    0,
+  ],
+  [
+    'Agar barcha A — B bo\'lsa va hech bir B — C bo\'lmasa, A — C bo\'lishi mumkinmi?',
+    ['Ha', 'Yo\'q', 'Ba\'zan', 'Aniqlash mumkin emas'],
+    1,
+  ],
+  [
+    '5 kishi poygada qatnashdi. Alice Bobdan oldin keldi. Bob Kerimdan oldin keldi. Dilnoza Alice\'dan oldin keldi. Kim birinchi keldi?',
+    ['Alice', 'Bob', 'Dilnoza', 'Kerim'],
+    2,
+  ],
+  [
+    'Bugun seshanba. 100 kundan keyin qaysi kun bo\'ladi?',
+    ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba'],
+    3,
+  ],
+  [
+    '8 ta bir xil ko\'rinishdagi shardan bittasi boshqalaridan og\'irroq. Pivot tarozidan foydalanib og\'ir sharni topish uchun eng kamida necha marta tarozilash kerak?',
+    ['1', '2', '3', '4'],
+    1,
+  ],
+  [
+    'Qaysi shakl boshqalaridan farq qiladi: uchburchak, kvadrat, doira, beshburchak?',
+    ['Uchburchak', 'Kvadrat', 'Doira', 'Beshburchak'],
+    2,
+  ],
+  [
+    'Agar 5 ishchi 5 soatda 5 ta stol yasasa, 100 ishchi 100 ta stol yasashi uchun necha soat kerak bo\'ladi?',
+    ['5', '20', '100', '500'],
+    0,
+  ],
+  [
+    'Uchta quti bor: "olma", "apelsin", "aralash" deb yozilgan. Hammasi NOTO\'G\'RI belgilangan. "Aralash" yozilgan qutidan bitta meva oldingiz — u olma chiqdi. Bu qutida aslida nima bor?',
+    ['Faqat olma', 'Faqat apelsin', 'Haqiqatan aralash', 'Bo\'sh'],
+    0,
+  ],
+  [
+    'Bir oilada 3 farzand bor. Birinchisi ikkinchisidan katta, ikkinchisi uchinchisidan katta. Uchinchisi birinchisidan kattami?',
+    ['Ha', 'Yo\'q', 'Teng', 'Aniqlash mumkin emas'],
+    1,
+  ],
+];
+
 async function main() {
   await mongoose.connect(process.env.MONGO_URI);
   console.log(`✅ Bazaga ulandi: ${mongoose.connection.name}\n`);
@@ -92,15 +152,33 @@ async function main() {
     const grade = Number(gradeStr);
 
     for (const [question, options, correctIndex] of questions) {
-      const existing = await SpinQuestion.findOne({ grade, question });
+      const existing = await SpinQuestion.findOne({ category: 'knowledge', grade, question });
       if (existing) {
         skipped += 1;
         continue;
       }
 
-      await SpinQuestion.create({ grade, question, options, correctIndex, createdBy: admin._id });
+      await SpinQuestion.create({
+        category: 'knowledge',
+        grade,
+        question,
+        options,
+        correctIndex,
+        createdBy: admin._id,
+      });
       added += 1;
     }
+  }
+
+  for (const [question, options, correctIndex] of LOGIC_QUESTIONS) {
+    const existing = await SpinQuestion.findOne({ category: 'logic', question });
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+
+    await SpinQuestion.create({ category: 'logic', question, options, correctIndex, createdBy: admin._id });
+    added += 1;
   }
 
   console.log(`🎉 ${added} ta savol qo'shildi, ${skipped} ta allaqachon bor edi (o'tkazib yuborildi).`);

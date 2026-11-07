@@ -530,15 +530,19 @@ Namuna (CSS + JS):
 
 **Frontend oqimi:** "Barabanni aylantirish" tugmasi bosilganda `POST /spin` chaqiriladi → javobdagi savol/variantlar modal/ekranda ko'rsatiladi → foydalanuvchi variant tanlaydi → `POST /answer` chaqiriladi → `correct:true` bo'lsa yutuq animatsiyasi + `diamondsWon`, `false` bo'lsa to'g'ri javobni (`correctIndex`) ko'rsatib "Afsuski, keyingi safar" deb bildiring. 5 daqiqadan keyin javob bermasa, keyingi `/answer` chaqiruvi 400 qaytaradi — "savol eskirdi" deb ko'rsatib, holatni `GET /status`dan yangilang.
 
-### Spin Questions (`/spin-questions`) — **YANGI**, faqat admin/superadmin
+### Spin Questions (`/spin-questions`) — faqat admin/superadmin
+Ikki toifa savol bor (**2026-11-07'da `category` qo'shildi**):
+- `category: "knowledge"` (standart) — `grade` (1-11) majburiy, faqat shu sinfdagi studentlarga tushadi.
+- `category: "logic"` — mantiqiy savol, `grade` berilmaydi (null) — **sinfdan qat'i nazar barcha studentlarga** umumiy to'plamdan tasodifiy tushadi. `POST /daily-spin/spin` har safar foydalanuvchining sinfiga mos `knowledge` savollari BILAN barcha `logic` savollarini bitta umumiy to'plam sifatida qarab, orasidan tasodifiy birini tanlaydi.
+
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| POST | /spin-questions | admin, superadmin | Yangi savol: `{grade(1-11), question, options(4 ta), correctIndex(0-3), isActive?}` |
-| GET | /spin-questions?page&limit&grade | admin, superadmin | Ro'yxat (sinf bo'yicha filtrlash mumkin) — boshqaruv paneli uchun |
+| POST | /spin-questions | admin, superadmin | Yangi savol: `{category?('knowledge'\|'logic'), grade(category='knowledge' uchun majburiy), question, options(4 ta), correctIndex(0-3), isActive?}` |
+| GET | /spin-questions?page&limit&grade&category | admin, superadmin | Ro'yxat (sinf va/yoki toifa bo'yicha filtrlash mumkin) — boshqaruv paneli uchun |
 | PATCH | /spin-questions/:id | admin, superadmin | Tahrirlash |
 | DELETE | /spin-questions/:id | admin, superadmin | O'chirish |
 
-Bu — admin panelga yangi bo'lim: har bir sinf (1-11) uchun savollar ro'yxati, qo'shish/tahrirlash/o'chirish/faollashtirish formasi kerak bo'ladi.
+Bu — admin panelga yangi bo'lim: ikki tab/filtr ("Sinf bo'yicha" va "Mantiqiy"), har biri uchun savollar ro'yxati, qo'shish/tahrirlash/o'chirish/faollashtirish formasi kerak bo'ladi. Qo'shish formasida `category` tanlanganda `grade` maydoni `knowledge`da ko'rsatilsin, `logic`da yashirilsin.
 
 ## 6. Out of Scope (deliberately not covered here)
 

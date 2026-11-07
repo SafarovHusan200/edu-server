@@ -63,6 +63,35 @@ describe('Spin Questions (admin) — /spin-questions', () => {
     expect(res.body.data.questions.every((q) => q.grade === 5)).toBe(true);
   });
 
+  test('category="logic" uchun grade bermasa ham 201 (hammaga umumiy)', async () => {
+    const { token } = await createUser({ role: 'admin' });
+
+    const res = await request(app)
+      .post('/api/v1/spin-questions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'logic',
+        question: 'Agar hamma "A" yolg\'onchi bo\'lsa, u o\'zi haqida nima deydi?',
+        options: ['Men rost gapiraman', 'Men yolg\'on gapiraman', 'Bilmayman', 'Hech narsa'],
+        correctIndex: 1,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.question.category).toBe('logic');
+    expect(res.body.data.question.grade).toBeNull();
+  });
+
+  test('category="knowledge" uchun grade berilmasa 422', async () => {
+    const { token } = await createUser({ role: 'admin' });
+
+    const res = await request(app)
+      .post('/api/v1/spin-questions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...validBody(), grade: undefined, category: 'knowledge' });
+
+    expect(res.status).toBe(422);
+  });
+
   test('PATCH va DELETE ishlaydi', async () => {
     const { token } = await createUser({ role: 'superadmin' });
 

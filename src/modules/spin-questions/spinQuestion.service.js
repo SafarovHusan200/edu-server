@@ -4,8 +4,9 @@ const SpinQuestion = require('./spinQuestion.model');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 
-const createSpinQuestion = async (createdBy, { grade, question, options, correctIndex, isActive }) => {
+const createSpinQuestion = async (createdBy, { category, grade, question, options, correctIndex, isActive }) => {
   return SpinQuestion.create({
+    category: category ?? 'knowledge',
     grade,
     question,
     options,
@@ -15,14 +16,15 @@ const createSpinQuestion = async (createdBy, { grade, question, options, correct
   });
 };
 
-// GET /spin-questions?grade= — admin boshqaruv paneli uchun (ixtiyoriy sinf filtri)
-const getSpinQuestions = async ({ page, limit, grade }) => {
+// GET /spin-questions?grade=&category= — admin boshqaruv paneli uchun (ixtiyoriy filtrlar)
+const getSpinQuestions = async ({ page, limit, grade, category }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
   const filter = {};
   if (grade !== undefined) filter.grade = Number(grade);
+  if (category !== undefined) filter.category = category;
 
   const [questions, total] = await Promise.all([
-    SpinQuestion.find(filter).sort({ grade: 1, createdAt: -1 }).skip(skip).limit(pageLimit),
+    SpinQuestion.find(filter).sort({ category: 1, grade: 1, createdAt: -1 }).skip(skip).limit(pageLimit),
     SpinQuestion.countDocuments(filter),
   ]);
 
@@ -45,10 +47,18 @@ const deleteSpinQuestion = async (id) => {
   await question.deleteOne();
 };
 
-// daily-spin uchun: berilgan sinf bo'yicha tasodifiy faol savol
-const getRandomQuestionForGrade = async (grade) => {
+// daily-spin uchun: berilgan sinfga mos bilim savoli YOKI (sinfdan qat'i nazar)
+// umumiy mantiqiy savollardan tasodifiy biri — ikkalasi bitta to'plam sifatida
+// qaraladi, shuning uchun mantiqiy savollar ham, shu sinfga tegishli bilim
+// savollari ham teng ehtimollik bilan tushishi mumkin
+const getRandomSpinQuestion = async (grade) => {
   const [question] = await SpinQuestion.aggregate([
-    { $match: { grade, isActive: true } },
+    {
+      $match: {
+        isActive: true,
+        $or: [{ category: 'knowledge', grade }, { category: 'logic' }],
+      },
+    },
     { $sample: { size: 1 } },
   ]);
   return question ? await SpinQuestion.findById(question._id) : null;
@@ -59,5 +69,5 @@ module.exports = {
   getSpinQuestions,
   updateSpinQuestion,
   deleteSpinQuestion,
-  getRandomQuestionForGrade,
+  getRandomSpinQuestion,
 };
