@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const request = require('supertest');
 const app = require('../src/app');
 const User = require('../src/modules/users/user.model');
+const Otp = require('../src/modules/auth/otp.model');
 
 // Ro'yxatdan o'tgan (lekin hali tasdiqlanmagan) userni admin tasdiqlagandek qilib
 // belgilaydi — login talab qiladigan testlarda shundan foydalaniladi
@@ -231,6 +232,43 @@ describe('Auth', () => {
 
     const updated = await User.findById(user._id);
     expect(updated.telegramUsername).toBe('yangi_ism');
+  });
+
+  test('telegram OTP: tasdiqlanmagan foydalanuvchi uchun 403 qaytadi', async () => {
+    const user = await User.create({
+      name: 'Tasdiqlanmagan OTP',
+      phone: '998909888888',
+      role: 'student',
+      grade: { number: 5, letter: 'A' },
+      telegramId: 888888888,
+      isVerified: false,
+    });
+    await Otp.create({
+      telegramId: user.telegramId,
+      code: '123456',
+      expiresAt: new Date(Date.now() + 60 * 1000),
+    });
+
+    const res = await request(app).post('/api/v1/auth/telegram').send({ code: '123456' });
+
+    expect(res.status).toBe(403);
+  });
+
+  test('telegram-webapp: tasdiqlanmagan foydalanuvchi uchun 403 qaytadi', async () => {
+    await User.create({
+      name: 'Tasdiqlanmagan Telegram',
+      phone: '998909999999',
+      role: 'student',
+      grade: { number: 5, letter: 'A' },
+      telegramId: 777777777,
+      isVerified: false,
+    });
+
+    const initData = buildInitData({ id: 777777777, first_name: 'Kutilayotgan' });
+
+    const res = await request(app).post('/api/v1/auth/telegram-webapp').send({ initData });
+
+    expect(res.status).toBe(403);
   });
 
   test('telegram-webapp: botdan ro\'yxatdan o\'tmagan telegramId uchun 404 qaytadi', async () => {

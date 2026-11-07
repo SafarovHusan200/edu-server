@@ -73,9 +73,11 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Telefon+parol orqali ro'yxatdan o'tgan userlar admin/superadmin tasdiqlamaguncha
-    // login qila olmaydi (authenticate middleware va login servisida tekshiriladi).
-    // Telegram orqali ro'yxatdan o'tganlar va admin tomonidan yaratilganlar avtomatik true.
+    // Hech bir ro'yxatdan o'tish yo'li (telefon+parol, Telegram bot) avtomatik true
+    // bermaydi (2026-11-07'dan) — faqat admin/superadmin tomonidan yaratilgan userlar va
+    // PATCH /users/:id/verify orqali tasdiqlanganlar true bo'ladi. Tasdiqlanmaguncha login
+    // qila olmaydi (authenticate middleware, auth.service.js login/verifyTelegramOtp/
+    // verifyTelegramWebApp'da tekshiriladi).
     isVerified: {
       type: Boolean,
       default: false,

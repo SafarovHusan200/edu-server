@@ -5,6 +5,8 @@ const User = require('../modules/users/user.model');
 const Quiz = require('../modules/quizzes/quiz.model');
 const QuizAttempt = require('../modules/quiz-attempts/quizAttempt.model');
 const quizAttemptService = require('../modules/quiz-attempts/quizAttempt.service');
+const notificationService = require('../modules/notifications/notification.service');
+const { frontendLinks } = require('../config/frontendLinks');
 
 // Test muhitida polling boshlanmaydi — aks holda testlar haqiqiy Telegram
 // serveriga ulanib, jarayon ochiq qolib ketishiga (hanging) sabab bo'lardi.
@@ -123,6 +125,13 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
       );
     }
 
+    if (!user.isVerified) {
+      return bot.sendMessage(
+        telegramId,
+        `Xush kelibsiz, ${user.name}! Hisobingiz hali administrator tomonidan tasdiqlanmagan. Tasdiqlangandan keyin /login orqali kirishingiz mumkin bo'ladi.`
+      );
+    }
+
     bot.sendMessage(
       telegramId,
       `Xush kelibsiz, ${user.name}! Kirish uchun /login buyrug'ini bosing.`
@@ -151,12 +160,24 @@ bot.on('contact', async (msg) => {
         });
       }
 
+      // isVerified'ga TEGINILMAYDI — mavjud holati (tasdiqlangan/tasdiqlanmagan)
+      // o'zgarishsiz qoladi, Telegram ulash orqali tasdiqlanish chetlab o'tilmasligi uchun
       await User.findByIdAndUpdate(existingUser._id, {
         telegramId,
         telegramUsername: msg.from.username || null,
-        isVerified: true,
         lastLogin: new Date(),
       });
+
+      if (!existingUser.isVerified) {
+        return bot.sendMessage(
+          telegramId,
+          `Xush kelibsiz, <b>${existingUser.name}</b>! Hisobingiz hali administrator tomonidan tasdiqlanmagan. Tasdiqlangandan keyin /login orqali kirishingiz mumkin bo'ladi.`,
+          {
+            parse_mode: 'HTML',
+            reply_markup: { remove_keyboard: true },
+          }
+        );
+      }
 
       return bot.sendMessage(
         telegramId,
@@ -208,6 +229,12 @@ bot.on('callback_query', async (query) => {
       }
       if (user.isBlocked) {
         return bot.answerCallbackQuery(query.id, { text: 'Profilingiz bloklangan.' });
+      }
+      if (!user.isVerified) {
+        return bot.answerCallbackQuery(query.id, {
+          text: 'Hisobingiz hali tasdiqlanmagan.',
+          show_alert: true,
+        });
       }
 
       const code = await issueLoginOtp(telegramId);
@@ -329,7 +356,8 @@ async function registerUserToDB(telegramId, messageId) {
       telegramId: telegramId, // state.telegramId emas, funksiya argumentidagi telegramId
       telegramUsername: state.telegramUsername,
       role: state.role,
-      isVerified: true,
+      // isVerified ataylab berilmaydi — schema default'i (false) qoladi, admin/superadmin
+      // PATCH /users/:id/verify orqali tasdiqlamaguncha /login ishlamaydi
     };
 
     // Agar student bo'lsa, grade ma'lumotlarini qo'shamiz
@@ -347,6 +375,23 @@ async function registerUserToDB(telegramId, messageId) {
     if (!user) {
       // Yangi foydalanuvchi yaratish (phone ham qo'shiladi)
       newUser = await User.create({ ...updateData, phone: state.phone });
+
+      // Web orqali ro'yxatdan o'tishdagi kabi — admin/superadmin'larga tasdiqlash
+      // kerakligi haqida bildirishnoma yuboriladi (auth.service.js register() bilan bir xil)
+      const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id');
+      await Promise.all(
+        admins.map((admin) =>
+          notificationService.createNotification({
+            userId: admin._id,
+            type: 'system',
+            title: 'Yangi foydalanuvchi tasdiqlashni kutmoqda',
+            message: `${newUser.name} (${newUser.phone}, ${newUser.role}) Telegram bot orqali ro'yxatdan o'tdi va tasdiqlanishini kutmoqda`,
+            meta: { userId: newUser._id },
+            url: frontendLinks.adminPendingUsers(),
+            buttonText: "👤 Ko'rib chiqish",
+          })
+        )
+      );
     } else {
       // Mavjud foydalanuvchini yangilash
       newUser = await User.findByIdAndUpdate(
@@ -363,7 +408,9 @@ async function registerUserToDB(telegramId, messageId) {
         (newUser.role === 'student' && newUser.grade?.number
           ? `Sinf: <b>${newUser.grade.number}-${newUser.grade.letter}</b>\n`
           : '') +
-        `Kirish uchun: /login buyrug'ini bosing.`,
+        (newUser.isVerified
+          ? `Kirish uchun: /login buyrug'ini bosing.`
+          : `⏳ Hisobingiz administrator tomonidan tasdiqlanishini kutmoqda. Tasdiqlangandan keyin /login orqali kirishingiz mumkin bo'ladi.`),
       {
         chat_id: telegramId,
         message_id: messageId,
@@ -400,6 +447,13 @@ bot.onText(/\/login/, async (msg) => {
 
     if (user.isBlocked) {
       return bot.sendMessage(telegramId, 'Kechirasiz, profilingiz bloklangan.');
+    }
+
+    if (!user.isVerified) {
+      return bot.sendMessage(
+        telegramId,
+        'Hisobingiz hali administrator tomonidan tasdiqlanmagan. Tasdiqlangandan keyin qayta urinib ko\'ring.'
+      );
     }
 
     const code = await issueLoginOtp(telegramId);

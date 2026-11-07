@@ -35,6 +35,10 @@ const verifyTelegramOtp = async ({ code }) => {
     throw new ApiError(403, 'Hisobingiz bloklangan');
   }
 
+  if (!user.isVerified) {
+    throw new ApiError(403, 'Hisobingiz hali administrator tomonidan tasdiqlanmagan');
+  }
+
   // 3. Kodni ishlatilgan deb belgilash
   otp.isUsed = true;
   await otp.save();
@@ -102,6 +106,10 @@ const verifyTelegramWebApp = async ({ initData }) => {
 
   if (user.isBlocked) {
     throw new ApiError(403, 'Hisobingiz bloklangan');
+  }
+
+  if (!user.isVerified) {
+    throw new ApiError(403, 'Hisobingiz hali administrator tomonidan tasdiqlanmagan');
   }
 
   // Telegram profilidagi o'zgarishlarni (ism/username) sinxronlaymiz — xuddi
