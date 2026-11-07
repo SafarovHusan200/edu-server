@@ -322,6 +322,39 @@ router.post(
   userController.createUser
 );
 
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Foydalanuvchilar ro'yxati (filtr/qidiruv bilan)
+ *     tags: [Users]
+ *     description: "Ruxsat: admin, superadmin"
+ *     parameters:
+ *       - { name: page, in: query, schema: { type: integer, default: 1 } }
+ *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
+ *       - { name: role, in: query, schema: { type: string, enum: [student, teacher, admin, superadmin] } }
+ *       - { name: search, in: query, schema: { type: string }, description: "Ism yoki telefon bo'yicha qidiruv" }
+ *       - { name: isVerified, in: query, schema: { type: boolean } }
+ *       - { name: isBlocked, in: query, schema: { type: boolean } }
+ *       - { name: grade, in: query, schema: { type: integer, minimum: 1, maximum: 11 }, description: "**YANGI** — sinf raqami bo'yicha (masalan 5)" }
+ *       - { name: gradeLetter, in: query, schema: { type: string, enum: [A, B, C, D, E] }, description: "**YANGI** — sinf harfi bo'yicha (grade bilan birga ishlatilishi mumkin, masalan grade=5&gradeLetter=A -> 5-A)" }
+ *     responses:
+ *       200:
+ *         description: Ro'yxat
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         users: { type: array, items: { $ref: '#/components/schemas/User' } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ */
 // GET /api/v1/users — admin
 router.get('/', authorize('admin', 'superadmin'), userController.getUsers);
 

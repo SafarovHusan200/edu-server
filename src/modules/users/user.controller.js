@@ -62,7 +62,7 @@ const createUser = asyncHandler(async (req, res) => {
 
 // GET /api/v1/users — admin
 const getUsers = asyncHandler(async (req, res) => {
-  const { page, limit, role, search, isVerified, isBlocked } = req.query;
+  const { page, limit, role, search, isVerified, isBlocked, grade, gradeLetter } = req.query;
 
   const { users, meta } = await userService.getUsers({
     page,
@@ -71,6 +71,8 @@ const getUsers = asyncHandler(async (req, res) => {
     search,
     isVerified,
     isBlocked,
+    grade,
+    gradeLetter,
   });
 
   res.status(200).json(new ApiResponse(200, "Foydalanuvchilar ro'yxati", { users, meta }));

@@ -73,6 +73,40 @@ describe('Users — isBlocked filtri', () => {
   });
 });
 
+describe('Users — grade/gradeLetter filtri', () => {
+  test('grade bo\'yicha faqat shu sinfdagilarni qaytaradi', async () => {
+    const { user: fifthGrader } = await createUser({ role: 'student', grade: { number: 5, letter: 'A' } });
+    const { user: seventhGrader } = await createUser({ role: 'student', grade: { number: 7, letter: 'A' } });
+    const { token: adminToken } = await createUser({ role: 'admin' });
+
+    const res = await request(app)
+      .get('/api/v1/users')
+      .query({ grade: 5 })
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    const ids = res.body.data.users.map((u) => u._id);
+    expect(ids).toContain(fifthGrader._id.toString());
+    expect(ids).not.toContain(seventhGrader._id.toString());
+  });
+
+  test('grade + gradeLetter birgalikda (masalan 5-A) faqat aynan shu parallelni qaytaradi', async () => {
+    const { user: fiveA } = await createUser({ role: 'student', grade: { number: 5, letter: 'A' } });
+    const { user: fiveB } = await createUser({ role: 'student', grade: { number: 5, letter: 'B' } });
+    const { token: adminToken } = await createUser({ role: 'admin' });
+
+    const res = await request(app)
+      .get('/api/v1/users')
+      .query({ grade: 5, gradeLetter: 'A' })
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    const ids = res.body.data.users.map((u) => u._id);
+    expect(ids).toContain(fiveA._id.toString());
+    expect(ids).not.toContain(fiveB._id.toString());
+  });
+});
+
 describe('Daily spin — history', () => {
   test("so'nggi yutuqlar eng yangisidan boshlab, limit bilan qaytadi", async () => {
     const { user, token } = await createUser({ role: 'student' });

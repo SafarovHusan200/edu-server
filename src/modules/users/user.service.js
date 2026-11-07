@@ -152,13 +152,15 @@ const resetPassword = async (id, newPassword) => {
   return user;
 };
 
-const getUsers = async ({ page, limit, role, search, isVerified, isBlocked }) => {
+const getUsers = async ({ page, limit, role, search, isVerified, isBlocked, grade, gradeLetter }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
   const filter = {};
   if (role) filter.role = role;
   if (isVerified !== undefined) filter.isVerified = isVerified === 'true' || isVerified === true;
   if (isBlocked !== undefined) filter.isBlocked = isBlocked === 'true' || isBlocked === true;
+  if (grade !== undefined) filter['grade.number'] = Number(grade);
+  if (gradeLetter) filter['grade.letter'] = gradeLetter.toUpperCase();
   if (search) {
     filter.$or = [
       { name: { $regex: search, $options: 'i' } },
