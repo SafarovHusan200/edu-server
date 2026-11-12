@@ -18,9 +18,9 @@ const createReward = async ({ title, description, cost, stock, premiumOnly }) =>
   });
 };
 
-const getRewards = async ({ page, limit }) => {
+const getRewards = async ({ page, limit, includeInactive = false }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
-  const filter = { isActive: true };
+  const filter = includeInactive ? {} : { isActive: true };
 
   const [rewards, total] = await Promise.all([
     Reward.find(filter).sort({ cost: 1 }).skip(skip).limit(pageLimit),

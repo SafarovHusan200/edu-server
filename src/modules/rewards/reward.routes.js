@@ -209,7 +209,13 @@ router.patch(
  *   get:
  *     summary: Barcha sovg'alarni olish
  *     tags: [Rewards]
+ *     description: "Public: faqat faol sovg'alar. admin/superadmin `includeInactive=true` bilan faolsizlarini ham oladi."
  *     security: []
+ *     parameters:
+ *       - in: query
+ *         name: includeInactive
+ *         schema: { type: boolean }
+ *         description: "Faqat admin/superadmin uchun ishlaydi, boshqalar uchun e'tiborsiz qoldiriladi"
  *     responses:
  *       200:
  *         description: Sovg'alar ro'yxati
@@ -224,8 +230,8 @@ router.patch(
  *                       type: array
  *                       items: { $ref: '#/components/schemas/Reward' }
  */
-// GET /api/v1/rewards — public
-router.get('/', rewardController.getRewards);
+// GET /api/v1/rewards — public (token bo'lsa staff faolsizlarini ham ko'ra oladi)
+router.get('/', authenticate.optional, rewardController.getRewards);
 
 /**
  * @swagger

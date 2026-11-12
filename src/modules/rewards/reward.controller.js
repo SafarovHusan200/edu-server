@@ -18,8 +18,11 @@ const createReward = asyncHandler(async (req, res) => {
 // GET /api/v1/rewards
 const getRewards = asyncHandler(async (req, res) => {
   const { page, limit } = req.query;
+  // Faolsiz sovg'alarni faqat admin/superadmin ko'ra oladi (admin katalogi uchun)
+  const isStaff = ['admin', 'superadmin'].includes(req.user?.role);
+  const includeInactive = isStaff && req.query.includeInactive === 'true';
 
-  const { rewards, meta } = await rewardService.getRewards({ page, limit });
+  const { rewards, meta } = await rewardService.getRewards({ page, limit, includeInactive });
 
   res.status(200).json(new ApiResponse(200, "Sovg'alar ro'yxati", { rewards, meta }));
 });
