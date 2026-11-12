@@ -21,8 +21,18 @@ const getRewards = asyncHandler(async (req, res) => {
   // Faolsiz sovg'alarni faqat admin/superadmin ko'ra oladi (admin katalogi uchun)
   const isStaff = ['admin', 'superadmin'].includes(req.user?.role);
   const includeInactive = isStaff && req.query.includeInactive === 'true';
+  // Staff uchun holat filtri: ?isActive=true | false (berilmasa — barchasi)
+  let isActive;
+  if (includeInactive && (req.query.isActive === 'true' || req.query.isActive === 'false')) {
+    isActive = req.query.isActive === 'true';
+  }
 
-  const { rewards, meta } = await rewardService.getRewards({ page, limit, includeInactive });
+  const { rewards, meta } = await rewardService.getRewards({
+    page,
+    limit,
+    includeInactive,
+    isActive,
+  });
 
   res.status(200).json(new ApiResponse(200, "Sovg'alar ro'yxati", { rewards, meta }));
 });

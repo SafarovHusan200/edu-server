@@ -216,6 +216,10 @@ router.patch(
  *         name: includeInactive
  *         schema: { type: boolean }
  *         description: "Faqat admin/superadmin uchun ishlaydi, boshqalar uchun e'tiborsiz qoldiriladi"
+ *       - in: query
+ *         name: isActive
+ *         schema: { type: boolean }
+ *         description: "includeInactive=true bilan birga: true — faqat faollar, false — faqat faolsizlar, berilmasa — barchasi"
  *     responses:
  *       200:
  *         description: Sovg'alar ro'yxati
