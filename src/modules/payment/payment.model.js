@@ -71,10 +71,27 @@ const paymentSchema = new mongoose.Schema(
       default: null,
     },
 
+    // draft..revert — Multicard statuslari. 'expired' — bizning o'zimizniki: draft uzoq vaqt
+    // to'lanmay qolgani Multicard'da tekshirilgach (jobs/paymentDraft.scheduler.js) qo'yiladi.
+    // Yozuv o'chirilmaydi — kechikib kelgan callback baribir 'success'ga o'tkaza oladi.
     status: {
       type: String,
-      enum: ['draft', 'progress', 'billing', 'hold', 'success', 'error', 'revert'],
+      enum: ['draft', 'progress', 'billing', 'hold', 'success', 'error', 'revert', 'expired'],
       default: 'draft',
+    },
+
+    // Multicard checkout sahifasi — bir xil to'lov qayta boshlanganda yangi invoys
+    // ochmasdan shu havolani qaytarish uchun saqlanadi (createPayment'ga qarang)
+    checkoutUrl: {
+      type: String,
+      default: null,
+    },
+
+    // Invoys ochilgandagi return_url — draft faqat bir xil return_url bo'lsa qayta
+    // ishlatiladi (foydalanuvchi to'lovdan keyin to'g'ri sahifaga qaytishi uchun)
+    returnUrl: {
+      type: String,
+      default: null,
     },
 
     receiptUrl: {
@@ -110,5 +127,9 @@ const paymentSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Draft cleanup job va draftni qayta ishlatish so'rovlari uchun
+paymentSchema.index({ status: 1, createdAt: 1 });
+paymentSchema.index({ user: 1, status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Payment', paymentSchema);

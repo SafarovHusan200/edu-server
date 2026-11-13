@@ -14,6 +14,7 @@ const ApiError = require('../../utils/ApiError');
 const { PREMIUM_PLANS } = require('../../config/pricing');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { frontendLinks } = require('../../config/frontendLinks');
+const { DRAFT_REUSE_MINUTES, DRAFT_EXPIRE_MINUTES, DRAFT_CLEANUP_BATCH } = require('../../config/payment');
 
 const MIN_WALLET_TOPUP = 1000; // tiyin
 const MULTICARD_MIN_AMOUNT = 10000; // tiyin (100 so'm) — Multicard'ning o'zi talab qiladigan minimal summa
@@ -171,6 +172,27 @@ const createPayment = async ({
     );
   }
 
+  // Foydalanuvchi aynan shu to'lovni yaqinda boshlab, to'lamasdan qaytib kelgan bo'lsa
+  // ("To'lash"ni qayta-qayta bosish) — yangi invoys ochmaymiz, eski draftni qaytaramiz.
+  // Shu bilan bir xil to'lov uchun o'nlab draft yozuvlar paydo bo'lishining oldi olinadi.
+  const reusable = await Payment.findOne({
+    user: userId,
+    method: 'multicard',
+    status: 'draft',
+    purpose,
+    amount: finalAmount,
+    plan: purpose === 'premium' ? plan : null,
+    course: course?._id ?? null,
+    promoCode: promoCodeDoc?._id ?? null,
+    returnUrl: returnUrl ?? null,
+    checkoutUrl: { $ne: null },
+    createdAt: { $gte: new Date(Date.now() - DRAFT_REUSE_MINUTES * 60 * 1000) },
+  }).sort({ createdAt: -1 });
+
+  if (reusable) {
+    return { payment: reusable, checkoutUrl: reusable.checkoutUrl, paidWithBalance: false };
+  }
+
   const invoice = await multicardService.createInvoice({
     amount: finalAmount,
     invoiceId,
@@ -190,6 +212,8 @@ const createPayment = async ({
     promoCode: promoCodeDoc?._id ?? null,
     discountPercent,
     status: 'draft',
+    checkoutUrl: invoice.checkoutUrl ?? null,
+    returnUrl: returnUrl ?? null,
   });
 
   return { payment, checkoutUrl: invoice.checkoutUrl, paidWithBalance: false };
@@ -421,33 +445,7 @@ const getStatusByInvoiceId = async (invoiceId, userId, role) => {
 
   if (payment.status !== 'success' && payment.multicardUuid) {
     try {
-      const invoice = await multicardService.getInvoiceStatus(payment.multicardUuid);
-
-      // TASDIQLANGAN (production loglaridan): GET /payment/invoice/:uuid javobida
-      // haqiqiy to'lov holati eng yuqori darajada emas, balki invoice.payment.status
-      // ichida keladi (invoice.payment — hali urinish bo'lmagan bo'lsa null bo'lishi
-      // mumkin). invoice.status/state/payment_status — pastdagilar shunchaki ehtiyot
-      // uchun qoldirilgan, real javobda kelmaydi.
-      const paymentInfo = invoice?.payment;
-      const resolvedStatus =
-        paymentInfo?.status ?? invoice?.status ?? invoice?.state ?? invoice?.payment_status;
-      const gatewayDebug = { source: 'reconciliation', invoice, receivedAt: new Date() };
-
-      if (resolvedStatus && resolvedStatus !== payment.status) {
-        return await applyStatusUpdate(payment, {
-          uuid: payment.multicardUuid,
-          status: resolvedStatus,
-          receiptUrl: paymentInfo?.receipt_url ?? invoice?.receipt_url,
-          cardPan: paymentInfo?.card_pan ?? invoice?.card_pan,
-          paymentTime: paymentInfo?.payment_time ?? invoice?.payment_time,
-          gatewayDebug,
-        });
-      }
-
-      // Status topilmadi yoki o'zgarmadi — baribir xom javobni saqlab qo'yamiz
-      // (diagnostika uchun), lekin grantPaymentOutcome chaqirilmaydi
-      await Payment.findByIdAndUpdate(payment._id, { gatewayDebug });
-      payment.gatewayDebug = gatewayDebug;
+      return await reconcileWithGateway(payment);
     } catch (err) {
       // Multicard vaqtincha javob bermasa ham, foydalanuvchiga oxirgi ma'lum
       // holatni qaytaramiz — bu so'rovni butunlay muvaffaqiyatsiz qilib qo'ymaydi
@@ -456,6 +454,93 @@ const getStatusByInvoiceId = async (invoiceId, userId, role) => {
   }
 
   return payment;
+};
+
+// Multicard'dan invoysning haqiqiy holatini so'rab, bizdagi yozuvga qo'llaydi.
+// Multicard javob bermasa xato OTADI — chaqiruvchi o'zi hal qiladi (status endpointi
+// oxirgi ma'lum holatni qaytaradi, cleanup job esa bu draftni keyingi safarga qoldiradi).
+const reconcileWithGateway = async (payment) => {
+  const invoice = await multicardService.getInvoiceStatus(payment.multicardUuid);
+
+  // TASDIQLANGAN (production loglaridan): GET /payment/invoice/:uuid javobida
+  // haqiqiy to'lov holati eng yuqori darajada emas, balki invoice.payment.status
+  // ichida keladi (invoice.payment — hali urinish bo'lmagan bo'lsa null bo'lishi
+  // mumkin). invoice.status/state/payment_status — pastdagilar shunchaki ehtiyot
+  // uchun qoldirilgan, real javobda kelmaydi.
+  const paymentInfo = invoice?.payment;
+  const resolvedStatus =
+    paymentInfo?.status ?? invoice?.status ?? invoice?.state ?? invoice?.payment_status;
+  const gatewayDebug = { source: 'reconciliation', invoice, receivedAt: new Date() };
+
+  // 'expired' bizning statusimiz — Multicard'da hali "draft" turgan bo'lsa uni
+  // qaytadan 'draft'ga tushirib yubormaymiz (aks holda cleanup qayta-qayta aylanadi).
+  // Haqiqiy to'lov harakati (success/progress/hold...) bo'lsa — albatta qo'llanadi.
+  const isStaleDraft = payment.status === 'expired' && resolvedStatus === 'draft';
+
+  if (resolvedStatus && resolvedStatus !== payment.status && !isStaleDraft) {
+    return applyStatusUpdate(payment, {
+      uuid: payment.multicardUuid,
+      status: resolvedStatus,
+      receiptUrl: paymentInfo?.receipt_url ?? invoice?.receipt_url,
+      cardPan: paymentInfo?.card_pan ?? invoice?.card_pan,
+      paymentTime: paymentInfo?.payment_time ?? invoice?.payment_time,
+      gatewayDebug,
+    });
+  }
+
+  // Status topilmadi yoki o'zgarmadi — baribir xom javobni saqlab qo'yamiz
+  // (diagnostika uchun), lekin grantPaymentOutcome chaqirilmaydi
+  await Payment.findByIdAndUpdate(payment._id, { gatewayDebug });
+  payment.gatewayDebug = gatewayDebug;
+  return payment;
+};
+
+// ─────────────────────────────────────────
+// ESKI DRAFTLARNI TOZALASH — jobs/paymentDraft.scheduler.js chaqiradi.
+// DRAFT_EXPIRE_MINUTES'dan eski har bir draft avval Multicard'da tekshiriladi:
+//  - aslida to'langan bo'lsa (callback yo'qolgan) → 'success', natija beriladi;
+//  - to'lov jarayonida bo'lsa (progress/billing/hold) → tegilmaydi;
+//  - hali ham to'lanmagan bo'lsa → 'expired' (yozuv o'chirilmaydi).
+// Multicard javob bermasa — draft o'zgarishsiz qoladi, keyingi safar qayta tekshiriladi.
+// ─────────────────────────────────────────
+const expireStaleDrafts = async ({ dryRun = false, olderThanMinutes = DRAFT_EXPIRE_MINUTES, batch = DRAFT_CLEANUP_BATCH } = {}) => {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60 * 1000);
+  const drafts = await Payment.find({ status: 'draft', createdAt: { $lt: cutoff } })
+    .sort({ createdAt: 1 })
+    .limit(batch);
+
+  const result = { checked: drafts.length, expired: 0, succeeded: 0, otherStatus: 0, failed: 0 };
+
+  for (const draft of drafts) {
+    let current = draft;
+
+    if (draft.multicardUuid) {
+      try {
+        current = dryRun ? draft : await reconcileWithGateway(draft);
+      } catch (err) {
+        result.failed += 1;
+        console.error(`⚠️ Draft tekshirib bo'lmadi (${draft.invoiceId}):`, err.message);
+        continue;
+      }
+    }
+
+    if (current.status === 'success') {
+      result.succeeded += 1;
+      continue;
+    }
+    if (current.status !== 'draft') {
+      result.otherStatus += 1;
+      continue;
+    }
+
+    if (!dryRun) {
+      // Atomik: shu orada callback kelib statusni o'zgartirgan bo'lsa — tegmaymiz
+      await Payment.updateOne({ _id: draft._id, status: 'draft' }, { status: 'expired' });
+    }
+    result.expired += 1;
+  }
+
+  return result;
 };
 
 // GET /payment/premium-plans — frontend narxlar jadvalini shu yerdan oladi
@@ -470,13 +555,24 @@ const withPaymentMethod = (payment) => {
   return obj;
 };
 
+// status query'sini filtrga aylantiradi:
+//  - berilmasa → 'expired' (tashlab ketilgan urinishlar) ko'rsatilmaydi;
+//  - 'all' → barcha holatlar, expired ham;
+//  - 'draft' yoki 'success,error' kabi vergul bilan bir nechtasi → aynan shular.
+const buildStatusFilter = (status) => {
+  if (!status) return { $ne: 'expired' };
+  if (status === 'all') return undefined;
+  return status.includes(',') ? { $in: status.split(',') } : status;
+};
+
 // GET /payment/my — foydalanuvchining o'z to'lovlar tarixi
 const getMyPayments = async (userId, { page, limit, purpose, status }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
   const filter = { user: userId };
   if (purpose) filter.purpose = purpose;
-  if (status) filter.status = status;
+  const statusFilter = buildStatusFilter(status);
+  if (statusFilter !== undefined) filter.status = statusFilter;
 
   const [payments, total] = await Promise.all([
     Payment.find(filter)
@@ -497,7 +593,8 @@ const getAllPayments = async ({ page, limit, purpose, status, userId, from, to }
 
   const filter = {};
   if (purpose) filter.purpose = purpose;
-  if (status) filter.status = status;
+  const statusFilter = buildStatusFilter(status);
+  if (statusFilter !== undefined) filter.status = statusFilter;
   if (userId) filter.user = userId;
   if (from || to) {
     filter.createdAt = {};
@@ -525,4 +622,5 @@ module.exports = {
   getPremiumPlans,
   getMyPayments,
   getAllPayments,
+  expireStaleDrafts,
 };

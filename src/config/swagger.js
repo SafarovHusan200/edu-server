@@ -391,7 +391,8 @@ const definition = {
           discountPercent: { type: 'number', nullable: true },
           status: {
             type: 'string',
-            enum: ['draft', 'progress', 'billing', 'hold', 'success', 'error', 'revert'],
+            enum: ['draft', 'progress', 'billing', 'hold', 'success', 'error', 'revert', 'expired'],
+            description: "'expired' — to'lanmay qolgan draft (Multicard'da tekshirilgan), yozuv o'chirilmaydi",
           },
           receiptUrl: { type: 'string', nullable: true },
           paymentTime: { type: 'string', format: 'date-time', nullable: true },

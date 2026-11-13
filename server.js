@@ -7,6 +7,7 @@ const validateEnv = require('./src/config/env');
 const connectDB = require('./src/config/db');
 const app = require('./src/app');
 const { startBackupScheduler } = require('./src/jobs/dbBackup.scheduler');
+const { startPaymentDraftScheduler } = require('./src/jobs/paymentDraft.scheduler');
 
 // 1. Env tekshirish
 validateEnv();
@@ -16,6 +17,9 @@ connectDB();
 
 // 2.1 Kunlik DB zaxira jadvali (DB_BACKUP_ENABLED=true bo'lsagina ishga tushadi)
 startBackupScheduler();
+
+// 2.2 Eski draft to'lovlarni Multicard'da tekshirib, to'lanmaganlarini 'expired' qilish
+startPaymentDraftScheduler();
 
 // 3. Serverni ishga tushirish
 const PORT = process.env.PORT || 5000;

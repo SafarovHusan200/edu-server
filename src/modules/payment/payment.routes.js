@@ -36,7 +36,9 @@ const { createPaymentValidation } = require('./payment.validation');
  *           yo'naltiring. useBalance=true va balans yetarli bo'lsa, SHUNINGDEK promokod
  *           yakuniy summani 0 ga tushirib qo'ysa (100% chegirma) — to'lov shu zahoti
  *           yakunlangan (paidWithBalance=true, checkoutUrl=null, status='success'),
- *           qayta yo'naltirish shart emas.
+ *           qayta yo'naltirish shart emas. Foydalanuvchi aynan shu to'lovni (purpose, plan,
+ *           kurs, summa, promokod, returnUrl bir xil) 15 daqiqa ichida qayta boshlasa — yangi
+ *           invoys ochilmaydi, eski draftning invoiceId va checkoutUrl'i qaytariladi.
  *         content:
  *           application/json:
  *             schema:
@@ -154,7 +156,7 @@ router.get('/status/:invoiceId', authenticate, paymentController.getPaymentStatu
  *     tags: [Payment]
  *     parameters:
  *       - { name: purpose, in: query, schema: { type: string, enum: [wallet, course, premium, donation] } }
- *       - { name: status, in: query, schema: { type: string, enum: [draft, progress, billing, hold, success, error, revert] } }
+ *       - { name: status, in: query, schema: { type: string }, description: "draft, progress, billing, hold, success, error, revert, expired yoki 'all'. Vergul bilan bir nechtasi ham mumkin (masalan 'success,error'). Berilmasa — 'expired' (to'lanmay tashlab ketilgan) to'lovlardan tashqari hammasi" }
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
  *     responses:
@@ -185,7 +187,7 @@ router.get('/my', authenticate, paymentController.getMyPayments);
  *     parameters:
  *       - { name: userId, in: query, schema: { type: string } }
  *       - { name: purpose, in: query, schema: { type: string, enum: [wallet, course, premium, donation] } }
- *       - { name: status, in: query, schema: { type: string, enum: [draft, progress, billing, hold, success, error, revert] } }
+ *       - { name: status, in: query, schema: { type: string }, description: "draft, progress, billing, hold, success, error, revert, expired yoki 'all'. Vergul bilan bir nechtasi ham mumkin (masalan 'success,error'). Berilmasa — 'expired' (to'lanmay tashlab ketilgan) to'lovlardan tashqari hammasi" }
  *       - { name: from, in: query, schema: { type: string, format: date-time }, description: "createdAt >= shu sana (ISO format)" }
  *       - { name: to, in: query, schema: { type: string, format: date-time }, description: "createdAt <= shu sana (ISO format)" }
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
