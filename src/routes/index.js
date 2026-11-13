@@ -22,6 +22,7 @@ const promoCodeRoutes = require('../modules/promocodes/promocode.routes');
 const dailySpinRoutes = require('../modules/daily-spin/dailySpin.routes');
 const spinQuestionRoutes = require('../modules/spin-questions/spinQuestion.routes');
 const mediaRoutes = require('../modules/media/media.routes');
+const liveQuizRoutes = require('../modules/live-quiz/liveQuiz.routes');
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -42,5 +43,6 @@ router.use('/promo-codes', promoCodeRoutes);
 router.use('/daily-spin', dailySpinRoutes);
 router.use('/spin-questions', spinQuestionRoutes);
 router.use('/media', mediaRoutes);
+router.use('/live-quizzes', liveQuizRoutes);
 
 module.exports = router;

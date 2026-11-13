@@ -43,6 +43,7 @@ const definition = {
     { name: 'DailySpin', description: "Kunlik barabon (savol-javob orqali diamond yutish, streak)" },
     { name: 'SpinQuestions', description: "Kunlik barabon savollari banki (admin boshqaruvi)" },
     { name: 'Media', description: "Himoyalangan dars video/material fayllari (imzolangan havola)" },
+    { name: 'LiveQuiz', description: "Jonli viktorina (doska): savollar to'plami, PIN, natijalar. O'yinning o'zi — Socket.IO /live-quiz" },
   ],
   components: {
     securitySchemes: {

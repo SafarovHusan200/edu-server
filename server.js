@@ -8,6 +8,7 @@ const connectDB = require('./src/config/db');
 const app = require('./src/app');
 const { startBackupScheduler } = require('./src/jobs/dbBackup.scheduler');
 const { startPaymentDraftScheduler } = require('./src/jobs/paymentDraft.scheduler');
+const { initSocket } = require('./src/socket');
 
 // 1. Env tekshirish
 validateEnv();
@@ -28,6 +29,9 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Server ishga tushdi: http://localhost:${PORT}`);
   console.log(`📦 Muhit: ${process.env.NODE_ENV}`);
 });
+
+// 3.1 Real-time (Socket.IO) — jonli viktorina uchun
+initSocket(server);
 
 // 4. Kutilmagan xatolarni ushlash
 process.on('unhandledRejection', (err) => {
