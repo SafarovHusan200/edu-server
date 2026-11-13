@@ -37,7 +37,7 @@ const rewardSchema = new mongoose.Schema(
 
     isActive: {
       type: Boolean,
-      default: true,
+      default: false,
     },
 
     // true bo'lsa faqat tarif='premium' bo'lgan studentlar almashtira oladi (redeemReward'da tekshiriladi)
