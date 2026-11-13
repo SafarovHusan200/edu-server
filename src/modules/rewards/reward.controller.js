@@ -17,7 +17,7 @@ const createReward = asyncHandler(async (req, res) => {
 
 // GET /api/v1/rewards
 const getRewards = asyncHandler(async (req, res) => {
-  const { page, limit } = req.query;
+  const { page, limit, search } = req.query;
   // Faolsiz sovg'alarni faqat admin/superadmin ko'ra oladi (admin katalogi uchun)
   const isStaff = ['admin', 'superadmin'].includes(req.user?.role);
   const includeInactive = isStaff && req.query.includeInactive === 'true';
@@ -32,6 +32,7 @@ const getRewards = asyncHandler(async (req, res) => {
     limit,
     includeInactive,
     isActive,
+    search,
   });
 
   res.status(200).json(new ApiResponse(200, "Sovg'alar ro'yxati", { rewards, meta }));
@@ -85,9 +86,9 @@ const getMyRedemptions = asyncHandler(async (req, res) => {
 
 // GET /api/v1/rewards/redemptions — admin
 const getAllRedemptions = asyncHandler(async (req, res) => {
-  const { page, limit, status } = req.query;
+  const { page, limit, status, search } = req.query;
 
-  const { redemptions, meta } = await rewardService.getAllRedemptions({ page, limit, status });
+  const { redemptions, meta } = await rewardService.getAllRedemptions({ page, limit, status, search });
 
   res.status(200).json(new ApiResponse(200, "Barcha so'rovlar", { redemptions, meta }));
 });

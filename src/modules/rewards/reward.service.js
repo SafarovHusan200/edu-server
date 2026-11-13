@@ -8,6 +8,9 @@ const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { frontendLinks } = require('../../config/frontendLinks');
 
+// Qidiruv matnidagi regex maxsus belgilarini ekranlaydi ("(", "*" va h.k. xato bermasligi uchun)
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const createReward = async ({ title, description, cost, stock, premiumOnly }) => {
   return Reward.create({
     title,
@@ -18,11 +21,17 @@ const createReward = async ({ title, description, cost, stock, premiumOnly }) =>
   });
 };
 
-const getRewards = async ({ page, limit, includeInactive = false, isActive }) => {
+const getRewards = async ({ page, limit, includeInactive = false, isActive, search }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
   let filter = { isActive: true };
   if (includeInactive) {
     filter = typeof isActive === 'boolean' ? { isActive } : {};
+  }
+  // Nomi yoki tavsifi bo'yicha qidiruv (katta-kichik harf farqsiz)
+  const term = typeof search === 'string' ? search.trim() : '';
+  if (term) {
+    const regex = { $regex: escapeRegex(term), $options: 'i' };
+    filter.$or = [{ title: regex }, { description: regex }];
   }
 
   const [rewards, total] = await Promise.all([
@@ -140,11 +149,22 @@ const getMyRedemptions = async (studentId, { page, limit }) => {
   return { redemptions, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
-const getAllRedemptions = async ({ page, limit, status }) => {
+const getAllRedemptions = async ({ page, limit, status, search }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
   const filter = {};
   // "status=delivered,rejected" kabi bir nechta holatni ham qabul qiladi (Arxiv tabi uchun)
   if (status) filter.status = status.includes(',') ? { $in: status.split(',') } : status;
+
+  // Student ismi/telefoni yoki sovg'a nomi bo'yicha qidiruv
+  const term = typeof search === 'string' ? search.trim() : '';
+  if (term) {
+    const regex = { $regex: escapeRegex(term), $options: 'i' };
+    const [studentIds, rewardIds] = await Promise.all([
+      User.find({ $or: [{ name: regex }, { phone: regex }] }).distinct('_id'),
+      Reward.find({ title: regex }).distinct('_id'),
+    ]);
+    filter.$or = [{ student: { $in: studentIds } }, { reward: { $in: rewardIds } }];
+  }
 
   const [redemptions, total] = await Promise.all([
     RewardRedemption.find(filter)

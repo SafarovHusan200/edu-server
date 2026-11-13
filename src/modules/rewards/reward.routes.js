@@ -61,6 +61,7 @@ router.get(
  *     description: "Ruxsat: admin, superadmin"
  *     parameters:
  *       - { name: status, in: query, schema: { type: string }, description: "Bitta holat (pending/approved/rejected/delivered) yoki bir nechtasi vergul bilan, masalan 'delivered,rejected' (Arxiv tabi uchun)" }
+ *       - { name: search, in: query, schema: { type: string }, description: "Student ismi/telefoni yoki sovg'a nomi bo'yicha qidiruv" }
  *     responses:
  *       200:
  *         description: Almashtirishlar ro'yxati
@@ -220,6 +221,10 @@ router.patch(
  *         name: isActive
  *         schema: { type: boolean }
  *         description: "includeInactive=true bilan birga: true — faqat faollar, false — faqat faolsizlar, berilmasa — barchasi"
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *         description: "Sovg'a nomi yoki tavsifi bo'yicha qidiruv (katta-kichik harf farqsiz)"
  *     responses:
  *       200:
  *         description: Sovg'alar ro'yxati
