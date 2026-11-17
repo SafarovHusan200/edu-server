@@ -70,7 +70,7 @@ const quizSchema = new mongoose.Schema(
       type: [
         {
           number: { type: Number, required: true, min: 1, max: 11 },
-          letter: { type: String, enum: ['A', 'B', 'C', 'D', 'E', null], default: null },
+          letter: { type: String, enum: ['A', 'B', 'V', 'C', 'D', 'E', 'F', null], default: null },
           availableFrom: { type: Date, default: null },
           availableUntil: { type: Date, default: null },
           maxAttempts: { type: Number, default: null, min: 1 },

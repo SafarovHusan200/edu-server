@@ -47,8 +47,8 @@ const registerValidation = [
     .notEmpty()
     .withMessage('Sinf harfi kiritilishi shart')
     .bail()
-    .isIn(['A', 'B', 'C', 'D', 'E'])
-    .withMessage("Sinf harfi A-E oralig'ida bo'lishi kerak"),
+    .isIn(['A', 'B', 'V', 'C', 'D', 'E', 'F'])
+    .withMessage("Sinf harfi A, B, V, C, D, E, F dan biri bo'lishi kerak"),
 ];
 
 const loginValidation = [

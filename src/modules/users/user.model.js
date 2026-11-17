@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema(
       },
       letter: {
         type: String,
-        enum: ['A', 'B', 'C', 'D', 'E', null],
+        enum: ['A', 'B', 'V', 'C', 'D', 'E', 'F', null],
         default: null,
       },
     },

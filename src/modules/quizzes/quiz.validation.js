@@ -56,8 +56,8 @@ const quizValidation = [
 
   body('targetGrades.*.letter')
     .optional({ values: 'falsy' })
-    .isIn(['A', 'B', 'C', 'D', 'E'])
-    .withMessage("Sinf harfi A-E oralig'ida bo'lishi kerak (bo'sh qoldirilsa — shu raqamdagi barcha parallel sinflar)"),
+    .isIn(['A', 'B', 'V', 'C', 'D', 'E', 'F'])
+    .withMessage("Sinf harfi A, B, V, C, D, E, F dan biri bo'lishi kerak (bo'sh qoldirilsa — shu raqamdagi barcha parallel sinflar)"),
 
   body('targetGrades.*.availableFrom')
     .optional()

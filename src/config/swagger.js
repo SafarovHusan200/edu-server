@@ -95,7 +95,7 @@ const definition = {
         nullable: true,
         properties: {
           number: { type: 'integer', minimum: 1, maximum: 11, example: 9 },
-          letter: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E', null], example: 'A' },
+          letter: { type: 'string', enum: ['A', 'B', 'V', 'C', 'D', 'E', 'F', null], example: 'A' },
         },
       },
       User: {
@@ -299,7 +299,7 @@ const definition = {
               type: 'object',
               properties: {
                 number: { type: 'integer', minimum: 1, maximum: 11 },
-                letter: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E'], nullable: true, description: "null — shu raqamdagi barcha parallel sinflar" },
+                letter: { type: 'string', enum: ['A', 'B', 'V', 'C', 'D', 'E', 'F'], nullable: true, description: "null — shu raqamdagi barcha parallel sinflar" },
                 availableFrom: { type: 'string', format: 'date-time', nullable: true, description: "Shu sinf uchun alohida boshlanish vaqti" },
                 availableUntil: { type: 'string', format: 'date-time', nullable: true },
                 maxAttempts: { type: 'integer', nullable: true, description: "Shu sinf uchun alohida urinishlar soni (bo'sh — quiz.maxAttempts ishlaydi)" },

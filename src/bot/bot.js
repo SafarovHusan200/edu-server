@@ -324,7 +324,7 @@ bot.on('callback_query', async (query) => {
   if (data.startsWith('gNum_')) {
     userState[telegramId].gradeNumber = parseInt(data.split('_')[1], 10);
 
-    const letters = ['A', 'B', 'C', 'D', 'E'];
+    const letters = ['A', 'B', 'V', 'C', 'D', 'E', 'F'];
     const letterButtons = letters.map((l) => ({ text: l, callback_data: `gLet_${l}` }));
 
     bot.editMessageText('Sinfingiz harfini tanlang:', {

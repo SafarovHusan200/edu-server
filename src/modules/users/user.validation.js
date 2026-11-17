@@ -16,8 +16,8 @@ const updateMeValidation = [
 
   body('grade.letter')
     .optional()
-    .isIn(['A', 'B', 'C', 'D', 'E'])
-    .withMessage("Sinf harfi A-E oralig'ida bo'lishi kerak"),
+    .isIn(['A', 'B', 'V', 'C', 'D', 'E', 'F'])
+    .withMessage("Sinf harfi A, B, V, C, D, E, F dan biri bo'lishi kerak"),
 ];
 
 const changePasswordValidation = [
@@ -81,8 +81,8 @@ const createUserValidation = [
     .notEmpty()
     .withMessage('Sinf harfi kiritilishi shart')
     .bail()
-    .isIn(['A', 'B', 'C', 'D', 'E'])
-    .withMessage("Sinf harfi A-E oralig'ida bo'lishi kerak"),
+    .isIn(['A', 'B', 'V', 'C', 'D', 'E', 'F'])
+    .withMessage("Sinf harfi A, B, V, C, D, E, F dan biri bo'lishi kerak"),
 ];
 
 const resetPasswordValidation = [
@@ -124,8 +124,8 @@ const updateUserValidation = [
 
   body('grade.letter')
     .optional()
-    .isIn(['A', 'B', 'C', 'D', 'E'])
-    .withMessage("Sinf harfi A-E oralig'ida bo'lishi kerak"),
+    .isIn(['A', 'B', 'V', 'C', 'D', 'E', 'F'])
+    .withMessage("Sinf harfi A, B, V, C, D, E, F dan biri bo'lishi kerak"),
 ];
 
 module.exports = {
