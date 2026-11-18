@@ -7,6 +7,7 @@ const {
   getEffectiveTimeLimit,
   findMatchingTargetGrade,
   getEffectiveAvailability,
+  GRADE_MISMATCH_MESSAGE,
 } = require('../quizzes/quiz.service');
 const Question = require('../questions/question.model');
 const User = require('../users/user.model');
@@ -76,7 +77,7 @@ const startAttempt = async (quizId, studentId) => {
   const student = await User.findById(studentId).select('grade');
   const matchedGrade = findMatchingTargetGrade(quiz, student?.grade);
   if (!matchedGrade) {
-    throw new ApiError(403, "Bu test sizning sinfingiz uchun mo'ljallanmagan");
+    throw new ApiError(403, GRADE_MISMATCH_MESSAGE);
   }
 
   // Har bir sinf (masalan 3-A va 3-B) o'zining alohida boshlash oralig'iga ega

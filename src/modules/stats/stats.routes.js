@@ -147,7 +147,7 @@ router.get('/admin', authenticate, authorize('admin', 'superadmin'), statsContro
  *                             completedLessons: { type: integer }
  *                             certificatesCount: { type: integer }
  *                             rank: { type: integer, nullable: true, description: "Diamond reytingidagi o'rni" }
- *                             activeQuizzesCount: { type: integer, description: "O'z sinfiga mo'ljallangan, faol testlar soni" }
+ *                             activeQuizzesCount: { type: integer, description: "O'z sinfiga mos, hozir ochiq (isActive, availableFrom/Until) va urinishi qolgan testlar soni" }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 // GET /api/v1/stats/student

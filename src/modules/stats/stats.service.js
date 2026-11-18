@@ -2,6 +2,7 @@
 // Bir nechta resurs (Course, Enrollment, Payment, Quiz) kesib o'tadigan agregat
 // statistika — shu sababli alohida modul, biror bitta resursga tegishli emas.
 
+const mongoose = require('mongoose');
 const Course = require('../courses/course.model');
 const Enrollment = require('../enrollment/enrollment.model');
 const Payment = require('../payment/payment.model');
@@ -14,6 +15,14 @@ const RewardRedemption = require('../rewards/redemption.model');
 const Certificate = require('../certificates/certificate.model');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { ACTIVITY_WEIGHTS } = require('../../config/teacherActivity');
+const {
+  buildStudentGradeFilter,
+  findMatchingTargetGrade,
+  getEffectiveAvailability,
+  getEffectiveMaxAttempts,
+} = require('../quizzes/quiz.service');
+
+const toObjectId = (id) => new mongoose.Types.ObjectId(String(id));
 
 // Asia/Tashkent — doim UTC+5, DST yo'q — shuning uchun oddiy soat qo'shish/ayirish
 // bilan "Toshkent oyi boshlanishi"ning haqiqiy UTC lahzasini aniq hisoblash mumkin
@@ -222,6 +231,37 @@ const getAdminStats = async () => {
   };
 };
 
+// Studentning sinfiga mos, hozir ochiq (isActive + availableFrom/Until) va urinishi
+// qolgan testlar soni. Oraliq va maxAttempts har bir targetGrades yozuvida alohida
+// bo'lishi mumkin, shuning uchun nomzodlar DB'da sinf bo'yicha filtrlanib, qolgani
+// startAttempt bilan bir xil qoidalar asosida JS'da hisoblanadi.
+const countActiveQuizzesForStudent = async (studentId, studentGrade) => {
+  const gradeFilter = buildStudentGradeFilter(studentGrade);
+  if (!gradeFilter) return 0;
+
+  const quizzes = await Quiz.find({ isActive: true, ...gradeFilter })
+    .select('targetGrades availableFrom availableUntil maxAttempts createdBy')
+    .populate('createdBy', 'tarif');
+  if (quizzes.length === 0) return 0;
+
+  const attemptCounts = await QuizAttempt.aggregate([
+    { $match: { quiz: { $in: quizzes.map((q) => q._id) }, student: toObjectId(studentId) } },
+    { $group: { _id: '$quiz', count: { $sum: 1 } } },
+  ]);
+  const attemptMap = new Map(attemptCounts.map((a) => [a._id.toString(), a.count]));
+
+  const now = new Date();
+  return quizzes.filter((quiz) => {
+    const matchedGrade = findMatchingTargetGrade(quiz, studentGrade);
+    if (!matchedGrade) return false;
+    const { availableFrom, availableUntil } = getEffectiveAvailability(quiz, matchedGrade);
+    if (availableFrom && now < availableFrom) return false;
+    if (availableUntil && now > availableUntil) return false;
+    const maxAttempts = getEffectiveMaxAttempts(quiz, quiz.createdBy?.tarif, matchedGrade);
+    return (attemptMap.get(quiz._id.toString()) ?? 0) < maxAttempts;
+  }).length;
+};
+
 // GET /stats/student — o'quvchi dashboard
 const getStudentStats = async (studentId) => {
   const [enrollments, certificatesCount, student] = await Promise.all([
@@ -236,17 +276,7 @@ const getStudentStats = async (studentId) => {
     ? (await User.countDocuments({ role: 'student', diamonds: { $gt: student.diamonds } })) + 1
     : null;
 
-  const activeQuizzesCount = student?.grade?.number
-    ? await Quiz.countDocuments({
-        isActive: true,
-        targetGrades: {
-          $elemMatch: {
-            number: student.grade.number,
-            $or: [{ letter: null }, { letter: student.grade.letter }],
-          },
-        },
-      })
-    : 0;
+  const activeQuizzesCount = await countActiveQuizzesForStudent(studentId, student?.grade);
 
   return { completedLessons, certificatesCount, rank, activeQuizzesCount };
 };

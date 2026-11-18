@@ -75,7 +75,11 @@ const getQuizzesMy = asyncHandler(async (req, res) => {
 // GET /api/v1/quizzes/:id  (student)
 // ─────────────────────────────────────────
 const getQuizById = asyncHandler(async (req, res) => {
-  const { quiz, questions } = await quizService.getQuizById(req.params.id);
+  const { quiz, questions } = await quizService.getQuizById(
+    req.params.id,
+    req.user?.id,
+    req.user?.role
+  );
 
   res.status(200).json(new ApiResponse(200, "Quiz ma'lumotlari", { quiz, questions }));
 });

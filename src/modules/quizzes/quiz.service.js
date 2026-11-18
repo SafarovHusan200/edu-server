@@ -46,6 +46,20 @@ const findMatchingTargetGrade = (quiz, studentGrade) => {
   );
 };
 
+// findMatchingTargetGrade'ning MongoDB ekvivalenti — targetGrades ichida studentning
+// sinfiga mos yozuv bor testlar (letter null/bo'sh — shu raqamning barcha parallellari).
+// Studentda sinf bo'lmasa null qaytaradi — chaqiruvchi bo'sh natija qaytarishi kerak.
+const buildStudentGradeFilter = (studentGrade) => {
+  if (!studentGrade?.number) return null;
+  const letters = [null, ''];
+  if (studentGrade.letter) letters.push(studentGrade.letter);
+  return {
+    targetGrades: { $elemMatch: { number: studentGrade.number, letter: { $in: letters } } },
+  };
+};
+
+const GRADE_MISMATCH_MESSAGE = 'Bu test sizning sinfingiz uchun emas';
+
 // Shu student uchun amal qiladigan boshlash oralig'i — mos kelgan targetGrade
 // yozuvida alohida belgilangan bo'lsa o'shani, aks holda quiz darajasidagi
 // umumiy availableFrom/availableUntil'ni qaytaradi
@@ -154,6 +168,19 @@ const getQuizzes = async ({ targetType, targetId, page, limit }, requesterId, re
 
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
+  // Student faqat o'z sinfi (targetGrades) uchun mo'ljallangan testlarni ko'radi —
+  // filtr DB darajasida, shuning uchun meta.total ham shu bo'yicha hisoblanadi
+  let studentGrade;
+  if (requesterRole === 'student') {
+    const student = requesterId ? await User.findById(requesterId).select('grade') : null;
+    studentGrade = student?.grade;
+    const gradeFilter = buildStudentGradeFilter(studentGrade);
+    if (!gradeFilter) {
+      return { quizzes: [], meta: buildMeta(0, currentPage, pageLimit) };
+    }
+    Object.assign(filter, gradeFilter);
+  }
+
   const [quizzes, total] = await Promise.all([
     Quiz.find(filter)
       .populate('createdBy', 'name phone tarif')
@@ -175,11 +202,7 @@ const getQuizzes = async ({ targetType, targetId, page, limit }, requesterId, re
   // Student uchun: oldin har bir quiz uchun alohida GET /my-attempts chaqirilardi —
   // endi shu yerning o'zida, bitta so'rov bilan hisoblanadi
   let attemptsByQuiz = new Map();
-  let studentGrade;
   if (requesterId && requesterRole === 'student') {
-    const student = await User.findById(requesterId).select('grade');
-    studentGrade = student?.grade;
-
     const attempts = await QuizAttempt.find({ quiz: { $in: quizIds }, student: requesterId })
       .select('quiz scorePercent status attemptNumber')
       .sort({ attemptNumber: 1 });
@@ -293,9 +316,16 @@ const getQuizzesMy = async ({ id, targetType, targetId, page, limit }) => {
 // ─────────────────────────────────────────
 // GET SINGLE QUIZ (studentga — javoblarsiz)
 // ─────────────────────────────────────────
-const getQuizById = async (quizId) => {
+const getQuizById = async (quizId, requesterId, requesterRole) => {
   const quiz = await Quiz.findById(quizId).populate('createdBy', 'name phone tarif');
   if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
+
+  if (requesterRole === 'student') {
+    const student = requesterId ? await User.findById(requesterId).select('grade') : null;
+    if (!findMatchingTargetGrade(quiz, student?.grade)) {
+      throw new ApiError(403, GRADE_MISMATCH_MESSAGE);
+    }
+  }
 
   const questions = await Question.find({ quiz: quizId })
     .select('-correctAnswer')
@@ -457,6 +487,8 @@ module.exports = {
   getEffectiveMaxAttempts,
   getEffectiveTimeLimit,
   findMatchingTargetGrade,
+  buildStudentGradeFilter,
+  GRADE_MISMATCH_MESSAGE,
   getEffectiveAvailability,
   enrichTargetGrades,
   formatTargetGrades,

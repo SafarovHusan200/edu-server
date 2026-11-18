@@ -219,10 +219,12 @@ router.get(
  *                 - type: object
  *                   properties:
  *                     data: { $ref: '#/components/schemas/Quiz' }
+ *       403: { description: "Bu test sizning sinfingiz uchun emas (student, targetGrades'da yo'q)" }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-// Quiz — student (javoblarsiz)
-router.get('/:id', quizController.getQuizById);
+// Quiz — student (javoblarsiz). Token bo'lsa o'qiladi: student o'z sinfiga mos
+// bo'lmagan testni ochsa 403 oladi
+router.get('/:id', authenticate.optional, quizController.getQuizById);
 
 /**
  * @swagger
