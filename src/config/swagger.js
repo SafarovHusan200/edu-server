@@ -44,6 +44,7 @@ const definition = {
     { name: 'SpinQuestions', description: "Kunlik barabon savollari banki (admin boshqaruvi)" },
     { name: 'Media', description: "Himoyalangan dars video/material fayllari (imzolangan havola)" },
     { name: 'LiveQuiz', description: "Jonli viktorina (doska): savollar to'plami, PIN, natijalar. O'yinning o'zi — Socket.IO /live-quiz" },
+    { name: 'BoardLessons', description: "Super-ustoz → Interaktiv dars (doska): slaydlar va mashqlar. Kurs darslari (Lessons) bilan aloqasi yo'q" },
   ],
   components: {
     securitySchemes: {

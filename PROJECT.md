@@ -190,6 +190,15 @@ Kurs 100% tugatilganda PDF sertifikat generatsiya qilinadi (`pdfkit`), noyob
 - **Eng faol o'qituvchilar reytingi** — og'irlik koeffitsientlari bilan (`teacherActivity.js`:
   kurs×3, test×2, dars×1, kitob×2), MongoDB aggregation orqali N+1 so'rovsiz hisoblanadi.
 
+### Interaktiv dars — Super-ustoz (`board-lessons`)
+O'qituvchi doskada ko'rsatish uchun slaydlar (markdown matn, rasm, `layout`, ikonka, mavzu) va
+oxiridagi test-mashqlardan iborat dars yaratadi. Kurs darslari (`lessons`) bilan aloqasi yo'q.
+Tuzilishi `live-quiz` moduliga o'xshash: egalik `createdBy` bo'yicha tekshiriladi (admin/superadmin
+— istalgan dars, ro'yxatda `all=true`), rasmlar `POST /board-lessons/upload-image` orqali
+`/uploads/board-lessons/`ga yuklanadi, markdown'da base64/tashqi rasm rad etiladi
+(`boardLesson.text.js`). Ro'yxatda slaydlar/mashqlar qaytarilmaydi — aggregate `$size` bilan
+`slideCount`/`exerciseCount` va `coverImage` hisoblanadi. `POST /:id/duplicate` — mustaqil nusxa.
+
 ### Ma'lumotlar zaxiralash (`src/jobs/`)
 Har kuni soat 03:00 (Asia/Tashkent, `node-cron`) butun MongoDB (barcha kolleksiyalar)
 JSON'ga eksport qilinadi, parol/OTP kod kabi maxfiy maydonlar olib tashlanadi, gzip

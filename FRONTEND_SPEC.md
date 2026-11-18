@@ -545,6 +545,27 @@ Ikki toifa savol bor (**2026-11-07'da `category` qo'shildi**):
 
 Bu — admin panelga yangi bo'lim: ikki tab/filtr ("Sinf bo'yicha" va "Mantiqiy"), har biri uchun savollar ro'yxati, qo'shish/tahrirlash/o'chirish/faollashtirish formasi kerak bo'ladi. Qo'shish formasida `category` tanlanganda `grade` maydoni `knowledge`da ko'rsatilsin, `logic`da yashirilsin.
 
+### Board Lessons (`/board-lessons`) — Super-ustoz → Interaktiv dars (**2026-11-18'da qo'shildi**)
+Doskada ko'rsatiladigan slaydlar + oxiridagi mashqlar to'plami. Kurs darslari (`/lessons`) bilan aloqasi yo'q.
+Barcha endpointlar: teacher, admin, superadmin (student — 403). Teacher faqat o'z darslarini ko'radi/tahrirlaydi (boshqasiniki — 403).
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | /board-lessons?search&grade&page&limit&all | teacher, admin, superadmin | Ro'yxat: `data: { lessons, meta: {total,page,limit,totalPages} }` (live-quizzes bilan bir xil). Har element: `_id,title,subject,grade,theme,coverImage,slideCount,exerciseCount,updatedAt` (slides/exercises qaytmaydi). `all=true` — faqat admin/superadmin uchun, hammaning darslari |
+| GET | /board-lessons/:id | egasi, admin, superadmin | To'liq dars: `data: { lesson }` — summary maydonlari + `description, slides, exercises` |
+| POST | /board-lessons | teacher, admin, superadmin | Yaratish (201): `{title, description?, subject?, grade?(1-11\|null), theme, slides[], exercises[]}`. slides va exercises ikkalasi bo'sh bo'lsa — 422 (`field: "slides"`) |
+| PATCH | /board-lessons/:id | egasi, admin, superadmin | Body POST bilan bir xil — slides/exercises TO'LIQ almashtiriladi |
+| DELETE | /board-lessons/:id | egasi, admin, superadmin | O'chirish |
+| POST | /board-lessons/:id/duplicate | egasi, admin, superadmin | Nusxa (201): `title = "<title> (nusxa)"` (120 belgiga sig'diriladi), `createdBy` = joriy user |
+| POST | /board-lessons/upload-image | teacher, admin, superadmin | multipart `image` (JPG/PNG/WEBP, ≤5MB) → `data: { image: "/uploads/board-lessons/..." }` |
+
+- `theme` (dars va slayd): `ocean, sunset, forest, galaxy, candy, sun` (dars uchun standart `ocean`, slaydda `null` — dars mavzusi ishlatiladi).
+- Slayd: `{title(≤120), body(markdown ≤2000), image\|null, layout('text'\|'split'\|'image'), icon\|null, theme\|null}` — ko'pi bilan 50 ta. `title`, `body`, `image`dan kamida bittasi bo'lishi shart; `layout` `split`/`image` bo'lsa `image` majburiy.
+- `icon`: `lightbulb, book, star, rocket, atom, flask, calculator, compass, globe, sprout, paw, music, palette, trophy, sparkles`.
+- Mashq: `{text(markdown ≤2000, majburiy), image\|null, options(2-4 ta, har biri ≤120, bo'sh emas), correctIndex(< options.length)}` — ko'pi bilan 50 ta.
+- Markdown matnda rasm faqat `![](/uploads/board-lessons/...)` (upload-image natijasi), ko'pi bilan 3 ta; base64 (`data:image`), tashqi havola va HTML `<img>` rad etiladi.
+- 422 xatolarida `field`: `title`, `slides`, `slides[2]` (butun slayd bo'yicha), `slides[2].image`, `exercises[0].options`, `exercises[0].correctIndex` va h.k. — `slides[i]`/`exercises[i]` prefiksi bo'yicha xatoni tegishli kartaga bog'lang.
+
 ## 6. Out of Scope (deliberately not covered here)
 
 - Vizual dizayn: rang palitra, shrift, logotip, komponent kutubxonasi tanlovi — bularni
