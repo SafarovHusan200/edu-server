@@ -190,6 +190,27 @@ describe('POST /board-lessons/generate (AI qoralama)', () => {
   });
 });
 
+describe('GEMINI_BASE_URL (proksi)', () => {
+  const { GoogleGenAI } = require('@google/genai');
+
+  test("berilsa — client shu baseUrl bilan yaratiladi, berilmasa — standart manzil", async () => {
+    mockGenerateContent.mockResolvedValue(reply(GOOD));
+
+    process.env.GEMINI_BASE_URL = 'https://gemini-proxy.example.uz';
+    process.env.GEMINI_API_KEY = 'proxy-test-key';
+    GoogleGenAI.mockClear();
+    expect((await post(teacherToken)).status).toBe(200);
+    expect(GoogleGenAI).toHaveBeenLastCalledWith({
+      apiKey: 'proxy-test-key',
+      httpOptions: { baseUrl: 'https://gemini-proxy.example.uz' },
+    });
+
+    delete process.env.GEMINI_BASE_URL;
+    expect((await post(teacherToken)).status).toBe(200);
+    expect(GoogleGenAI).toHaveBeenLastCalledWith({ apiKey: 'proxy-test-key' });
+  });
+});
+
 describe('aiLimiter', () => {
   test("bir foydalanuvchiga 10 daqiqada 5 tadan ortiq so'rov — 429", async () => {
     process.env.AI_LIMITER_ENABLED = 'true';

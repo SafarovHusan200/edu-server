@@ -17,16 +17,22 @@ const LIMITS = { title: 120, description: 500, subject: 60, slideTitle: 120, bod
 // ─────────────── Client ───────────────
 
 let cachedClient = null;
-let cachedKey = null;
+let cachedClientKey = null;
 
-// Kalit/model har chaqiruvda o'qiladi — .env o'zgarsa yoki yo'q bo'lsa server yiqilmaydi
+// Kalit/model har chaqiruvda o'qiladi — .env o'zgarsa yoki yo'q bo'lsa server yiqilmaydi.
+// GEMINI_BASE_URL (ixtiyoriy) — Gemini qo'llab-quvvatlamaydigan mamlakatdagi serverdan
+// (masalan Rossiya) qo'llab-quvvatlanadigan mamlakatdagi reverse-proxy orqali ishlash uchun.
+// Faqat Gemini so'rovlariga ta'sir qiladi, ilovaning boshqa tashqi so'rovlariga emas.
 const getConfig = () => {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL;
+  const baseUrl = process.env.GEMINI_BASE_URL || undefined;
   if (!apiKey || !model) throw new ApiError(503, 'AI xizmati sozlanmagan');
-  if (cachedKey !== apiKey) {
-    cachedClient = new GoogleGenAI({ apiKey });
-    cachedKey = apiKey;
+
+  const clientKey = `${apiKey}|${baseUrl ?? ''}`;
+  if (cachedClientKey !== clientKey) {
+    cachedClient = new GoogleGenAI({ apiKey, ...(baseUrl && { httpOptions: { baseUrl } }) });
+    cachedClientKey = clientKey;
   }
   return { client: cachedClient, model };
 };
