@@ -220,6 +220,9 @@ qo'lda tiklash uchun CLI (`--yes` flagisiz faqat dry-run).
   ogohlantirish chiqadi. Tiklashda bo'laklarni bitta papkaga saqlab, asosiy nomni berish
   kifoya (`restoreBackup.js backup-<sana>.json.gz`) — skript bo'laklarni topib, to'liqligini
   tekshirib birlashtiradi.
+- Botdagi **`/backup`** buyrug'i zaxirani darhol yuboradi (`src/bot/backupCommand.js`): faqat
+  `DB_BACKUP_TELEGRAM_CHAT_ID` chatidan ishlaydi (boshqalarga "Noma'lum buyruq"), 10 daqiqada
+  1 marta, bir vaqtda faqat bitta; ruxsatsiz urinishlar logga yoziladi.
 
 > Eslatma: bu zaxira faqat MongoDB hujjatlarini qamrab oladi — `uploads/` papkadagi
 > rasm/video/PDF fayllar zaxiraga kirmaydi (Telegram bot API fayl yuklash limiti —

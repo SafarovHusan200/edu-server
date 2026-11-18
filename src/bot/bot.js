@@ -633,4 +633,7 @@ bot.onText(/\/tekshir/, async (msg) => {
   }
 });
 
+// /backup — DB zaxirasini darhol olish (faqat DB_BACKUP_TELEGRAM_CHAT_ID chatidan)
+require('./backupCommand').registerBackupCommand(bot);
+
 module.exports = bot;
