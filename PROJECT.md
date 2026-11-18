@@ -214,6 +214,12 @@ JSON'ga eksport qilinadi, parol/OTP kod kabi maxfiy maydonlar olib tashlanadi, g
 bilan siqiladi va belgilangan Telegram chatga fayl sifatida yuboriladi (MongoDB
 Atlas/disk muammosiga qarshi zaxira nusxa). `scripts/restoreBackup.js` — shu fayldan
 qo'lda tiklash uchun CLI (`--yes` flagisiz faqat dry-run).
+- Xato bo'lsa (zaxira yaratish yoki yuborish) — shu chatga sababi bilan "❌" xabari ketadi.
+- Telegram Bot API fayl limiti 50 MB: siqilgan fayl 45 MB dan katta bo'lsa
+  `backup-<sana>.json.gz.part1-of-N` bo'laklariga bo'linadi, 40 MB dan oshsa izohda
+  ogohlantirish chiqadi. Tiklashda bo'laklarni bitta papkaga saqlab, asosiy nomni berish
+  kifoya (`restoreBackup.js backup-<sana>.json.gz`) — skript bo'laklarni topib, to'liqligini
+  tekshirib birlashtiradi.
 
 > Eslatma: bu zaxira faqat MongoDB hujjatlarini qamrab oladi — `uploads/` papkadagi
 > rasm/video/PDF fayllar zaxiraga kirmaydi (Telegram bot API fayl yuklash limiti —
