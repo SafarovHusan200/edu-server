@@ -10,9 +10,11 @@ const authenticate = require('../../middleware/authenticate');
 const authorize = require('../../middleware/authorize');
 const validate = require('../../middleware/validate');
 const { uploadImage } = require('../../middleware/upload');
+const { aiLimiter } = require('../../middleware/rateLimiter');
 const {
   createBoardLessonValidation,
   updateBoardLessonValidation,
+  generateBoardLessonValidation,
 } = require('./boardLesson.validation');
 
 router.use(authenticate, authorize('teacher', 'admin', 'superadmin'));
@@ -99,6 +101,66 @@ router.use(authenticate, authorize('teacher', 'admin', 'superadmin'));
  */
 // /:id dan OLDIN ro'yxatdan o'tkazilishi shart
 router.post('/upload-image', uploadImage('board-lessons').single('image'), controller.uploadImage);
+
+/**
+ * @swagger
+ * /board-lessons/generate:
+ *   post:
+ *     summary: AI orqali dars qoralamasini tuzish (Gemini)
+ *     tags: [BoardLessons]
+ *     description: >
+ *       Ruxsat: teacher, admin, superadmin. Natija BAZAGA SAQLANMAYDI — frontend qoralamani
+ *       muharrirda ko'rsatadi, o'qituvchi tahrirlab POST /board-lessons orqali saqlaydi.
+ *       Javob serverda tozalanadi: noto'g'ri mashqlar tashlab yuboriladi, shuning uchun
+ *       slayd/mashq soni so'ralganidan kam bo'lishi mumkin. Limit: har foydalanuvchiga
+ *       10 daqiqada 5 ta so'rov. Javob 10–40 soniya olishi mumkin.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [topic, grade, slideCount, exerciseCount]
+ *             properties:
+ *               topic: { type: string, minLength: 3, maxLength: 120, example: "Oddiy kasrlarni qo'shish" }
+ *               grade: { type: integer, minimum: 1, maximum: 11, example: 5 }
+ *               subject: { type: string, maxLength: 60, example: Matematika }
+ *               slideCount: { type: integer, enum: [4, 6, 8] }
+ *               exerciseCount: { type: integer, enum: [5, 8, 10] }
+ *               notes: { type: string, maxLength: 300, description: "O'qituvchi istagi (masalan: ko'proq hayotiy misol)" }
+ *     responses:
+ *       200:
+ *         description: Qoralama
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         draft:
+ *                           type: object
+ *                           properties:
+ *                             title: { type: string }
+ *                             description: { type: string }
+ *                             subject: { type: string, nullable: true }
+ *                             grade: { type: integer }
+ *                             theme: { type: string, enum: [ocean, sunset, forest, galaxy, candy, sun] }
+ *                             slides: { type: array, items: { $ref: '#/components/schemas/BoardLessonSlide' } }
+ *                             exercises: { type: array, items: { $ref: '#/components/schemas/BoardLessonExercise' } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *       429: { description: "Foydalanuvchi limiti (10 daqiqada 5 ta) yoki AI provayder limiti tugadi" }
+ *       502: { description: "AI javobini o'qib bo'lmadi yoki yaroqli dars qaytmadi" }
+ *       503: { description: "AI xizmati sozlanmagan / band / vaqtincha ishlamayapti" }
+ *       504: { description: "AI 60 soniyada javob bermadi" }
+ */
+// /:id dan OLDIN ro'yxatdan o'tkazilishi shart
+router.post('/generate', aiLimiter, generateBoardLessonValidation, validate, controller.generateDraft);
 
 /**
  * @swagger

@@ -558,6 +558,7 @@ Barcha endpointlar: teacher, admin, superadmin (student — 403). Teacher faqat 
 | DELETE | /board-lessons/:id | egasi, admin, superadmin | O'chirish |
 | POST | /board-lessons/:id/duplicate | egasi, admin, superadmin | Nusxa (201): `title = "<title> (nusxa)"` (120 belgiga sig'diriladi), `createdBy` = joriy user |
 | POST | /board-lessons/upload-image | teacher, admin, superadmin | multipart `image` (JPG/PNG/WEBP, ≤5MB) → `data: { image: "/uploads/board-lessons/..." }` |
+| POST | /board-lessons/generate | teacher, admin, superadmin | **AI qoralama (Gemini), BAZAGA SAQLANMAYDI.** Body: `{topic(3-120), grade(1-11), subject?(≤60), slideCount(4\|6\|8), exerciseCount(5\|8\|10), notes?(≤300)}` → `data: { draft: {title, description, subject, grade, theme, slides[], exercises[]} }` (slayd/mashq shakli yuqoridagi bilan bir xil, `image: null`, `layout: 'text'`). Slayd/mashq soni so'ralganidan kam bo'lishi mumkin (yaroqsizlari tashlanadi). Javob 10–40 s olishi mumkin. Xatolar: 422 validatsiya; 429 — foydalanuvchi limiti (10 daqiqada 5 ta) yoki AI limiti; 502 — AI javobi yaroqsiz; 503 — AI sozlanmagan/band; 504 — 60 s timeout |
 
 - `theme` (dars va slayd): `ocean, sunset, forest, galaxy, candy, sun` (dars uchun standart `ocean`, slaydda `null` — dars mavzusi ishlatiladi).
 - Slayd: `{title(≤120), body(markdown ≤2000), image\|null, layout('text'\|'split'\|'image'), icon\|null, theme\|null}` — ko'pi bilan 50 ta. `title`, `body`, `image`dan kamida bittasi bo'lishi shart; `layout` `split`/`image` bo'lsa `image` majburiy.

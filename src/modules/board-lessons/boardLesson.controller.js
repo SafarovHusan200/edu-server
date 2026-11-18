@@ -1,6 +1,7 @@
 // src/modules/board-lessons/boardLesson.controller.js
 
 const boardLessonService = require('./boardLesson.service');
+const { generateLessonDraft } = require('./boardLesson.ai');
 const asyncHandler = require('../../utils/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
 const ApiError = require('../../utils/ApiError');
@@ -43,6 +44,13 @@ const duplicateLesson = asyncHandler(async (req, res) => {
   res.status(201).json(new ApiResponse(201, 'Dars nusxalandi', { lesson }));
 });
 
+// POST /api/v1/board-lessons/generate — AI qoralama (bazaga saqlanmaydi)
+const generateDraft = asyncHandler(async (req, res) => {
+  const { topic, grade, subject, slideCount, exerciseCount, notes } = req.body;
+  const draft = await generateLessonDraft({ topic, grade, subject, slideCount, exerciseCount, notes });
+  res.status(200).json(new ApiResponse(200, 'Dars qoralamasi tayyor', { draft }));
+});
+
 // POST /api/v1/board-lessons/upload-image
 const uploadImage = asyncHandler(async (req, res) => {
   if (!req.file) throw new ApiError(400, 'Rasm fayli yuborilishi shart');
@@ -56,5 +64,6 @@ module.exports = {
   updateLesson,
   deleteLesson,
   duplicateLesson,
+  generateDraft,
   uploadImage,
 };

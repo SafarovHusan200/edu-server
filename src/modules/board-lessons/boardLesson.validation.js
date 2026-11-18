@@ -167,8 +167,58 @@ const notEmptyLesson = body('slides')
   })
   .withMessage("Darsda kamida bitta slayd yoki mashq bo'lishi kerak");
 
+// POST /board-lessons/generate — AI qoralama
+const generateBoardLessonValidation = [
+  body('topic')
+    .isString()
+    .withMessage('Mavzu kiritilishi shart')
+    .bail()
+    .trim()
+    .isLength({ min: 3, max: 120 })
+    .withMessage("Mavzu 3-120 ta belgi bo'lishi kerak"),
+
+  body('grade')
+    .isInt({ min: 1, max: 11 })
+    .withMessage("Sinf 1-11 oralig'ida bo'lishi kerak")
+    .toInt(),
+
+  body('subject')
+    .optional({ values: 'null' })
+    .isString()
+    .withMessage("Fan nomi matn bo'lishi kerak")
+    .bail()
+    .trim()
+    .isLength({ max: 60 })
+    .withMessage('Fan nomi 60 ta belgidan oshmasligi kerak'),
+
+  body('slideCount')
+    .isIn([4, 6, 8])
+    .withMessage("Slaydlar soni 4, 6 yoki 8 bo'lishi kerak")
+    .bail()
+    .isInt()
+    .withMessage("Slaydlar soni 4, 6 yoki 8 bo'lishi kerak")
+    .toInt(),
+
+  body('exerciseCount')
+    .isIn([5, 8, 10])
+    .withMessage("Mashqlar soni 5, 8 yoki 10 bo'lishi kerak")
+    .bail()
+    .isInt()
+    .withMessage("Mashqlar soni 5, 8 yoki 10 bo'lishi kerak")
+    .toInt(),
+
+  body('notes')
+    .optional({ values: 'null' })
+    .isString()
+    .withMessage("Izoh matn bo'lishi kerak")
+    .bail()
+    .trim()
+    .isLength({ max: 300 })
+    .withMessage('Izoh 300 ta belgidan oshmasligi kerak'),
+];
+
 // POST va PATCH bir xil body qabul qiladi (slides/exercises to'liq almashtiriladi)
 const createBoardLessonValidation = [...lessonValidation, notEmptyLesson];
 const updateBoardLessonValidation = [...lessonValidation, notEmptyLesson];
 
-module.exports = { createBoardLessonValidation, updateBoardLessonValidation };
+module.exports = { createBoardLessonValidation, updateBoardLessonValidation, generateBoardLessonValidation };

@@ -29,6 +29,7 @@
     "testTimeout": 30000
   },
   "dependencies": {
+    "@google/genai": "^3.5.0",
     "axios": "^1.18.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",

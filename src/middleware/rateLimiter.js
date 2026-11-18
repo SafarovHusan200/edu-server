@@ -34,4 +34,21 @@ const apiLimiter = rateLimit({
   },
 });
 
-module.exports = { authLimiter, apiLimiter };
+// AI generatsiya (POST /board-lessons/generate) — Gemini bepul tarif limitini himoya qilish uchun.
+// authenticate'dan KEYIN qo'llanadi: kalit — foydalanuvchi ID'si (bir maktab = bitta IP bo'lishi mumkin).
+// Test muhitida boshqa limiterlar kabi o'chiq; limitning o'zini sinash uchun AI_LIMITER_ENABLED=true.
+const aiLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test' && process.env.AI_LIMITER_ENABLED !== 'true',
+  keyGenerator: (req) => `ai:${req.user.id}`,
+  message: {
+    success: false,
+    statusCode: 429,
+    message: "Juda ko'p so'rov. Bir oz kuting",
+  },
+});
+
+module.exports = { authLimiter, apiLimiter, aiLimiter };

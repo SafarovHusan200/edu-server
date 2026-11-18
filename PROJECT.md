@@ -199,6 +199,15 @@ Tuzilishi `live-quiz` moduliga o'xshash: egalik `createdBy` bo'yicha tekshirilad
 (`boardLesson.text.js`). Ro'yxatda slaydlar/mashqlar qaytarilmaydi — aggregate `$size` bilan
 `slideCount`/`exerciseCount` va `coverImage` hisoblanadi. `POST /:id/duplicate` — mustaqil nusxa.
 
+**AI qoralama** — `POST /board-lessons/generate`: Google Gemini (`@google/genai`, bepul tarif,
+`GEMINI_API_KEY` + `GEMINI_MODEL`; yo'q bo'lsa 503) mavzu/sinf bo'yicha slaydlar va mashqlar
+qoralamasini tuzadi, natija bazaga saqlanmaydi. Provayderga bog'liq hamma narsa
+`boardLesson.ai.js`da (boshqa provayderga o'tish — faqat shu fayl): structured output
+(`responseSchema`), javob serverda qayta tozalanadi (`sanitizeDraft`: uzunliklar, enum'lar,
+variantlar 2-4, correctIndex, markdown'dan rasm/havola/HTML olib tashlanadi), buzilgan JSON'da
+1 marta qayta urinish, 60 s timeout. Bepul limitni himoya qilish: `aiLimiter` (foydalanuvchiga
+10 daqiqada 5 ta) va bir vaqtda ko'pi bilan 3 ta chaqiruv (navbatda 60 s dan ko'p kutsa 503).
+
 ### Ma'lumotlar zaxiralash (`src/jobs/`)
 Har kuni soat 03:00 (Asia/Tashkent, `node-cron`) butun MongoDB (barcha kolleksiyalar)
 JSON'ga eksport qilinadi, parol/OTP kod kabi maxfiy maydonlar olib tashlanadi, gzip
