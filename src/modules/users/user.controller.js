@@ -8,9 +8,10 @@ const { toPublicPath } = require('../../middleware/upload');
 
 // PATCH /api/v1/users/me
 const updateMe = asyncHandler(async (req, res) => {
-  const { name, grade } = req.body;
+  // grade ataylab olinmaydi — o'z sinfini o'zgartirish mumkin emas (body'da kelsa e'tiborsiz)
+  const { name } = req.body;
 
-  const user = await userService.updateMe(req.user.id, { name, grade });
+  const user = await userService.updateMe(req.user.id, { name });
 
   res.status(200).json(new ApiResponse(200, 'Profil yangilandi', { user }));
 });
@@ -33,6 +34,13 @@ const uploadAvatar = asyncHandler(async (req, res) => {
   const user = await userService.setAvatar(req.user.id, toPublicPath(req.file.path));
 
   res.status(200).json(new ApiResponse(200, 'Avatar yuklandi', { user }));
+});
+
+// DELETE /api/v1/users/me/avatar
+const deleteMyAvatar = asyncHandler(async (req, res) => {
+  const user = await userService.deleteMyAvatar(req.user.id);
+
+  res.status(200).json(new ApiResponse(200, "Avatar o'chirildi", { user }));
 });
 
 // POST /api/v1/users/:id/avatar — superadmin
@@ -179,6 +187,7 @@ module.exports = {
   updateMe,
   changePassword,
   uploadAvatar,
+  deleteMyAvatar,
   setUserAvatar,
   deleteUserAvatar,
   createUser,

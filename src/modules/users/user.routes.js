@@ -26,7 +26,7 @@ router.use(authenticate);
  *   patch:
  *     summary: O'z profilini yangilash
  *     tags: [Users]
- *     description: "Student rolidagi foydalanuvchilar uchun `name` e'tiborga olinmaydi (o'quvchi o'z ismini o'zgartira olmaydi)"
+ *     description: "Student rolidagi foydalanuvchilar uchun `name` e'tiborga olinmaydi (o'quvchi o'z ismini o'zgartira olmaydi). Sinf (`grade`) bu yerda qabul qilinmaydi — body'da kelsa e'tiborsiz qoldiriladi; sinfni faqat admin/o'qituvchi PATCH /users/{id} orqali o'zgartiradi."
  *     requestBody:
  *       content:
  *         application/json:
@@ -34,11 +34,6 @@ router.use(authenticate);
  *             type: object
  *             properties:
  *               name: { type: string, minLength: 2, maxLength: 50, description: "Faqat teacher/admin/superadmin uchun qo'llaniladi" }
- *               grade:
- *                 type: object
- *                 properties:
- *                   number: { type: integer, minimum: 1, maximum: 11 }
- *                   letter: { type: string, enum: [A, B, C, D, E] }
  *     responses:
  *       200:
  *         description: Yangilandi
@@ -122,9 +117,31 @@ router.patch(
  *                       properties:
  *                         user: { $ref: '#/components/schemas/User' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
+ *   delete:
+ *     summary: O'z profil rasmini o'chirish
+ *     tags: [Users]
+ *     description: "Ruxsat: istalgan login qilgan foydalanuvchi. Avatar fayli diskdan o'chiriladi va `avatar` null bo'ladi. Idempotent — avatar bo'lmasa ham 200 qaytadi."
+ *     responses:
+ *       200:
+ *         description: Avatar o'chirildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user: { $ref: '#/components/schemas/User' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 // POST /api/v1/users/me/avatar
 router.post('/me/avatar', uploadImage('avatars').single('avatar'), userController.uploadAvatar);
+
+// DELETE /api/v1/users/me/avatar
+router.delete('/me/avatar', userController.deleteMyAvatar);
 
 /**
  * @swagger

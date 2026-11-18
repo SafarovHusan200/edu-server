@@ -12,16 +12,7 @@ const updateMeValidation = [
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage("Ism 2-50 ta belgi bo'lishi kerak"),
-
-  body('grade.number')
-    .optional()
-    .isInt({ min: 1, max: 11 })
-    .withMessage("Sinf 1-11 oralig'ida bo'lishi kerak"),
-
-  body('grade.letter')
-    .optional()
-    .isIn(['A', 'B', 'V', 'C', 'D', 'E', 'F'])
-    .withMessage("Sinf harfi A, B, V, C, D, E, F dan biri bo'lishi kerak"),
+  // grade bu yerda qabul qilinmaydi — sinfni faqat admin/o'qituvchi PATCH /users/:id orqali o'zgartiradi
 ];
 
 const changePasswordValidation = [

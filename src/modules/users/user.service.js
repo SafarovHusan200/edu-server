@@ -1,6 +1,8 @@
 // src/modules/users/user.service.js
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const User = require('./user.model');
 const Course = require('../courses/course.model');
 const TelegramLinkToken = require('../auth/telegramLinkToken.model');
@@ -8,10 +10,15 @@ const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { FRONTEND_URL } = require('../../config/frontendLinks');
+const { UPLOADS_ROOT } = require('../../middleware/upload');
+
+const AVATAR_PUBLIC_PREFIX = '/uploads/avatars/';
+const AVATARS_DIR = path.resolve(UPLOADS_ROOT, 'avatars');
 
 const TELEGRAM_LINK_TTL_MS = 5 * 60 * 1000; // 5 daqiqa
 
-const updateMe = async (userId, { name, grade }) => {
+// Sinf (grade) bu yerda o'zgartirilmaydi — faqat admin/o'qituvchi PATCH /users/:id orqali
+const updateMe = async (userId, { name }) => {
   const user = await User.findById(userId);
   if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
 
@@ -19,12 +26,6 @@ const updateMe = async (userId, { name, grade }) => {
   // (masalan reyting/natijalarda identifikatsiya uchun) shundayligicha qolishi kerak.
   // Boshqa rollar (teacher/admin/superadmin) uchun bu cheklov yo'q.
   if (name && user.role !== 'student') user.name = name;
-  if (grade && user.role === 'student') {
-    user.grade = {
-      number: grade.number ?? user.grade?.number,
-      letter: grade.letter ?? user.grade?.letter,
-    };
-  }
 
   await user.save();
   return user;
@@ -68,15 +69,40 @@ const setUserAvatar = async (id, publicPath) => {
   return user;
 };
 
-// DELETE /users/:id/avatar — superadmin: foydalanuvchi avatarini o'chiradi
-const deleteUserAvatar = async (id) => {
+// Avatar faylini diskdan o'chiradi. Faqat bizning /uploads/avatars/ papkamizdagi
+// fayllarga tegadi (Telegram'dan kelgan tashqi URL'lar e'tiborsiz qoldiriladi).
+// Fayl allaqachon yo'q bo'lsa xato bermaydi.
+const deleteAvatarFile = async (publicPath) => {
+  if (!publicPath || !publicPath.startsWith(AVATAR_PUBLIC_PREFIX)) return;
+
+  const absolutePath = path.resolve(UPLOADS_ROOT, publicPath.slice('/uploads/'.length));
+  if (!absolutePath.startsWith(AVATARS_DIR + path.sep)) return;
+
+  try {
+    await fs.promises.unlink(absolutePath);
+  } catch (error) {
+    if (error.code !== 'ENOENT') console.error("Avatar faylini o'chirishda xato:", error.message);
+  }
+};
+
+// Avatarni olib tashlaydi (fayl + user.avatar = null). Avatar bo'lmasa ham xato bermaydi.
+const clearAvatar = async (id) => {
   const user = await User.findById(id);
   if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
 
-  user.avatar = null;
-  await user.save();
+  if (user.avatar) {
+    await deleteAvatarFile(user.avatar);
+    user.avatar = null;
+    await user.save();
+  }
   return user;
 };
+
+// DELETE /users/:id/avatar — superadmin: foydalanuvchi avatarini o'chiradi
+const deleteUserAvatar = (id) => clearAvatar(id);
+
+// DELETE /users/me/avatar — istalgan rol: o'z avatarini o'chiradi (idempotent)
+const deleteMyAvatar = (userId) => clearAvatar(userId);
 
 // POST /users — superadmin: istalgan roldagi (admin/superadmin ham) yangi foydalanuvchi yaratadi
 // Admin o'zi yaratganligi sababli qo'shimcha tasdiqlash shart emas — isVerified=true,
@@ -352,6 +378,7 @@ module.exports = {
   setAvatar,
   setUserAvatar,
   deleteUserAvatar,
+  deleteMyAvatar,
   createUser,
   verifyUser,
   resetPassword,
