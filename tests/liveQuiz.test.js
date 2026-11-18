@@ -92,6 +92,43 @@ describe('Jonli viktorina — REST', () => {
     expect(badIndex.status).toBe(422);
   });
 
+  test("bir savoldagi xato keyingi savollar tekshiruvini to'xtatmaydi (har savol alohida xato oladi)", async () => {
+    const { token } = await createUser({ role: 'teacher' });
+
+    const res = await createQuiz(token, {
+      title: 'X',
+      questions: [
+        { text: 5, options: ['a'], correctIndex: 'x' },
+        { text: '', options: ['a', ' '], correctIndex: 1 },
+        { text: 'ok', options: ['a', 'b'], correctIndex: 2 },
+      ],
+    });
+
+    expect(res.status).toBe(422);
+    const fields = res.body.errors.map((e) => e.field);
+    expect(fields).toEqual(
+      expect.arrayContaining([
+        'questions[0].text',
+        'questions[0].correctIndex',
+        'questions[1].text',
+        'questions[1].options[1]',
+        'questions[2].correctIndex',
+      ])
+    );
+  });
+
+  test("variant va savol matnidagi bo'shliqlar saqlashda qirqiladi", async () => {
+    const { token } = await createUser({ role: 'teacher' });
+
+    const res = await createQuiz(token, {
+      title: 'X',
+      questions: [{ text: '  2 + 2 = ?  ', options: [' 3 ', ' 4'], correctIndex: 1 }],
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.quiz.questions[0]).toMatchObject({ text: '2 + 2 = ?', options: ['3', '4'] });
+  });
+
   test("student viktorina yarata olmaydi, boshqa o'qituvchi tahrirlay olmaydi", async () => {
     const { token: studentToken } = await createUser({ role: 'student' });
     expect((await createQuiz(studentToken)).status).toBe(403);
