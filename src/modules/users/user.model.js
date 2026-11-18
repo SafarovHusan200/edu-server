@@ -159,6 +159,9 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// GET /users/class-roster — sinf bo'yicha o'quvchilar ro'yxati uchun
+userSchema.index({ role: 1, 'grade.number': 1, 'grade.letter': 1 });
+
 userSchema.pre('save', async function () {
   if (!this.isModified('password') || !this.password) return;
 

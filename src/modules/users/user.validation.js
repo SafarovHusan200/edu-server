@@ -1,6 +1,10 @@
 // src/modules/users/user.validation.js
 
-const { body } = require('express-validator');
+const { body, query } = require('express-validator');
+const User = require('./user.model');
+
+// user.model.js dagi grade.letter enum'i bilan sinxron (null'siz)
+const GRADE_LETTERS = User.schema.path('grade.letter').enumValues.filter(Boolean);
 
 const updateMeValidation = [
   body('name')
@@ -128,7 +132,25 @@ const updateUserValidation = [
     .withMessage("Sinf harfi A, B, V, C, D, E, F dan biri bo'lishi kerak"),
 ];
 
+const classRosterValidation = [
+  query('grade')
+    .notEmpty()
+    .withMessage('Sinf raqami kiritilishi shart')
+    .bail()
+    .isInt({ min: 1, max: 11 })
+    .withMessage("Sinf 1-11 oralig'ida bo'lishi kerak")
+    .toInt(),
+
+  query('gradeLetter')
+    .notEmpty()
+    .withMessage('Sinf harfi kiritilishi shart')
+    .bail()
+    .isIn(GRADE_LETTERS)
+    .withMessage(`Sinf harfi ${GRADE_LETTERS.join(', ')} dan biri bo'lishi kerak`),
+];
+
 module.exports = {
+  classRosterValidation,
   updateMeValidation,
   changePasswordValidation,
   createUserValidation,

@@ -15,6 +15,7 @@ const {
   resetPasswordValidation,
   setBlockedValidation,
   updateUserValidation,
+  classRosterValidation,
 } = require('./user.validation');
 
 router.use(authenticate);
@@ -237,6 +238,51 @@ router.get('/leaderboard', userController.getLeaderboard);
  */
 // GET /api/v1/users/teachers — /:id dan OLDIN ro'yxatdan o'tkazilishi shart
 router.get('/teachers', userController.searchTeachers);
+
+/**
+ * @swagger
+ * /users/class-roster:
+ *   get:
+ *     summary: "Sinf o'quvchilari ro'yxati (Super-ustoz doska asboblari: tasodifiy o'quvchi, guruhlarga bo'lish)"
+ *     tags: [Users]
+ *     description: "Ruxsat: teacher, admin, superadmin. Faqat tasdiqlangan va bloklanmagan o'quvchilar, ism bo'yicha tartiblangan (ko'pi bilan 200 ta). Faqat _id, name, avatar qaytadi."
+ *     parameters:
+ *       - { name: grade, in: query, required: true, schema: { type: integer, minimum: 1, maximum: 11 }, description: "Sinf raqami (masalan 5)" }
+ *       - { name: gradeLetter, in: query, required: true, schema: { type: string, enum: [A, B, V, C, D, E, F] }, description: "Sinf harfi (masalan A)" }
+ *     responses:
+ *       200:
+ *         description: "Sinf o'quvchilari"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         students:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               _id: { type: string }
+ *                               name: { type: string }
+ *                               avatar: { type: string, nullable: true }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+// GET /api/v1/users/class-roster — teacher, admin, superadmin
+// /:id dan OLDIN ro'yxatdan o'tkazilishi shart, aks holda "class-roster" :id bo'lib ushlanadi.
+router.get(
+  '/class-roster',
+  authorize('teacher', 'admin', 'superadmin'),
+  classRosterValidation,
+  validate,
+  userController.getClassRoster
+);
 
 /**
  * @swagger

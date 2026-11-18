@@ -166,6 +166,15 @@ const searchTeachers = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, "O'qituvchilar ro'yxati", { teachers }));
 });
 
+// GET /api/v1/users/class-roster — teacher, admin, superadmin
+const getClassRoster = asyncHandler(async (req, res) => {
+  const { grade, gradeLetter } = req.query;
+
+  const students = await userService.getClassRoster(grade, gradeLetter);
+
+  res.status(200).json(new ApiResponse(200, "Sinf o'quvchilari", { students }));
+});
+
 module.exports = {
   updateMe,
   changePassword,
@@ -184,4 +193,5 @@ module.exports = {
   unlinkTelegram,
   getLeaderboard,
   searchTeachers,
+  getClassRoster,
 };

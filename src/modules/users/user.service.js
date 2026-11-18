@@ -330,6 +330,22 @@ const searchTeachers = async (requesterId, search) => {
   return User.find(filter).select('name phone avatar').sort({ name: 1 }).limit(20);
 };
 
+// GET /users/class-roster — Super-ustoz doska asboblari (tasodifiy o'quvchi, guruhlarga bo'lish).
+// Faqat minimal maydonlar: telefon/balans kabi shaxsiy ma'lumotlar qaytarilmaydi.
+const getClassRoster = async (grade, letter) => {
+  return User.find({
+    role: 'student',
+    'grade.number': grade,
+    'grade.letter': letter,
+    isBlocked: { $ne: true },
+    isVerified: true,
+  })
+    .select('_id name avatar')
+    .sort({ name: 1 })
+    .limit(200)
+    .lean();
+};
+
 module.exports = {
   updateMe,
   changePassword,
@@ -348,4 +364,5 @@ module.exports = {
   unlinkTelegram,
   getLeaderboard,
   searchTeachers,
+  getClassRoster,
 };

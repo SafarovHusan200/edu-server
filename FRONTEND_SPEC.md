@@ -299,6 +299,7 @@ qoidalari, javob namunalari) uchun backend ishga tushganda `/api-docs` (Swagger 
 | DELETE | /users/me/telegram | login | Telegramni profildan uzish |
 | GET | /users/leaderboard | login | Diamond reytingi |
 | GET | /users/teachers | login | O'qituvchilarni qidirish (test ulashish uchun select) — filtr: `search` (ism/telefon), ko'pi bilan 20 ta, so'ragan o'zi natijaga kirmaydi |
+| GET | /users/class-roster | teacher, admin, superadmin | Sinf o'quvchilari (Super-ustoz doska asboblari: tasodifiy o'quvchi, guruhlarga bo'lish) — majburiy: `grade` (1-11), `gradeLetter` (A, B, V, C, D, E, F). Javob: `data.students: [{ _id, name, avatar }]`, faqat tasdiqlangan va bloklanmagan, ism bo'yicha tartiblangan |
 | GET | /users | admin, superadmin | Foydalanuvchilar ro'yxati (filtr: `role`, `isVerified`, `search`, `page`, `limit`) |
 | GET | /users/:id | admin, superadmin | Bitta foydalanuvchi |
 | PATCH | /users/:id/verify | admin, superadmin | Ro'yxatdan o'tishni tasdiqlash |
