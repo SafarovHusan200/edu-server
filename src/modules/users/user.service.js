@@ -178,21 +178,50 @@ const resetPassword = async (id, newPassword) => {
   return user;
 };
 
-const getUsers = async ({ page, limit, role, search, isVerified, isBlocked, grade, gradeLetter }) => {
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Effektiv tarif: DB'da tarif='premium' bo'lsa ham, muddati o'tgan bo'lsa (user hali
+// login qilmagani uchun downgradeIfPremiumExpired ishlamagan) — bu aslida 'standart'
+const buildTarifFilter = (tarif, now = new Date()) => {
+  const activePremium = {
+    tarif: 'premium',
+    $or: [{ premiumExpiresAt: null }, { premiumExpiresAt: { $gt: now } }],
+  };
+  if (tarif === 'premium') return activePremium;
+  if (tarif === 'standart') return { $nor: [activePremium] };
+  return null;
+};
+
+const getUsers = async ({
+  page,
+  limit,
+  role,
+  tarif,
+  search,
+  isVerified,
+  isBlocked,
+  grade,
+  gradeLetter,
+}) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
   const filter = {};
+  const and = [];
   if (role) filter.role = role;
-  if (isVerified !== undefined) filter.isVerified = isVerified === 'true' || isVerified === true;
-  if (isBlocked !== undefined) filter.isBlocked = isBlocked === 'true' || isBlocked === true;
-  if (grade !== undefined) filter['grade.number'] = Number(grade);
+  const tarifFilter = buildTarifFilter(tarif);
+  if (tarifFilter) and.push(tarifFilter);
+  // Bo'sh parametr (?isVerified=) filtr sifatida qo'llanmaydi
+  if (isVerified === 'true' || isVerified === 'false') filter.isVerified = isVerified === 'true';
+  if (isBlocked === 'true' || isBlocked === 'false') filter.isBlocked = isBlocked === 'true';
+  if (grade) filter['grade.number'] = Number(grade);
   if (gradeLetter) filter['grade.letter'] = gradeLetter.toUpperCase();
   if (search) {
-    filter.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { phone: { $regex: search, $options: 'i' } },
-    ];
+    // Foydalanuvchi matni regex sifatida emas, oddiy matn sifatida qidiriladi
+    // ("+998", "(" kabi belgilar xato bermasin)
+    const regex = { $regex: escapeRegex(search), $options: 'i' };
+    and.push({ $or: [{ name: regex }, { phone: regex }] });
   }
+  if (and.length) filter.$and = and;
 
   const [users, total] = await Promise.all([
     User.find(filter)

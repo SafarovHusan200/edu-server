@@ -16,6 +16,7 @@ const {
   setBlockedValidation,
   updateUserValidation,
   classRosterValidation,
+  listUsersValidation,
 } = require('./user.validation');
 
 router.use(authenticate);
@@ -397,6 +398,7 @@ router.post(
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
  *       - { name: role, in: query, schema: { type: string, enum: [student, teacher, admin, superadmin] } }
  *       - { name: search, in: query, schema: { type: string }, description: "Ism yoki telefon bo'yicha qidiruv" }
+ *       - { name: tarif, in: query, schema: { type: string, enum: [standart, premium] }, description: "Haqiqiy (effektiv) tarif bo'yicha — muddati o'tgan premium 'standart' hisoblanadi" }
  *       - { name: isVerified, in: query, schema: { type: boolean } }
  *       - { name: isBlocked, in: query, schema: { type: boolean } }
  *       - { name: grade, in: query, schema: { type: integer, minimum: 1, maximum: 11 }, description: "**YANGI** — sinf raqami bo'yicha (masalan 5)" }
@@ -419,7 +421,13 @@ router.post(
  *       403: { $ref: '#/components/responses/Forbidden' }
  */
 // GET /api/v1/users — admin
-router.get('/', authorize('admin', 'superadmin'), userController.getUsers);
+router.get(
+  '/',
+  authorize('admin', 'superadmin'),
+  listUsersValidation,
+  validate,
+  userController.getUsers
+);
 
 /**
  * @swagger

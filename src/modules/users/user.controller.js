@@ -70,12 +70,14 @@ const createUser = asyncHandler(async (req, res) => {
 
 // GET /api/v1/users — admin
 const getUsers = asyncHandler(async (req, res) => {
-  const { page, limit, role, search, isVerified, isBlocked, grade, gradeLetter } = req.query;
+  const { page, limit, role, tarif, search, isVerified, isBlocked, grade, gradeLetter } =
+    req.query;
 
   const { users, meta } = await userService.getUsers({
     page,
     limit,
     role,
+    tarif,
     search,
     isVerified,
     isBlocked,

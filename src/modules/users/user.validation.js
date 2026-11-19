@@ -140,7 +140,45 @@ const classRosterValidation = [
     .withMessage(`Sinf harfi ${GRADE_LETTERS.join(', ')} dan biri bo'lishi kerak`),
 ];
 
+// GET /users — admin ro'yxati filtrlari. Noto'g'ri qiymat jim e'tiborsiz qoldirilmasin
+// (aks holda filtr ishlamayotgandek ko'rinadi) — 422 qaytadi.
+const listUsersValidation = [
+  query('role')
+    .optional({ values: 'falsy' })
+    .isIn(['student', 'teacher', 'admin', 'superadmin'])
+    .withMessage("role student, teacher, admin yoki superadmin bo'lishi kerak"),
+
+  query('tarif')
+    .optional({ values: 'falsy' })
+    .isIn(['standart', 'premium'])
+    .withMessage("tarif 'standart' yoki 'premium' bo'lishi kerak"),
+
+  query(['isVerified', 'isBlocked'])
+    .optional({ values: 'falsy' })
+    .isIn(['true', 'false'])
+    .withMessage("Qiymat true yoki false bo'lishi kerak"),
+
+  query('grade')
+    .optional({ values: 'falsy' })
+    .isInt({ min: 1, max: 11 })
+    .withMessage("Sinf 1-11 oralig'ida bo'lishi kerak"),
+
+  query('gradeLetter')
+    .optional({ values: 'falsy' })
+    .customSanitizer((v) => String(v).toUpperCase())
+    .isIn(GRADE_LETTERS)
+    .withMessage(`Sinf harfi ${GRADE_LETTERS.join(', ')} dan biri bo'lishi kerak`),
+
+  query('search')
+    .optional({ values: 'falsy' })
+    .isString()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Qidiruv matni 100 belgidan oshmasligi kerak"),
+];
+
 module.exports = {
+  listUsersValidation,
   classRosterValidation,
   updateMeValidation,
   changePasswordValidation,
