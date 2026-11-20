@@ -1,6 +1,31 @@
 // src/modules/rewards/reward.validation.js
 
 const { body, query } = require('express-validator');
+const Reward = require('./reward.model');
+
+// PATCH /rewards/reorder — rewardIds bazadagi BARCHA sovg'alarning (faol va faolsiz)
+// yangi tartibi bo'lishi kerak: bo'sh emas, hammasi ObjectId, takrorsiz va bazadagi
+// to'plamga aynan teng (ortiqcha yoki yetishmayotgan ID bo'lmasin)
+const reorderRewardsValidation = [
+  body('rewardIds')
+    .isArray({ min: 1 })
+    .withMessage("rewardIds bo'sh bo'lmagan massiv bo'lishi kerak")
+    .bail()
+    .custom((ids) => ids.every((id) => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id)))
+    .withMessage("rewardIds ichidagi barcha qiymatlar to'g'ri ID bo'lishi kerak")
+    .bail()
+    .custom((ids) => new Set(ids.map((id) => id.toLowerCase())).size === ids.length)
+    .withMessage("rewardIds ichida takrorlangan ID bor")
+    .bail()
+    .custom(async (ids) => {
+      const existing = await Reward.find().select('_id').lean();
+      const existingSet = new Set(existing.map((r) => r._id.toString()));
+      const complete =
+        existing.length === ids.length && ids.every((id) => existingSet.has(id.toLowerCase()));
+      if (!complete) throw new Error("Ro'yxat to'liq emas");
+      return true;
+    }),
+];
 
 const rewardValidation = [
   body('title')
@@ -50,6 +75,7 @@ const listRedemptionsValidation = [
 ];
 
 module.exports = {
+  reorderRewardsValidation,
   listRedemptionsValidation,
   rewardValidation,
   rejectRedemptionValidation,

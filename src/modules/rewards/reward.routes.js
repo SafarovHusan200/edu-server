@@ -9,6 +9,7 @@ const authorize = require('../../middleware/authorize');
 const validate = require('../../middleware/validate');
 const { uploadImage } = require('../../middleware/upload');
 const {
+  reorderRewardsValidation,
   rewardValidation,
   rejectRedemptionValidation,
   deliverRedemptionValidation,
@@ -250,6 +251,48 @@ router.patch(
  */
 // GET /api/v1/rewards — public (token bo'lsa staff faolsizlarini ham ko'ra oladi)
 router.get('/', authenticate.optional, rewardController.getRewards);
+
+/**
+ * @swagger
+ * /rewards/reorder:
+ *   patch:
+ *     summary: Sovg'alar katalogi tartibini saqlash
+ *     tags: [Rewards]
+ *     description: |
+ *       Ruxsat: admin, superadmin. `rewardIds` — bazadagi BARCHA sovg'alar (faol va faolsiz)
+ *       yangi tartibda; har biriga `order = indeks` beriladi. Ortiqcha yoki yetishmayotgan
+ *       ID bo'lsa — 422 "Ro'yxat to'liq emas".
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [rewardIds]
+ *             properties:
+ *               rewardIds:
+ *                 type: array
+ *                 minItems: 1
+ *                 items: { type: string, description: 'Reward ObjectId' }
+ *     responses:
+ *       200:
+ *         description: Tartib saqlandi
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/SuccessResponse' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+// PATCH /api/v1/rewards/reorder — admin. /:id dan OLDIN, aks holda "reorder" ID deb ushlanadi
+router.patch(
+  '/reorder',
+  authenticate,
+  authorize(...STAFF_ROLES),
+  reorderRewardsValidation,
+  validate,
+  rewardController.reorderRewards
+);
 
 /**
  * @swagger

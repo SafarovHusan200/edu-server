@@ -440,6 +440,7 @@ const definition = {
           stock: { type: 'integer', nullable: true, description: 'null = cheksiz' },
           isActive: { type: 'boolean' },
           premiumOnly: { type: 'boolean', description: "true bo'lsa faqat premium studentlar almashtira oladi" },
+          order: { type: 'integer', description: "Katalogdagi o'rni (admin PATCH /rewards/reorder bilan belgilaydi). Kichigi oldinda; teng bo'lsa — yangisi oldinda" },
           ...timestamps,
         },
       },

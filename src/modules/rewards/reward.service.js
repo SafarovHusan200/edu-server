@@ -13,14 +13,32 @@ const { frontendLinks } = require('../../config/frontendLinks');
 // Qidiruv matnidagi regex maxsus belgilarini ekranlaydi ("(", "*" va h.k. xato bermasligi uchun)
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Katalog tartibi: order o'sish, teng bo'lsa yangisi oldinda
+const CATALOG_SORT = { order: 1, createdAt: -1 };
+
 const createReward = async ({ title, description, cost, stock, premiumOnly }) => {
+  // Yangi sovg'a ro'yxat oxiriga tushadi
+  const last = await Reward.findOne().sort({ order: -1 }).select('order').lean();
+
   return Reward.create({
     title,
     description,
     cost,
     stock: stock ?? null,
     premiumOnly: premiumOnly ?? false,
+    // Migratsiyadan oldingi yozuvlarda order umuman bo'lmasligi mumkin — shunda 0
+    order: (last?.order ?? -1) + 1,
   });
+};
+
+// PATCH /rewards/reorder — rewardIds to'liqligi validatsiyada tekshirilgan
+// (reorderRewardsValidation), shu yerda har biriga order = indeks beriladi
+const reorderRewards = async (rewardIds) => {
+  await Reward.bulkWrite(
+    rewardIds.map((id, index) => ({
+      updateOne: { filter: { _id: id }, update: { $set: { order: index } } },
+    }))
+  );
 };
 
 const getRewards = async ({ page, limit, includeInactive = false, isActive, search }) => {
@@ -37,7 +55,7 @@ const getRewards = async ({ page, limit, includeInactive = false, isActive, sear
   }
 
   const [rewards, total] = await Promise.all([
-    Reward.find(filter).sort({ cost: 1 }).skip(skip).limit(pageLimit),
+    Reward.find(filter).sort(CATALOG_SORT).skip(skip).limit(pageLimit),
     Reward.countDocuments(filter),
   ]);
 
@@ -301,6 +319,7 @@ const deliverRedemption = async (redemptionId, adminId, note) => {
 
 module.exports = {
   createReward,
+  reorderRewards,
   getRewards,
   getRewardById,
   updateReward,

@@ -45,6 +45,15 @@ const rewardSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // Katalogdagi o'rni — admin PATCH /rewards/reorder bilan belgilaydi. Saralash:
+    // order o'sish, teng bo'lsa createdAt kamayish. O'chirilganda boshqalarniki
+    // o'zgartirilmaydi — bo'shliq qolsa ham tartib to'g'ri ishlaydi.
+    order: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
   },
   { timestamps: true }
 );

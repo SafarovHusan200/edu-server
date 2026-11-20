@@ -15,6 +15,13 @@ const createReward = asyncHandler(async (req, res) => {
   res.status(201).json(new ApiResponse(201, "Sovg'a yaratildi", { reward }));
 });
 
+// PATCH /api/v1/rewards/reorder
+const reorderRewards = asyncHandler(async (req, res) => {
+  await rewardService.reorderRewards(req.body.rewardIds);
+
+  res.status(200).json(new ApiResponse(200, 'Tartib saqlandi'));
+});
+
 // GET /api/v1/rewards
 const getRewards = asyncHandler(async (req, res) => {
   const { page, limit, search } = req.query;
@@ -126,6 +133,7 @@ const deliverRedemption = asyncHandler(async (req, res) => {
 
 module.exports = {
   createReward,
+  reorderRewards,
   getRewards,
   getRewardById,
   updateReward,
