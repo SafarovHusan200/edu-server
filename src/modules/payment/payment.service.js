@@ -503,9 +503,10 @@ const reconcileWithGateway = async (payment) => {
   }
 
   // Status topilmadi yoki o'zgarmadi — baribir xom javobni saqlab qo'yamiz
-  // (diagnostika uchun), lekin grantPaymentOutcome chaqirilmaydi
+  // (diagnostika uchun), lekin grantPaymentOutcome chaqirilmaydi. Hujjatning
+  // o'ziga yozilmaydi — u foydalanuvchiga qaytariladi, gatewayDebug esa API
+  // javobiga chiqmasligi kerak (Payment modeliga izohga qarang)
   await Payment.findByIdAndUpdate(payment._id, { gatewayDebug });
-  payment.gatewayDebug = gatewayDebug;
   return payment;
 };
 

@@ -120,9 +120,13 @@ const paymentSchema = new mongoose.Schema(
     // berayotganini SSH/log kirish huquqisiz, to'g'ridan-to'g'ri API orqali ko'rish.
     // Muammo aniqlanib, kod (masalan status maydoni mosligi) tasdiqlangach, bu
     // maydonni va uni to'ldiruvchi kodni butunlay olib tashlash mumkin/kerak.
+    // select: false — xom javobda merchant/merchant_account (FIO, STIR, hisob raqam,
+    // manzil) va to'lovchi telefoni/IP bor, shuning uchun hech qaysi API javobiga
+    // chiqmasligi kerak. Faqat DB'da qoladi (kerak bo'lsa .select('+gatewayDebug')).
     gatewayDebug: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
+      select: false,
     },
   },
   { timestamps: true }
