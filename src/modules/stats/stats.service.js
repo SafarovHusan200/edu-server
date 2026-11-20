@@ -212,8 +212,11 @@ const getAdminStats = async () => {
         tarif: 'premium',
         $or: [{ premiumExpiresAt: null }, { premiumExpiresAt: { $gt: now } }],
       }),
+      // Faqat tashqaridan (Multicard orqali) kirgan haqiqiy pul. Balansdan qilingan
+      // to'lovlar (method='balance') — avval hamyonni to'ldirishda (purpose='wallet')
+      // allaqachon hisoblangan pulning ichki sarfi, ularni qo'shsak ikki marta sanaladi.
       Payment.aggregate([
-        { $match: { status: 'success', createdAt: { $gte: monthStart } } },
+        { $match: { status: 'success', method: { $ne: 'balance' }, createdAt: { $gte: monthStart } } },
         { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
       ]),
     ]);

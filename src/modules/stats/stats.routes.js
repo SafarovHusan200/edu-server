@@ -111,7 +111,7 @@ router.get('/top-teachers', authenticate, statsController.getTopTeachers);
  *                             activePremium: { type: integer, description: "tarif='premium' VA muddati hali o'tmagan" }
  *                             paymentsThisMonth:
  *                               type: object
- *                               description: "Joriy kalendar oyi, Toshkent vaqti bo'yicha"
+ *                               description: "Joriy kalendar oyi, Toshkent vaqti bo'yicha. Faqat karta (Multicard) orqali kirgan pul — balansdan qilingan to'lovlar qo'shilmaydi (ular hamyon to'ldirilganda allaqachon hisoblangan)"
  *                               properties:
  *                                 total: { type: integer, description: 'Tiyinda' }
  *                                 count: { type: integer }
