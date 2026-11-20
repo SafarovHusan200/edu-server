@@ -463,6 +463,25 @@ describe('Admin: foydalanuvchi tarixi endpointlari', () => {
 });
 
 describe('Migratsiya: eski olmos tarixini jurnalga tiklash', () => {
+  // Skript butun ilovani yuklamaydi — populate qilinadigan barcha modellar migratsiya
+  // modulining o'zida ro'yxatdan o'tishi kerak (aks holda MissingSchemaError)
+  test('migratsiya moduli alohida yuklanganda barcha kerakli modellar ro\'yxatdan o\'tadi', () => {
+    const { execFileSync } = require('child_process');
+    const out = execFileSync(
+      process.execPath,
+      [
+        '-e',
+        `const m=require('mongoose');require('./src/modules/diamond-ledger/diamondLedger.migration');
+         process.stdout.write(JSON.stringify(m.modelNames()))`,
+      ],
+      { cwd: require('path').resolve(__dirname, '..') }
+    );
+    const names = JSON.parse(out.toString());
+    expect(names).toEqual(
+      expect.arrayContaining(['Quiz', 'Reward', 'SpinQuestion', 'Lesson', 'Notification', 'DiamondTransaction'])
+    );
+  });
+
   test('tarixiy hodisalar + farq tuzatish; oxirgi balanceAfter = user.diamonds; qayta ishga tushirish xavfsiz', async () => {
     const { user: teacher } = await createUser({ role: 'teacher' });
     const { user: rejecter } = await createUser({ role: 'admin' });

@@ -24,6 +24,11 @@ const Lesson = require('../lessons/lesson.model');
 const DailySpin = require('../daily-spin/dailySpin.model');
 const RewardRedemption = require('../rewards/redemption.model');
 const Notification = require('../notifications/notification.model');
+// populate() uchun kerak — skript butun ilovani yuklamaydi, shuning uchun bu modellar
+// boshqa joyda ro'yxatdan o'tmagan bo'ladi (MissingSchemaError)
+require('../quizzes/quiz.model');
+require('../rewards/reward.model');
+require('../spin-questions/spinQuestion.model');
 const { QUIZ_MAX_REWARD, LESSON_COMPLETE_REWARD } = require('../../config/gamification');
 
 const round2 = (n) => Math.round(n * 100) / 100;
