@@ -20,6 +20,7 @@ const liveSessionSchema = new mongoose.Schema(
       {
         _id: false,
         name: String,
+        avatar: { type: String, default: null }, // ikonka kaliti (rasmni frontend chizadi)
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
         score: Number,
         correctCount: Number,

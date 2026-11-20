@@ -14,7 +14,8 @@
 //   host:close {}                 → o'yinni xotiradan o'chirish (o'yinchilarga game:closed)
 //
 // O'YINCHI — token ixtiyoriy (berilsa natijada platformadagi akkauntga bog'lanadi)
-//   player:join   { pin, name }   → { ok, playerId, playerKey, game }
+//   player:join   { pin, name, avatar? } → { ok, playerId, playerKey, game }
+//                 avatar — ikonka kaliti (LIVE_AVATAR_KEYS, 32 ta); noma'lumi → INVALID_AVATAR
 //   player:rejoin { pin, playerKey } → { ok, playerId, game }  (sahifa yangilansa)
 //   player:answer { questionIndex, option } → { ok }
 //
@@ -158,9 +159,9 @@ const register = (io) => {
 
     // ─────────────── O'YINCHI ───────────────
 
-    on('player:join', ({ pin, name }, ack) => {
+    on('player:join', ({ pin, name, avatar }, ack) => {
       const game = requireGame(pin);
-      const player = game.addPlayer({ name, socketId: socket.id, user: socket.data.user });
+      const player = game.addPlayer({ name, avatar, socketId: socket.id, user: socket.data.user });
       socket.data.playerPin = game.pin;
       socket.data.playerId = player.id;
       socket.join(playersRoom(game.pin));

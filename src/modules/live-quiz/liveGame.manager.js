@@ -15,6 +15,15 @@ const BASE_POINTS = 1000;
 const FINISHED_TTL_MS = 15 * 60 * 1000; // tugagan o'yin natijasi shuncha vaqt ko'rinib turadi
 const IDLE_TTL_MS = 3 * 60 * 60 * 1000; // shuncha vaqt hech narsa bo'lmasa o'yin o'chiriladi
 
+// O'yinchi ikonkasi — faqat kalit saqlanadi va doska/natijalarga o'zgarishsiz qaytariladi,
+// rasmni frontend chizadi (components/live-quiz/player-avatars.tsx bilan bir xil bo'lishi kerak)
+const LIVE_AVATAR_KEYS = new Set([
+  'cat', 'dog', 'rabbit', 'panda', 'bird', 'fish', 'turtle', 'squirrel',
+  'snail', 'bug', 'rocket', 'ghost', 'crown', 'star', 'zap', 'flame',
+  'lion', 'tiger', 'fox', 'unicorn', 'penguin', 'koala', 'monkey', 'frog',
+  'owl', 'dino', 'dragon', 'octopus', 'dolphin', 'butterfly', 'robot', 'alien',
+]);
+
 class GameError extends Error {
   constructor(code, message) {
     super(message);
@@ -76,7 +85,7 @@ class LiveGame {
 
   // ─────────────── O'yinchilar ───────────────
 
-  addPlayer({ name, socketId, user = null }) {
+  addPlayer({ name, avatar = null, socketId, user = null }) {
     if (this.status !== 'lobby') {
       throw new GameError('GAME_STARTED', "O'yin allaqachon boshlangan");
     }
@@ -88,6 +97,10 @@ class LiveGame {
     if (!clean) throw new GameError('NAME_REQUIRED', 'Ismingizni kiriting');
     if (clean.length > NAME_MAX_LENGTH) {
       throw new GameError('NAME_TOO_LONG', `Ism ${NAME_MAX_LENGTH} ta belgidan oshmasligi kerak`);
+    }
+    // Ixtiyoriy (eski clientlar yubormaydi) — berilsa ruxsat etilgan kalitlardan biri bo'lishi shart
+    if (avatar != null && !LIVE_AVATAR_KEYS.has(avatar)) {
+      throw new GameError('INVALID_AVATAR', "Bunday ikonka yo'q");
     }
 
     const nameKey = clean.toLocaleLowerCase('uz');
@@ -104,6 +117,7 @@ class LiveGame {
       // yoki internet uzilib qolsa, ball yo'qolmasdan qaytib kirish uchun)
       key: crypto.randomBytes(16).toString('hex'),
       name: clean,
+      avatar: avatar ?? null,
       nameKey,
       userId: user ? user._id.toString() : null,
       socketId,
@@ -153,7 +167,7 @@ class LiveGame {
   playerList() {
     return [...this.players.values()]
       .sort((a, b) => a.joinedAt - b.joinedAt)
-      .map((p) => ({ id: p.id, name: p.name, connected: p.connected, isPlatformUser: !!p.userId }));
+      .map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, connected: p.connected, isPlatformUser: !!p.userId }));
   }
 
   broadcastLobby() {
@@ -354,6 +368,7 @@ class LiveGame {
       rank: i + 1,
       id: p.id,
       name: p.name,
+      avatar: p.avatar,
       score: p.score,
       correctCount: p.correctCount,
       streak: p.streak,
@@ -390,6 +405,7 @@ class LiveGame {
       status: this.status,
       playerId: player.id,
       name: player.name,
+      avatar: player.avatar,
       score: player.score,
       totalQuestions: this.questions.length,
     };
@@ -463,6 +479,7 @@ module.exports = {
   resetAll,
   calcPoints,
   normalizeName,
+  LIVE_AVATAR_KEYS,
   hostRoom,
   playersRoom,
   MAX_PLAYERS,

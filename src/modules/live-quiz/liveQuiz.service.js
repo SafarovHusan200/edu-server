@@ -211,6 +211,7 @@ const getSessionByPin = (pin) => {
 const saveSessionResult = async (game, ranking) => {
   const players = ranking.map((p, i) => ({
     name: p.name,
+    avatar: p.avatar,
     user: p.userId,
     score: p.score,
     correctCount: p.correctCount,

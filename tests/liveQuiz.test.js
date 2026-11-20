@@ -386,6 +386,42 @@ describe('Jonli viktorina — Socket.IO oqimi', () => {
     expect(await call(p1b, 'player:rejoin', { pin, playerKey: 'notogri' })).toMatchObject({ code: 'PLAYER_NOT_FOUND' });
   });
 
+  test("avatar kaliti (eski va yangi to'plam) doska, natija va tarixga o'zgarishsiz qaytadi", async () => {
+    const { pin, host } = await setupGame();
+    expect(gameManager.LIVE_AVATAR_KEYS.size).toBe(32);
+
+    const p1 = await connect();
+    const p2 = await connect();
+    const p3 = await connect();
+
+    // Noma'lum kalit rad etiladi (frontend shu kodda standart ikonka bilan qayta urinadi)
+    expect(await call(p1, 'player:join', { pin, name: 'Ali', avatar: 'hacker' })).toMatchObject({
+      ok: false,
+      code: 'INVALID_AVATAR',
+    });
+
+    const lobby = once(host, 'lobby:players');
+    const j1 = await call(p1, 'player:join', { pin, name: 'Ali', avatar: 'dragon' }); // yangi to'plam
+    expect(j1.game.avatar).toBe('dragon');
+    expect((await lobby).players[0]).toMatchObject({ name: 'Ali', avatar: 'dragon' });
+    expect((await call(p2, 'player:join', { pin, name: 'Vali', avatar: 'cat' })).ok).toBe(true); // eski
+    expect((await call(p3, 'player:join', { pin, name: 'Gani' })).game.avatar).toBeNull(); // avatarsiz
+
+    const q = once(p1, 'question:start');
+    await call(host, 'host:start');
+    await q;
+    await call(p1, 'player:answer', { questionIndex: 0, option: 1 });
+
+    const gameEnd = once(host, 'game:end');
+    await call(host, 'host:end');
+    const final = await gameEnd;
+    expect(final.podium[0]).toMatchObject({ name: 'Ali', avatar: 'dragon' });
+    expect(final.leaderboard.map((p) => p.avatar).sort()).toEqual(['cat', 'dragon', null].sort());
+
+    const session = await waitFor(() => LiveSession.findOne({ pin }));
+    expect(session.players[0]).toMatchObject({ name: 'Ali', avatar: 'dragon' });
+  });
+
   test("boshqa o'qituvchi hostga ulana olmaydi; host:end natijani saqlaydi", async () => {
     const { pin, host } = await setupGame();
 
