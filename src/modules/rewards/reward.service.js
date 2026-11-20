@@ -2,7 +2,9 @@
 
 const Reward = require('./reward.model');
 const RewardRedemption = require('./redemption.model');
+const mongoose = require('mongoose');
 const User = require('../users/user.model');
+const { changeDiamonds } = require('../diamond-ledger/diamondLedger.service');
 const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
@@ -100,14 +102,22 @@ const redeemReward = async (studentId, rewardId) => {
     }
   }
 
-  const updatedUser = await User.findOneAndUpdate(
-    { _id: studentId, diamonds: { $gte: reward.cost } },
-    { $inc: { diamonds: -reward.cost } },
-    { returnDocument: 'after' }
-  );
+  // Jurnal yozuvi redemption'ga havola qilishi uchun _id oldindan yaratiladi
+  const redemptionId = new mongoose.Types.ObjectId();
 
-  if (!updatedUser) {
-    throw new ApiError(400, 'Diamondlaringiz yetarli emas');
+  // cost 0 bo'lgan sovg'ada balans o'zgarmaydi — jurnalga ham yozilmaydi
+  if (reward.cost > 0) {
+    const charged = await changeDiamonds({
+      userId: studentId,
+      delta: -reward.cost,
+      source: 'reward',
+      ref: { kind: 'redemption', id: redemptionId, title: reward.title },
+      mode: 'requireBalance',
+    });
+
+    if (!charged) {
+      throw new ApiError(400, 'Diamondlaringiz yetarli emas');
+    }
   }
 
   if (reward.stock !== null) {
@@ -115,6 +125,7 @@ const redeemReward = async (studentId, rewardId) => {
   }
 
   const redemption = await RewardRedemption.create({
+    _id: redemptionId,
     student: studentId,
     reward: rewardId,
     diamondsSpent: reward.cost,
@@ -149,9 +160,10 @@ const getMyRedemptions = async (studentId, { page, limit }) => {
   return { redemptions, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
-const getAllRedemptions = async ({ page, limit, status, search }) => {
+const getAllRedemptions = async ({ page, limit, status, search, userId }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
   const filter = {};
+  if (userId) filter.student = userId;
   // "status=delivered,rejected" kabi bir nechta holatni ham qabul qiladi (Arxiv tabi uchun)
   if (status) filter.status = status.includes(',') ? { $in: status.split(',') } : status;
 
@@ -228,11 +240,17 @@ const rejectRedemption = async (redemptionId, adminId, reason) => {
   redemption.rejectReason = reason ?? '';
   await redemption.save();
 
-  await User.findByIdAndUpdate(redemption.student, {
-    $inc: { diamonds: redemption.diamondsSpent },
+  const reward = await Reward.findById(redemption.reward).select('title stock');
+
+  await changeDiamonds({
+    userId: redemption.student,
+    delta: redemption.diamondsSpent,
+    source: 'reward_refund',
+    ref: { kind: 'redemption', id: redemption._id, title: reward?.title ?? null },
+    note: reason || null,
+    actorId: adminId,
   });
 
-  const reward = await Reward.findById(redemption.reward).select('title stock');
   if (reward && reward.stock !== null) {
     await Reward.findByIdAndUpdate(redemption.reward, { $inc: { stock: 1 } });
   }

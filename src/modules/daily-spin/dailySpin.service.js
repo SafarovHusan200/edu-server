@@ -2,6 +2,7 @@
 
 const DailySpin = require('./dailySpin.model');
 const User = require('../users/user.model');
+const { changeDiamonds } = require('../diamond-ledger/diamondLedger.service');
 const SpinQuestion = require('../spin-questions/spinQuestion.model');
 const spinQuestionService = require('../spin-questions/spinQuestion.service');
 const notificationService = require('../notifications/notification.service');
@@ -34,6 +35,19 @@ const clearPendingSpin = (user) => {
   user.pendingSpinQuestion = null;
   user.pendingSpinExpiresAt = null;
 };
+
+// Javob berilmay "yonib ketgan" savol — admin tarixida ko'rinishi uchun yoziladi
+// (GET /daily-spin/history'da ko'rsatilmaydi, u faqat javob berilganlarni ko'rsatadi)
+const recordExpiredSpin = (user, questionId) =>
+  DailySpin.create({
+    user: user._id,
+    date: getTashkentDateString(),
+    diamondsWon: 0,
+    streakAtSpin: user.streakCount,
+    correct: null,
+    question: questionId,
+    status: 'expired',
+  });
 
 // GET /daily-spin/status — aylantirishdan oldin holatni ko'rish uchun
 const getStatus = async (userId) => {
@@ -77,6 +91,9 @@ const spin = async (userId) => {
     throw new ApiError(400, "Avval oldingi savolga javob bering");
   }
 
+  // Oldingi savolga javob berilmay muddati o'tgan — pastda yangi savol bilan almashtiriladi
+  const expiredQuestionId = user.pendingSpinQuestion;
+
   if (user.spinsUsedToday >= maxSpins) {
     throw new ApiError(
       400,
@@ -98,6 +115,8 @@ const spin = async (userId) => {
   user.pendingSpinQuestion = question._id;
   user.pendingSpinExpiresAt = new Date(Date.now() + PENDING_ANSWER_WINDOW_MS);
   await user.save();
+
+  if (expiredQuestionId) await recordExpiredSpin(user, expiredQuestionId);
 
   return {
     question: {
@@ -129,6 +148,7 @@ const answerSpin = async (userId, selectedIndex) => {
 
   if (isExpired) {
     await user.save();
+    await recordExpiredSpin(user, questionId);
     throw new ApiError(400, "Savolga javob berish muddati tugadi");
   }
 
@@ -136,16 +156,28 @@ const answerSpin = async (userId, selectedIndex) => {
   const correct = Boolean(question) && question.correctIndex === selectedIndex;
   const prize = correct ? SPIN_PRIZE_TABLE[Math.floor(Math.random() * SPIN_PRIZE_TABLE.length)] : 0;
 
-  if (correct) user.diamonds += prize;
+  // Olmos bu yerda user.diamonds orqali emas, jurnal orqali qo'shiladi (pastda) —
+  // save() faqat o'zgargan maydonlarni yozadi, shuning uchun balansni bosib ketmaydi
   await user.save();
 
-  await DailySpin.create({
+  const spinRecord = await DailySpin.create({
     user: userId,
     date: getTashkentDateString(),
     diamondsWon: prize,
     streakAtSpin: user.streakCount,
     correct,
+    question: questionId,
+    status: 'answered',
   });
+
+  if (prize > 0) {
+    await changeDiamonds({
+      userId,
+      delta: prize,
+      source: 'spin',
+      ref: { kind: 'spin', id: spinRecord._id, title: question?.question ?? null },
+    });
+  }
 
   if (correct) {
     await notificationService.createNotification({
@@ -176,7 +208,7 @@ const answerSpin = async (userId, selectedIndex) => {
 const getHistory = async (userId, limit = 10) => {
   const safeLimit = Math.min(50, Math.max(1, Number(limit) || 10));
 
-  return DailySpin.find({ user: userId })
+  return DailySpin.find({ user: userId, status: { $ne: 'expired' } })
     .select('diamondsWon correct createdAt')
     .sort({ createdAt: -1 })
     .limit(safeLimit);

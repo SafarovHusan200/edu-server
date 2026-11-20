@@ -6,6 +6,7 @@ const Lesson = require('./lesson.model');
 const Course = require('../courses/course.model');
 const Enrollment = require('../enrollment/enrollment.model');
 const User = require('../users/user.model');
+const { changeDiamonds } = require('../diamond-ledger/diamondLedger.service');
 const courseService = require('../courses/course.service');
 const notificationService = require('../notifications/notification.service');
 const certificateService = require('../certificates/certificate.service');
@@ -277,7 +278,12 @@ const completeLesson = async (lessonId, studentId) => {
 
   const student = await User.findById(studentId).select('tarif');
   const diamondAmount = applyDiamondMultiplier(LESSON_COMPLETE_REWARD, student?.tarif);
-  await User.findByIdAndUpdate(studentId, { $inc: { diamonds: diamondAmount } });
+  await changeDiamonds({
+    userId: studentId,
+    delta: diamondAmount,
+    source: 'lesson',
+    ref: { kind: 'lesson', id: lesson._id, title: lesson.title ?? null },
+  });
 
   await notificationService.createNotification({
     userId: studentId,

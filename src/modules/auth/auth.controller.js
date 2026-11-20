@@ -1,6 +1,7 @@
 const authService = require('./auth.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
+const { requestContext } = require('../user-activity/userActivity.service');
 
 // ─────────────────────────────────────────
 // POST /api/v1/auth/register
@@ -33,7 +34,7 @@ const register = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
   const { phone, password } = req.body;
 
-  const { user, token } = await authService.login({ phone, password });
+  const { user, token } = await authService.login({ phone, password }, requestContext(req));
 
   res.status(200).json(new ApiResponse(200, 'Tizimga muvaffaqiyatli kirdingiz', { user, token }));
 });
@@ -51,10 +52,10 @@ const verifyTelegramOtp = asyncHandler(async (req, res) => {
   const { telegramId, code } = req.body;
 
   // Servisni chaqiramiz
-  const { user, token } = await authService.verifyTelegramOtp({
-    telegramId,
-    code,
-  });
+  const { user, token } = await authService.verifyTelegramOtp(
+    { telegramId, code },
+    requestContext(req)
+  );
 
   res.status(200).json(new ApiResponse(200, 'Muvaffaqiyatli kirdingiz', { user, token }));
 });
@@ -65,7 +66,10 @@ const verifyTelegramOtp = asyncHandler(async (req, res) => {
 const verifyTelegramWebApp = asyncHandler(async (req, res) => {
   const { initData } = req.body;
 
-  const { user, token } = await authService.verifyTelegramWebApp({ initData });
+  const { user, token } = await authService.verifyTelegramWebApp(
+    { initData },
+    requestContext(req)
+  );
 
   res.status(200).json(new ApiResponse(200, 'Muvaffaqiyatli kirdingiz', { user, token }));
 });

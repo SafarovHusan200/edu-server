@@ -1,6 +1,6 @@
 // src/modules/users/user.validation.js
 
-const { body, query } = require('express-validator');
+const { body, query, param } = require('express-validator');
 const User = require('./user.model');
 
 // user.model.js dagi grade.letter enum'i bilan sinxron (null'siz)
@@ -177,7 +177,36 @@ const listUsersValidation = [
     .withMessage("Qidiruv matni 100 belgidan oshmasligi kerak"),
 ];
 
+// GET /users/:id/<tarix> — admin tarix endpointlari uchun umumiy validatsiya.
+// extra: { field: [ruxsat etilgan qiymatlar] } — masalan { status: ['active', 'completed'] }
+const historyValidation = (extra = {}) => [
+  param('id').isMongoId().withMessage("Foydalanuvchi ID noto'g'ri formatda"),
+
+  query('page')
+    .optional({ values: 'falsy' })
+    .isInt({ min: 1 })
+    .withMessage("page 1 yoki undan katta butun son bo'lishi kerak"),
+
+  query('limit')
+    .optional({ values: 'falsy' })
+    .isInt({ min: 1, max: 100 })
+    .withMessage("limit 1-100 oralig'ida bo'lishi kerak"),
+
+  query(['from', 'to'])
+    .optional({ values: 'falsy' })
+    .isISO8601()
+    .withMessage("Sana ISO formatda bo'lishi kerak (masalan 2026-11-01 yoki 2026-11-01T00:00:00Z)"),
+
+  ...Object.entries(extra).map(([field, values]) =>
+    query(field)
+      .optional({ values: 'falsy' })
+      .isIn(values)
+      .withMessage(`${field} quyidagilardan biri bo'lishi kerak: ${values.join(', ')}`)
+  ),
+];
+
 module.exports = {
+  historyValidation,
   listUsersValidation,
   classRosterValidation,
   updateMeValidation,

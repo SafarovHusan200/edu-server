@@ -86,9 +86,15 @@ const getMyRedemptions = asyncHandler(async (req, res) => {
 
 // GET /api/v1/rewards/redemptions — admin
 const getAllRedemptions = asyncHandler(async (req, res) => {
-  const { page, limit, status, search } = req.query;
+  const { page, limit, status, search, userId } = req.query;
 
-  const { redemptions, meta } = await rewardService.getAllRedemptions({ page, limit, status, search });
+  const { redemptions, meta } = await rewardService.getAllRedemptions({
+    page,
+    limit,
+    status,
+    search,
+    userId,
+  });
 
   res.status(200).json(new ApiResponse(200, "Barcha so'rovlar", { redemptions, meta }));
 });

@@ -1,6 +1,6 @@
 // src/modules/rewards/reward.validation.js
 
-const { body } = require('express-validator');
+const { body, query } = require('express-validator');
 
 const rewardValidation = [
   body('title')
@@ -41,7 +41,16 @@ const deliverRedemptionValidation = [
   body('note').optional().trim().isLength({ max: 500 }).withMessage("Izoh 500 ta belgidan oshmasligi kerak"),
 ];
 
+// GET /rewards/redemptions — userId (ixtiyoriy) aniq bitta o'quvchi bo'yicha filtr
+const listRedemptionsValidation = [
+  query('userId')
+    .optional({ values: 'falsy' })
+    .isMongoId()
+    .withMessage("userId noto'g'ri formatda"),
+];
+
 module.exports = {
+  listRedemptionsValidation,
   rewardValidation,
   rejectRedemptionValidation,
   deliverRedemptionValidation,

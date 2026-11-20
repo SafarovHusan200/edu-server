@@ -12,6 +12,7 @@ const {
   rewardValidation,
   rejectRedemptionValidation,
   deliverRedemptionValidation,
+  listRedemptionsValidation,
 } = require('./reward.validation');
 
 const STAFF_ROLES = ['admin', 'superadmin'];
@@ -62,6 +63,7 @@ router.get(
  *     parameters:
  *       - { name: status, in: query, schema: { type: string }, description: "Bitta holat (pending/approved/rejected/delivered) yoki bir nechtasi vergul bilan, masalan 'delivered,rejected' (Arxiv tabi uchun)" }
  *       - { name: search, in: query, schema: { type: string }, description: "Student ismi/telefoni yoki sovg'a nomi bo'yicha qidiruv" }
+ *       - { name: userId, in: query, schema: { type: string }, description: "Faqat shu o'quvchining so'rovlari (ObjectId). Boshqa filtrlar bilan birga ishlaydi" }
  *     responses:
  *       200:
  *         description: Almashtirishlar ro'yxati
@@ -79,7 +81,14 @@ router.get(
  *       403: { $ref: '#/components/responses/Forbidden' }
  */
 // GET /api/v1/rewards/redemptions — admin
-router.get('/redemptions', authenticate, authorize(...STAFF_ROLES), rewardController.getAllRedemptions);
+router.get(
+  '/redemptions',
+  authenticate,
+  authorize(...STAFF_ROLES),
+  listRedemptionsValidation,
+  validate,
+  rewardController.getAllRedemptions
+);
 
 /**
  * @swagger

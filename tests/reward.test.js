@@ -9,7 +9,7 @@ describe('Rewards (sovg\'alar)', () => {
     const { user: student, token: studentToken } = await createUser({ role: 'student' });
     await User.findByIdAndUpdate(student._id, { diamonds: 50 });
 
-    const reward = await Reward.create({ title: 'Kitob', cost: 30, stock: 5 });
+    const reward = await Reward.create({ title: 'Kitob', cost: 30, stock: 5, isActive: true });
 
     const res = await request(app)
       .post(`/api/v1/rewards/${reward._id}/redeem`)
@@ -30,7 +30,7 @@ describe('Rewards (sovg\'alar)', () => {
     const { user: student, token: studentToken } = await createUser({ role: 'student' });
     await User.findByIdAndUpdate(student._id, { diamonds: 5 });
 
-    const reward = await Reward.create({ title: 'Planshet', cost: 1000 });
+    const reward = await Reward.create({ title: 'Planshet', cost: 1000, isActive: true });
 
     const res = await request(app)
       .post(`/api/v1/rewards/${reward._id}/redeem`)
@@ -47,7 +47,7 @@ describe('Rewards (sovg\'alar)', () => {
     const { token: adminToken } = await createUser({ role: 'admin' });
     await User.findByIdAndUpdate(student._id, { diamonds: 50 });
 
-    const reward = await Reward.create({ title: 'Ruchka', cost: 20, stock: 3 });
+    const reward = await Reward.create({ title: 'Ruchka', cost: 20, stock: 3, isActive: true });
 
     const redeemRes = await request(app)
       .post(`/api/v1/rewards/${reward._id}/redeem`)
@@ -80,7 +80,7 @@ describe('Rewards (sovg\'alar)', () => {
     const { token: adminToken } = await createUser({ role: 'admin' });
     await User.findByIdAndUpdate(student._id, { diamonds: 50 });
 
-    const reward = await Reward.create({ title: 'Sumka', cost: 20 });
+    const reward = await Reward.create({ title: 'Sumka', cost: 20, isActive: true });
 
     const redeemRes = await request(app)
       .post(`/api/v1/rewards/${reward._id}/redeem`)

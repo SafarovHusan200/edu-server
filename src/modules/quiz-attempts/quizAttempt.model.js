@@ -39,6 +39,9 @@ const quizAttemptSchema = new mongoose.Schema(
 
     // Diamond (natijaga proportsional) faqat bir marta berilishi uchun himoya
     diamondsAwarded: { type: Boolean, default: false },
+    // Shu urinish uchun haqiqatda berilgan olmos (premium koeffitsiyenti bilan) — urinish
+    // o'chirilganda aynan shu miqdor qaytarib olinadi. Berilmagan bo'lsa null
+    diamondsEarned: { type: Number, default: null },
 
     // Holat
     status: {

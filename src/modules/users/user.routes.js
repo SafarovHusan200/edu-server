@@ -17,7 +17,11 @@ const {
   updateUserValidation,
   classRosterValidation,
   listUsersValidation,
+  historyValidation,
 } = require('./user.validation');
+const historyController = require('./userHistory.controller');
+const { DIAMOND_SOURCES } = require('../diamond-ledger/diamondTransaction.model');
+const { ACTIVITY_TYPES } = require('../user-activity/userActivity.model');
 
 router.use(authenticate);
 
@@ -455,6 +459,163 @@ router.get(
  */
 // GET /api/v1/users/:id — admin
 router.get('/:id', authorize('admin', 'superadmin'), userController.getUserById);
+
+// ───────────────────────────────────────────────────────
+// ADMIN: foydalanuvchi tarixi (/admin/users/:id tablari)
+// Hammasida: page (default 1), limit (1-100, default 20), from/to (ISO, createdAt bo'yicha),
+// eng yangisi birinchi, data.meta = { total, page, limit, totalPages } (filtrlangan)
+// ───────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * components:
+ *   parameters:
+ *     HistoryPage: { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+ *     HistoryLimit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+ *     HistoryFrom: { name: from, in: query, schema: { type: string, format: date-time }, description: "createdAt >= from" }
+ *     HistoryTo: { name: to, in: query, schema: { type: string, format: date-time }, description: "createdAt <= to" }
+ *
+ * /users/{id}/diamond-history:
+ *   get:
+ *     summary: "Olmos jurnali (ledger) — data.history[], data.summary, data.meta"
+ *     tags: [Users]
+ *     description: |
+ *       Ruxsat: admin, superadmin. Har bir olmos o'zgarishi — bitta yozuv. `amount` doim musbat,
+ *       yo'nalish `type` (earn/spend). `summary` filtrdan qat'i nazar butun tarix bo'yicha,
+ *       `summary.balance` = foydalanuvchining `diamonds` maydoni.
+ *       Element: { _id, amount, type, source, ref: { kind, _id, title } | null, balanceAfter, note, actor: { _id, name, role } | null, createdAt }
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *       - { $ref: '#/components/parameters/HistoryPage' }
+ *       - { $ref: '#/components/parameters/HistoryLimit' }
+ *       - { $ref: '#/components/parameters/HistoryFrom' }
+ *       - { $ref: '#/components/parameters/HistoryTo' }
+ *       - { name: type, in: query, schema: { type: string, enum: [earn, spend] } }
+ *       - { name: source, in: query, schema: { type: string, enum: [quiz, lesson, spin, live_quiz, reward, reward_refund, attempt_revoked, admin_adjust] } }
+ *     responses:
+ *       200: { description: Olmos tarixi }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *
+ * /users/{id}/attempts:
+ *   get:
+ *     summary: "Test urinishlari (javoblarsiz) — data.attempts[], data.meta"
+ *     tags: [Users]
+ *     description: |
+ *       Ruxsat: admin, superadmin. startedAt bo'yicha eng yangisi birinchi.
+ *       Element: { _id, quiz: { _id, title } | null, attemptNumber, status, scorePercent, earnedPoints, totalPoints, passed, diamondsEarned, startedAt, submittedAt, durationSeconds }
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *       - { $ref: '#/components/parameters/HistoryPage' }
+ *       - { $ref: '#/components/parameters/HistoryLimit' }
+ *       - { $ref: '#/components/parameters/HistoryFrom' }
+ *       - { $ref: '#/components/parameters/HistoryTo' }
+ *       - { name: status, in: query, schema: { type: string, enum: [in_progress, submitted, reviewed, expired] } }
+ *     responses:
+ *       200: { description: Urinishlar }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *
+ * /users/{id}/enrollments:
+ *   get:
+ *     summary: "Yozilgan kurslar va progress — data.enrollments[], data.meta"
+ *     tags: [Users]
+ *     description: |
+ *       Ruxsat: admin, superadmin.
+ *       Element: { _id, course: { _id, title } | null, progress, completedLessonsCount, totalLessons, status, createdAt, completedAt }
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *       - { $ref: '#/components/parameters/HistoryPage' }
+ *       - { $ref: '#/components/parameters/HistoryLimit' }
+ *       - { $ref: '#/components/parameters/HistoryFrom' }
+ *       - { $ref: '#/components/parameters/HistoryTo' }
+ *       - { name: status, in: query, schema: { type: string, enum: [active, completed] } }
+ *     responses:
+ *       200: { description: Kurslar }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *
+ * /users/{id}/certificates:
+ *   get:
+ *     summary: "Sertifikatlar — data.certificates[], data.meta"
+ *     tags: [Users]
+ *     description: "Ruxsat: admin, superadmin. Element: { _id, certificateNumber, course: { _id, title } | null, issuedAt }"
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *       - { $ref: '#/components/parameters/HistoryPage' }
+ *       - { $ref: '#/components/parameters/HistoryLimit' }
+ *       - { $ref: '#/components/parameters/HistoryFrom' }
+ *       - { $ref: '#/components/parameters/HistoryTo' }
+ *     responses:
+ *       200: { description: Sertifikatlar }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *
+ * /users/{id}/spin-history:
+ *   get:
+ *     summary: "Kunlik spin tarixi — data.history[], data.meta"
+ *     tags: [Users]
+ *     description: |
+ *       Ruxsat: admin, superadmin. status: answered | expired (savolga vaqtida javob berilmadi).
+ *       Element: { _id, diamondsWon, question: { _id, text } | null, answeredCorrectly, status, createdAt }
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *       - { $ref: '#/components/parameters/HistoryPage' }
+ *       - { $ref: '#/components/parameters/HistoryLimit' }
+ *       - { $ref: '#/components/parameters/HistoryFrom' }
+ *       - { $ref: '#/components/parameters/HistoryTo' }
+ *     responses:
+ *       200: { description: Spin tarixi }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *
+ * /users/{id}/activity:
+ *   get:
+ *     summary: "Faollik jurnali (hamma rol) — data.activity[], data.meta"
+ *     tags: [Users]
+ *     description: |
+ *       Ruxsat: admin, superadmin. Jurnal 2026-11-20'dan yuritiladi — undan oldingi hodisalar yo'q.
+ *       Element: { _id, type, actor: { _id, name, role } | null (o'zi yoki tizim), meta, createdAt }
+ *     parameters:
+ *       - { $ref: '#/components/parameters/IdParam' }
+ *       - { $ref: '#/components/parameters/HistoryPage' }
+ *       - { $ref: '#/components/parameters/HistoryLimit' }
+ *       - { $ref: '#/components/parameters/HistoryFrom' }
+ *       - { $ref: '#/components/parameters/HistoryTo' }
+ *       - { name: type, in: query, schema: { type: string, enum: [login, register, verified, blocked, unblocked, role_changed, tarif_changed, grade_changed, password_reset, avatar_removed, profile_updated] } }
+ *     responses:
+ *       200: { description: Faollik }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+const historyRoute = (path, extra, handler) =>
+  router.get(path, authorize('admin', 'superadmin'), historyValidation(extra), validate, handler);
+
+historyRoute(
+  '/:id/diamond-history',
+  { type: ['earn', 'spend'], source: DIAMOND_SOURCES },
+  historyController.getDiamondHistory
+);
+historyRoute(
+  '/:id/attempts',
+  { status: ['in_progress', 'submitted', 'reviewed', 'expired'] },
+  historyController.getAttempts
+);
+historyRoute(
+  '/:id/enrollments',
+  { status: ['active', 'completed'] },
+  historyController.getEnrollments
+);
+historyRoute('/:id/certificates', {}, historyController.getCertificates);
+historyRoute('/:id/spin-history', {}, historyController.getSpinHistory);
+historyRoute('/:id/activity', { type: ACTIVITY_TYPES }, historyController.getActivity);
 
 /**
  * @swagger

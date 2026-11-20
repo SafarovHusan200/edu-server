@@ -54,7 +54,7 @@ const setUserAvatar = asyncHandler(async (req, res) => {
 
 // DELETE /api/v1/users/:id/avatar — superadmin
 const deleteUserAvatar = asyncHandler(async (req, res) => {
-  const user = await userService.deleteUserAvatar(req.params.id);
+  const user = await userService.deleteUserAvatar(req.params.id, req.user.id);
 
   res.status(200).json(new ApiResponse(200, "Avatar o'chirildi", { user }));
 });
@@ -106,7 +106,7 @@ const verifyUser = asyncHandler(async (req, res) => {
 const resetPassword = asyncHandler(async (req, res) => {
   const { newPassword } = req.body;
 
-  const user = await userService.resetPassword(req.params.id, newPassword);
+  const user = await userService.resetPassword(req.params.id, newPassword, req.user.id);
 
   res.status(200).json(new ApiResponse(200, 'Parol muvaffaqiyatli tiklandi', { user }));
 });
@@ -115,7 +115,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 const setBlocked = asyncHandler(async (req, res) => {
   const { isBlocked } = req.body;
 
-  const user = await userService.setBlocked(req.params.id, Boolean(isBlocked));
+  const user = await userService.setBlocked(req.params.id, Boolean(isBlocked), req.user.id);
 
   res
     .status(200)
@@ -126,7 +126,11 @@ const setBlocked = asyncHandler(async (req, res) => {
 const updateUser = asyncHandler(async (req, res) => {
   const { name, phone, role, tarif, grade } = req.body;
 
-  const user = await userService.updateUser(req.params.id, { name, phone, role, tarif, grade });
+  const user = await userService.updateUser(
+    req.params.id,
+    { name, phone, role, tarif, grade },
+    req.user.id
+  );
 
   res.status(200).json(new ApiResponse(200, 'Foydalanuvchi yangilandi', { user }));
 });

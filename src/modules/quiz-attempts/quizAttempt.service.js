@@ -11,6 +11,7 @@ const {
 } = require('../quizzes/quiz.service');
 const Question = require('../questions/question.model');
 const User = require('../users/user.model');
+const { changeDiamonds } = require('../diamond-ledger/diamondLedger.service');
 const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
 const { QUIZ_MAX_REWARD } = require('../../config/gamification');
@@ -51,7 +52,13 @@ const awardQuizDiamonds = async (attempt, quizTitle, teacherName) => {
 
   if (diamondAmount <= 0) return;
 
-  await User.findByIdAndUpdate(attempt.student, { $inc: { diamonds: diamondAmount } });
+  await changeDiamonds({
+    userId: attempt.student,
+    delta: diamondAmount,
+    source: 'quiz',
+    ref: { kind: 'attempt', id: attempt._id, title: quizTitle ?? null },
+  });
+  attempt.diamondsEarned = diamondAmount;
 
   await notificationService.createNotification({
     userId: attempt.student,
@@ -418,20 +425,29 @@ const getAttemptById = async (attemptId, userId, role) => {
 // ko'rishi mumkin bo'ladi — maxAttempts hisobidan ham chiqib ketadi). Agar shu
 // urinish uchun diamond allaqachon berilgan bo'lsa, xuddi shu formula bilan
 // qayta hisoblab, studentdan qaytarib olinadi (0'dan pastga tushmaydi)
-const deleteAttempt = async (attemptId) => {
-  const attempt = await QuizAttempt.findById(attemptId);
+const deleteAttempt = async (attemptId, actorId = null) => {
+  const attempt = await QuizAttempt.findById(attemptId).populate('quiz', 'title');
   if (!attempt) throw new ApiError(404, 'Attempt topilmadi');
 
   if (attempt.diamondsAwarded) {
-    const student = await User.findById(attempt.student).select('tarif diamonds');
-    if (student) {
+    // diamondsEarned — haqiqatda berilgan miqdor. U saqlanmagan eski urinishlar uchun
+    // avvalgidek formula bo'yicha (hozirgi tarif bilan) qayta hisoblanadi
+    let diamondAmount = attempt.diamondsEarned;
+    if (diamondAmount == null) {
+      const student = await User.findById(attempt.student).select('tarif');
       const baseAmount = Math.round((attempt.scorePercent / 100) * QUIZ_MAX_REWARD * 100) / 100;
-      const diamondAmount = applyDiamondMultiplier(baseAmount, student.tarif);
-      if (diamondAmount > 0) {
-        await User.findByIdAndUpdate(student._id, {
-          diamonds: Math.max(0, student.diamonds - diamondAmount),
-        });
-      }
+      diamondAmount = applyDiamondMultiplier(baseAmount, student?.tarif);
+    }
+
+    if (diamondAmount > 0) {
+      await changeDiamonds({
+        userId: attempt.student,
+        delta: -diamondAmount,
+        source: 'attempt_revoked',
+        ref: { kind: 'attempt', id: attempt._id, title: attempt.quiz?.title ?? null },
+        actorId,
+        mode: 'clampAtZero',
+      });
     }
   }
 

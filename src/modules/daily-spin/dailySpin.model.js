@@ -30,6 +30,21 @@ const dailySpinSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Chiqqan savol (2026-11-20'dan saqlanadi — eski yozuvlarda null)
+    question: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SpinQuestion',
+      default: null,
+    },
+
+    // 'answered' — javob berildi (to'g'ri yoki noto'g'ri); 'expired' — savolga vaqtida
+    // javob berilmadi (aylantirish baribir ishlatilgan). Eski yozuvlar — 'answered'
+    status: {
+      type: String,
+      enum: ['answered', 'expired'],
+      default: 'answered',
+    },
+
     // Shu aylantirish sodir bo'lgandagi streak qiymati — tarixiy kontekst uchun
     streakAtSpin: {
       type: Number,

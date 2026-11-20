@@ -4,6 +4,7 @@ const ApiError = require('../../utils/ApiError');
 const Otp = require('./otp.model');
 const notificationService = require('../notifications/notification.service');
 const { frontendLinks } = require('../../config/frontendLinks');
+const { logActivity } = require('../user-activity/userActivity.service');
 
 // Sizib chiqgan/eski initData qayta ishlatilmasligi uchun maksimal yashash muddati
 const INIT_DATA_MAX_AGE_SECONDS = 24 * 60 * 60;
@@ -11,7 +12,7 @@ const INIT_DATA_MAX_AGE_SECONDS = 24 * 60 * 60;
 // ─────────────────────────────────────────
 // TELEGRAM OTP VERIFY (To'g'rilangan variant)
 // ─────────────────────────────────────────
-const verifyTelegramOtp = async ({ code }) => {
+const verifyTelegramOtp = async ({ code }, context = {}) => {
   // 1. OTP kodni bazadan qidirish
   // Bir vaqtning o'zida isUsed va expiresAt ni ham tekshiramiz
   const otp = await Otp.findOne({
@@ -47,6 +48,7 @@ const verifyTelegramOtp = async ({ code }) => {
   user.lastLogin = new Date();
   user.downgradeIfPremiumExpired();
   await user.save();
+  await logActivity({ userId: user._id, type: 'login', meta: { ...context, method: 'telegram_otp' } });
 
   // 5. JWT Token yaratish
   const token = user.generateJwtToken();
@@ -61,7 +63,7 @@ const verifyTelegramOtp = async ({ code }) => {
 // Yangi hisob yaratilmaydi — foydalanuvchi avval botdan (/start) ro'yxatdan
 // o'tgan bo'lishi shart (telegramId orqali qidiriladi).
 // ─────────────────────────────────────────
-const verifyTelegramWebApp = async ({ initData }) => {
+const verifyTelegramWebApp = async ({ initData }, context = {}) => {
   const params = new URLSearchParams(initData);
   const hash = params.get('hash');
   if (!hash) {
@@ -120,6 +122,7 @@ const verifyTelegramWebApp = async ({ initData }) => {
   user.lastLogin = new Date();
   user.downgradeIfPremiumExpired();
   await user.save();
+  await logActivity({ userId: user._id, type: 'login', meta: { ...context, method: 'telegram_webapp' } });
 
   const token = user.generateJwtToken();
   return { user, token };
@@ -136,6 +139,7 @@ const register = async ({ name, phone, password, role, grade }) => {
   }
 
   const user = await User.create({ name, phone, password, role, grade });
+  await logActivity({ userId: user._id, type: 'register', meta: { via: 'web' } });
 
   const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id');
   await Promise.all(
@@ -158,7 +162,7 @@ const register = async ({ name, phone, password, role, grade }) => {
 // ─────────────────────────────────────────
 // LOGIN (phone + password)
 // ─────────────────────────────────────────
-const login = async ({ phone, password }) => {
+const login = async ({ phone, password }, context = {}) => {
   const user = await User.findOne({ phone });
 
   if (!user) {
@@ -189,6 +193,7 @@ const login = async ({ phone, password }) => {
 
   user.lastLogin = new Date();
   await user.save();
+  await logActivity({ userId: user._id, type: 'login', meta: { ...context, method: 'password' } });
 
   const token = user.generateJwtToken();
   return { user, token };

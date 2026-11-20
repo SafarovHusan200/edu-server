@@ -14,6 +14,7 @@ const ApiError = require('../../utils/ApiError');
 const { PREMIUM_PLANS } = require('../../config/pricing');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { frontendLinks } = require('../../config/frontendLinks');
+const { logActivity } = require('../user-activity/userActivity.service');
 const { DRAFT_REUSE_MINUTES, DRAFT_EXPIRE_MINUTES, DRAFT_CLEANUP_BATCH } = require('../../config/payment');
 
 const MIN_WALLET_TOPUP = 1000; // tiyin
@@ -279,6 +280,19 @@ const grantPaymentOutcome = async (payment) => {
     newExpiry.setDate(newExpiry.getDate() + daysToAdd);
 
     await User.findByIdAndUpdate(payment.user, { tarif: 'premium', premiumExpiresAt: newExpiry });
+    // To'lov — foydalanuvchining o'z amali, shuning uchun actor null. Muddat uzaytirilsa
+    // ham (premium → premium) yoziladi: expiresAt o'zgaradi
+    const wasActivePremium = baseDate !== now;
+    await logActivity({
+      userId: payment.user,
+      type: 'tarif_changed',
+      meta: {
+        from: wasActivePremium ? 'premium' : 'standart',
+        to: 'premium',
+        expiresAt: newExpiry,
+        paymentId: payment._id,
+      },
+    });
 
     // Rolga qarab imkoniyatlar ro'yxati farqlanadi — student diamond/spin/sovg'a
     // foydasini ko'radi, teacher esa faqat urinishlar sonini ko'paytira olishini

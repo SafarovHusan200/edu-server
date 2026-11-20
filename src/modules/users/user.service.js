@@ -8,6 +8,7 @@ const Course = require('../courses/course.model');
 const TelegramLinkToken = require('../auth/telegramLinkToken.model');
 const notificationService = require('../notifications/notification.service');
 const ApiError = require('../../utils/ApiError');
+const { logActivity, formatGrade } = require('../user-activity/userActivity.service');
 const { getPagination, buildMeta } = require('../../utils/paginate');
 const { FRONTEND_URL } = require('../../config/frontendLinks');
 const { UPLOADS_ROOT } = require('../../middleware/upload');
@@ -25,9 +26,13 @@ const updateMe = async (userId, { name }) => {
   // O'quvchilar o'z ismini o'zgartira olmaydi — admin tasdiqlagan haqiqiy ismi
   // (masalan reyting/natijalarda identifikatsiya uchun) shundayligicha qolishi kerak.
   // Boshqa rollar (teacher/admin/superadmin) uchun bu cheklov yo'q.
-  if (name && user.role !== 'student') user.name = name;
+  const nameChanged = Boolean(name) && user.role !== 'student' && name !== user.name;
+  if (nameChanged) user.name = name;
 
   await user.save();
+  if (nameChanged) {
+    await logActivity({ userId: user._id, type: 'profile_updated', meta: { fields: ['name'] } });
+  }
   return user;
 };
 
@@ -86,7 +91,7 @@ const deleteAvatarFile = async (publicPath) => {
 };
 
 // Avatarni olib tashlaydi (fayl + user.avatar = null). Avatar bo'lmasa ham xato bermaydi.
-const clearAvatar = async (id) => {
+const clearAvatar = async (id, actorId = null) => {
   const user = await User.findById(id);
   if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
 
@@ -94,12 +99,13 @@ const clearAvatar = async (id) => {
     await deleteAvatarFile(user.avatar);
     user.avatar = null;
     await user.save();
+    await logActivity({ userId: user._id, type: 'avatar_removed', actorId });
   }
   return user;
 };
 
 // DELETE /users/:id/avatar — superadmin: foydalanuvchi avatarini o'chiradi
-const deleteUserAvatar = (id) => clearAvatar(id);
+const deleteUserAvatar = (id, actorId) => clearAvatar(id, actorId);
 
 // DELETE /users/me/avatar — istalgan rol: o'z avatarini o'chiradi (idempotent)
 const deleteMyAvatar = (userId) => clearAvatar(userId);
@@ -124,6 +130,12 @@ const createUser = async ({ name, phone, password, role, tarif, grade }, created
     verifiedBy: createdById,
     verifiedAt: new Date(),
   });
+  await logActivity({
+    userId: user._id,
+    type: 'register',
+    actorId: createdById,
+    meta: { via: 'admin' },
+  });
   return user;
 };
 
@@ -141,6 +153,7 @@ const verifyUser = async (id, verifiedById) => {
   user.verifiedBy = verifiedById;
   user.verifiedAt = new Date();
   await user.save();
+  await logActivity({ userId: user._id, type: 'verified', actorId: verifiedById });
 
   await notificationService.createNotification({
     userId: user._id,
@@ -157,13 +170,14 @@ const verifyUser = async (id, verifiedById) => {
 // PATCH /users/:id/reset-password — superadmin: eski parolni so'ramasdan yangi parol
 // o'rnatadi (foydalanuvchi parolni unutganda ishlatiladi). Boshqa qurilmalardagi eski
 // tokenlar yaroqsiz bo'lishi uchun tokenVersion oshiriladi, foydalanuvchiga xabar boradi
-const resetPassword = async (id, newPassword) => {
+const resetPassword = async (id, newPassword, actorId = null) => {
   const user = await User.findById(id);
   if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
 
   user.password = newPassword;
   user.tokenVersion += 1;
   await user.save();
+  await logActivity({ userId: user._id, type: 'password_reset', actorId });
 
   await notificationService.createNotification({
     userId: user._id,
@@ -241,19 +255,32 @@ const getUserById = async (id) => {
   return user;
 };
 
-const setBlocked = async (id, isBlocked) => {
+const setBlocked = async (id, isBlocked, actorId = null) => {
   const user = await User.findById(id);
   if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
 
+  const changed = user.isBlocked !== isBlocked;
   user.isBlocked = isBlocked;
   await user.save();
+  if (changed) {
+    await logActivity({ userId: user._id, type: isBlocked ? 'blocked' : 'unblocked', actorId });
+  }
   return user;
 };
 
 // PATCH /users/:id — superadmin: istalgan foydalanuvchini (rol ham) tahrirlaydi
-const updateUser = async (id, { name, phone, role, tarif, grade }) => {
+const updateUser = async (id, { name, phone, role, tarif, grade }, actorId = null) => {
   const user = await User.findById(id);
   if (!user) throw new ApiError(404, 'Foydalanuvchi topilmadi');
+
+  // Faollik jurnali uchun — saqlashdan oldingi qiymatlar
+  const before = {
+    name: user.name,
+    phone: user.phone,
+    role: user.role,
+    tarif: user.tarif,
+    grade: formatGrade(user.grade),
+  };
 
   if (name !== undefined) user.name = name;
   if (phone !== undefined) user.phone = phone;
@@ -267,7 +294,35 @@ const updateUser = async (id, { name, phone, role, tarif, grade }) => {
   }
 
   await user.save();
+  await logUserUpdate(user, before, actorId);
   return user;
+};
+
+// updateUser'dagi har bir haqiqiy o'zgarish uchun alohida faollik yozuvi
+const logUserUpdate = async (user, before, actorId) => {
+  const base = { userId: user._id, actorId };
+  const profileFields = ['name', 'phone'].filter((f) => before[f] !== user[f]);
+  const gradeAfter = formatGrade(user.grade);
+
+  const entries = [];
+  if (profileFields.length) {
+    entries.push({ ...base, type: 'profile_updated', meta: { fields: profileFields } });
+  }
+  if (before.role !== user.role) {
+    entries.push({ ...base, type: 'role_changed', meta: { from: before.role, to: user.role } });
+  }
+  if (before.tarif !== user.tarif) {
+    entries.push({
+      ...base,
+      type: 'tarif_changed',
+      meta: { from: before.tarif, to: user.tarif, expiresAt: user.premiumExpiresAt ?? null },
+    });
+  }
+  if (before.grade !== gradeAfter) {
+    entries.push({ ...base, type: 'grade_changed', meta: { from: before.grade, to: gradeAfter } });
+  }
+
+  await Promise.all(entries.map(logActivity));
 };
 
 // DELETE /users/:id — superadmin

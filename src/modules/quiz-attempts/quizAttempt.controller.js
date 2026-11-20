@@ -79,7 +79,7 @@ const getAttemptById = asyncHandler(async (req, res) => {
 // DELETE /api/v1/quiz-attempts/:attemptId  (superadmin)
 // ─────────────────────────────────────────
 const deleteAttempt = asyncHandler(async (req, res) => {
-  await quizAttemptService.deleteAttempt(req.params.attemptId);
+  await quizAttemptService.deleteAttempt(req.params.attemptId, req.user.id);
 
   res.status(200).json(new ApiResponse(200, "Urinish o'chirildi"));
 });

@@ -7,6 +7,7 @@ const QuizAttempt = require('../modules/quiz-attempts/quizAttempt.model');
 const quizAttemptService = require('../modules/quiz-attempts/quizAttempt.service');
 const notificationService = require('../modules/notifications/notification.service');
 const { frontendLinks } = require('../config/frontendLinks');
+const { logActivity } = require('../modules/user-activity/userActivity.service');
 
 // Test muhitida polling boshlanmaydi — aks holda testlar haqiqiy Telegram
 // serveriga ulanib, jarayon ochiq qolib ketishiga (hanging) sabab bo'lardi.
@@ -375,6 +376,7 @@ async function registerUserToDB(telegramId, messageId) {
     if (!user) {
       // Yangi foydalanuvchi yaratish (phone ham qo'shiladi)
       newUser = await User.create({ ...updateData, phone: state.phone });
+      await logActivity({ userId: newUser._id, type: 'register', meta: { via: 'telegram_bot' } });
 
       // Web orqali ro'yxatdan o'tishdagi kabi — admin/superadmin'larga tasdiqlash
       // kerakligi haqida bildirishnoma yuboriladi (auth.service.js register() bilan bir xil)

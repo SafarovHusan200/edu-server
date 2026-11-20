@@ -186,12 +186,28 @@ userSchema.pre('validate', async function () {
 // shuning uchun muddat tugashini kuzatib turuvchi alohida cron/job shart emas.
 userSchema.methods.downgradeIfPremiumExpired = function () {
   if (this.tarif === 'premium' && this.premiumExpiresAt && this.premiumExpiresAt <= new Date()) {
+    // Faollik jurnali post('save')'da yoziladi — faqat o'zgarish haqiqatda saqlansa
+    this.$locals.premiumExpiredAt = this.premiumExpiresAt;
     this.tarif = 'standart';
     this.premiumExpiresAt = null;
     return true;
   }
   return false;
 };
+
+userSchema.post('save', async function () {
+  const expiredAt = this.$locals.premiumExpiredAt;
+  if (!expiredAt) return;
+  delete this.$locals.premiumExpiredAt;
+
+  // Aylanma require'dan qochish uchun shu yerda yuklanadi
+  const { logActivity } = require('../user-activity/userActivity.service');
+  await logActivity({
+    userId: this._id,
+    type: 'tarif_changed',
+    meta: { from: 'premium', to: 'standart', expiresAt: null, expiredAt, reason: 'expired' },
+  });
+});
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
   if (!this.password) return false; // telegram user parolsiz
