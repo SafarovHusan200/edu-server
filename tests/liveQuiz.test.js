@@ -1,3 +1,6 @@
+// O'qish bosqichisiz — javoblar question:start'dan keyin darhol qabul qilinadi
+process.env.LIVE_QUESTION_READ_MS = '0';
+
 const http = require('http');
 const request = require('supertest');
 const { io: ioClient } = require('socket.io-client');
@@ -440,6 +443,34 @@ describe('Jonli viktorina — Socket.IO oqimi', () => {
 
     const session = await waitFor(() => LiveSession.findOne({ pin }));
     expect(session.players[0]).toMatchObject({ name: "Yolg'iz", rank: 1, correctCount: 1 });
+  });
+
+  test("o'qish bosqichida javob qabul qilinmaydi, taymer undan keyin boshlanadi", async () => {
+    const { pin, host } = await setupGame();
+    const p1 = await connect();
+    await call(p1, 'player:join', { pin, name: 'Shoshqaloq' });
+
+    const q = once(p1, 'question:start');
+    process.env.LIVE_QUESTION_READ_MS = '400';
+    try {
+      await call(host, 'host:start');
+    } finally {
+      process.env.LIVE_QUESTION_READ_MS = '0';
+    }
+    const question = await q;
+    expect(question.opensAt - question.serverNow).toBeGreaterThan(300);
+    expect(question.endsAt - question.opensAt).toBe(20 * 1000);
+
+    expect(await call(p1, 'player:answer', { questionIndex: 0, option: 1 })).toMatchObject({
+      ok: false,
+      code: 'QUESTION_NOT_OPEN',
+    });
+
+    await new Promise((r) => setTimeout(r, Math.max(0, question.opensAt - Date.now()) + 50));
+    const result = once(p1, 'question:result');
+    expect((await call(p1, 'player:answer', { questionIndex: 0, option: 1 })).ok).toBe(true);
+    // O'qish vaqti ball tezligiga qo'shilmaydi
+    expect((await result).points).toBeGreaterThan(950);
   });
 });
 

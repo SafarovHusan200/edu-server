@@ -14,6 +14,12 @@ const NAME_MAX_LENGTH = 24;
 const BASE_POINTS = 1000;
 const FINISHED_TTL_MS = 15 * 60 * 1000; // tugagan o'yin natijasi shuncha vaqt ko'rinib turadi
 const IDLE_TTL_MS = 3 * 60 * 60 * 1000; // shuncha vaqt hech narsa bo'lmasa o'yin o'chiriladi
+// Har savol oldidan "o'qish" bosqichi: doskada faqat savol matni ko'rinadi, javob qabul
+// qilinmaydi, taymer va ball hisobi shundan keyin boshlanadi. Testlarda 0 qilinadi.
+const readMs = () => {
+  const v = Number(process.env.LIVE_QUESTION_READ_MS);
+  return Number.isFinite(v) && v >= 0 ? v : 4000;
+};
 
 // O'yinchi ikonkasi — faqat kalit saqlanadi va doska/natijalarga o'zgarishsiz qaytariladi,
 // rasmni frontend chizadi (components/live-quiz/player-avatars.tsx bilan bir xil bo'lishi kerak)
@@ -70,6 +76,7 @@ class LiveGame {
     this.status = 'lobby'; // lobby → question → reveal → ... → finished
     this.currentIndex = -1;
     this.players = new Map(); // playerId → player
+    this.questionOpensAt = null; // shu paytdan javob qabul qilinadi (o'qish bosqichi tugaydi)
     this.questionStartedAt = null;
     this.questionEndsAt = null;
     this.timer = null;
@@ -189,15 +196,18 @@ class LiveGame {
     const q = this.questions[index];
     this.status = 'question';
     this.currentIndex = index;
-    this.questionStartedAt = Date.now();
-    this.questionEndsAt = this.questionStartedAt + q.timeLimit * 1000;
+    const read = readMs();
+    this.questionOpensAt = Date.now() + read;
+    // Ball tezligi va taymer o'qish bosqichidan keyin hisoblanadi
+    this.questionStartedAt = this.questionOpensAt;
+    this.questionEndsAt = this.questionOpensAt + q.timeLimit * 1000;
     this.touch();
 
     this.emit(hostRoom(this.pin), 'question:start', this.publicQuestion());
     this.emit(playersRoom(this.pin), 'question:start', this.publicQuestion());
 
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.endQuestion(), q.timeLimit * 1000);
+    this.timer = setTimeout(() => this.endQuestion(), read + q.timeLimit * 1000);
     this.timer.unref?.();
   }
 
@@ -212,6 +222,7 @@ class LiveGame {
       options: q.options,
       timeLimit: q.timeLimit,
       pointsMultiplier: q.pointsMultiplier,
+      opensAt: this.questionOpensAt,
       endsAt: this.questionEndsAt,
       serverNow: Date.now(), // client o'z soatini moslashtirishi uchun
     };
@@ -222,6 +233,9 @@ class LiveGame {
     if (!player) throw new GameError('PLAYER_NOT_FOUND', "O'yinchi topilmadi");
     if (this.status !== 'question' || questionIndex !== this.currentIndex) {
       throw new GameError('QUESTION_CLOSED', 'Bu savolga javob qabul qilinmaydi');
+    }
+    if (Date.now() < this.questionOpensAt) {
+      throw new GameError('QUESTION_NOT_OPEN', 'Savol hali ochilmadi');
     }
     if (player.answers.has(questionIndex)) {
       throw new GameError('ALREADY_ANSWERED', 'Siz bu savolga javob bergansiz');
