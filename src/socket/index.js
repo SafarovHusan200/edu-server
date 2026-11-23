@@ -4,10 +4,11 @@
 
 const { Server } = require('socket.io');
 const liveQuizSocket = require('../modules/live-quiz/liveQuiz.socket');
+const { getCorsOrigin } = require('../config/cors');
 
 const initSocket = (httpServer) => {
   const io = new Server(httpServer, {
-    cors: { origin: process.env.CLIENT_URL || '*' },
+    cors: { origin: getCorsOrigin() },
     // Telefon internet uzilib qolsa ham ulanish darhol tashlab ketilmasin
     pingInterval: 20000,
     pingTimeout: 20000,

@@ -8,8 +8,14 @@ const optionalEnvVars = {
   GEMINI_MODEL: 'AI dars generatsiyasi (POST /board-lessons/generate) 503 qaytaradi',
 };
 
+// Faqat production'da majburiy: CLIENT_URL — CORS ruxsat etilgan saytlar (src/config/cors.js).
+// Busiz origin '*' bo'lib qolardi
+const requiredInProduction = ['CLIENT_URL'];
+
 const validateEnv = () => {
-  const missing = requiredEnvVars.filter((key) => !process.env[key]);
+  const required =
+    process.env.NODE_ENV === 'production' ? [...requiredEnvVars, ...requiredInProduction] : requiredEnvVars;
+  const missing = required.filter((key) => !process.env[key]?.trim());
 
   if (missing.length > 0) {
     console.error(`❌ Muhit o'zgaruvchilari topilmadi: ${missing.join(', ')}`);

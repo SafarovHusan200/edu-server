@@ -13,6 +13,7 @@ const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const { SERVABLE_EXTENSIONS } = require('./middleware/upload');
+const { getCorsOrigin } = require('./config/cors');
 
 const app = express();
 
@@ -51,7 +52,7 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api-docs')) return next();
   helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } })(req, res, next);
 });
-app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
+app.use(cors({ origin: getCorsOrigin() }));
 app.use(express.json()); // JSON body parser
 app.use(express.urlencoded({ extended: true }));
 
