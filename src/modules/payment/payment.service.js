@@ -362,17 +362,12 @@ const grantPaymentOutcome = async (payment) => {
 // so'rov uchun "yutib olinadi", shu bilan balans/premium/enrollment ikki marta
 // berilib ketishining oldi olinadi (poyga holati — race condition himoyasi).
 // ─────────────────────────────────────────
-const applyStatusUpdate = async (payment, { uuid, status, receiptUrl, cardPan, paymentTime, gatewayDebug }) => {
+const applyStatusUpdate = async (payment, { uuid, status, receiptUrl, cardPan, paymentTime }) => {
   const update = {
     multicardUuid: uuid ?? payment.multicardUuid,
     status,
     callbackReceivedAt: new Date(),
   };
-
-  // Vaqtinchalik diagnostika — Payment modeliga izohga qarang
-  if (gatewayDebug !== undefined) {
-    update.gatewayDebug = gatewayDebug;
-  }
 
   if (status === 'success') {
     update.receiptUrl = receiptUrl ?? payment.receiptUrl;
@@ -414,7 +409,6 @@ const applyCallback = async ({
   cardPan,
   paymentTime,
   sign,
-  rawBody,
 }) => {
   if (!isSignValid({ invoiceId, amount, sign })) {
     throw new ApiError(400, "Sign noto'g'ri — callback ishonchsiz");
@@ -431,7 +425,6 @@ const applyCallback = async ({
     receiptUrl,
     cardPan,
     paymentTime,
-    gatewayDebug: { source: 'callback', body: rawBody, receivedAt: new Date() },
   });
 };
 
@@ -484,7 +477,6 @@ const reconcileWithGateway = async (payment) => {
   const paymentInfo = invoice?.payment;
   const resolvedStatus =
     paymentInfo?.status ?? invoice?.status ?? invoice?.state ?? invoice?.payment_status;
-  const gatewayDebug = { source: 'reconciliation', invoice, receivedAt: new Date() };
 
   // 'expired' bizning statusimiz — Multicard'da hali "draft" turgan bo'lsa uni
   // qaytadan 'draft'ga tushirib yubormaymiz (aks holda cleanup qayta-qayta aylanadi).
@@ -498,15 +490,10 @@ const reconcileWithGateway = async (payment) => {
       receiptUrl: paymentInfo?.receipt_url ?? invoice?.receipt_url,
       cardPan: paymentInfo?.card_pan ?? invoice?.card_pan,
       paymentTime: paymentInfo?.payment_time ?? invoice?.payment_time,
-      gatewayDebug,
     });
   }
 
-  // Status topilmadi yoki o'zgarmadi — baribir xom javobni saqlab qo'yamiz
-  // (diagnostika uchun), lekin grantPaymentOutcome chaqirilmaydi. Hujjatning
-  // o'ziga yozilmaydi — u foydalanuvchiga qaytariladi, gatewayDebug esa API
-  // javobiga chiqmasligi kerak (Payment modeliga izohga qarang)
-  await Payment.findByIdAndUpdate(payment._id, { gatewayDebug });
+  // Status topilmadi yoki o'zgarmadi — hech narsa yozilmaydi
   return payment;
 };
 

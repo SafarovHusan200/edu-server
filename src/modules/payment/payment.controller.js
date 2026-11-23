@@ -55,9 +55,9 @@ const handleCallback = asyncHandler(async (req, res) => {
   const paymentTime = req.body.payment_time ?? paymentInfo?.payment_time;
   const receiptUrl = req.body.receipt_url ?? paymentInfo?.receipt_url;
 
-  // Vaqtinchalik diagnostika: Multicard'dan aynan qanday maydonlar kelayotganini
-  // ko'rish uchun (payment.gatewayDebug'ga saqlanadi — Payment modeliga izohga qarang)
-  console.log('📥 Multicard callback body:', JSON.stringify(req.body));
+  // Faqat identifikator va holat — tanada to'lovchining telefoni, karta raqami va
+  // merchant ma'lumotlari bor, ular logga yozilmaydi
+  console.log(`📥 Multicard callback: invoice=${invoiceId} status=${status}`);
 
   try {
     await paymentService.applyCallback({
@@ -69,7 +69,6 @@ const handleCallback = asyncHandler(async (req, res) => {
       paymentTime,
       receiptUrl,
       sign,
-      rawBody: req.body,
     });
 
     return res.status(200).json({ success: true });

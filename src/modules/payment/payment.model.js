@@ -114,15 +114,11 @@ const paymentSchema = new mongoose.Schema(
       default: null,
     },
 
-    // DIQQAT — vaqtinchalik diagnostika maydoni: Multicard'dan kelgan callback yoki
-    // reconciliation (getInvoiceStatus) javobining XOM (raw) shakli shu yerga yoziladi.
-    // Maqsad — real production'da Multicard aslida qanday maydon nomlari bilan javob
-    // berayotganini SSH/log kirish huquqisiz, to'g'ridan-to'g'ri API orqali ko'rish.
-    // Muammo aniqlanib, kod (masalan status maydoni mosligi) tasdiqlangach, bu
-    // maydonni va uni to'ldiruvchi kodni butunlay olib tashlash mumkin/kerak.
-    // select: false — xom javobda merchant/merchant_account (FIO, STIR, hisob raqam,
-    // manzil) va to'lovchi telefoni/IP bor, shuning uchun hech qaysi API javobiga
-    // chiqmasligi kerak. Faqat DB'da qoladi (kerak bo'lsa .select('+gatewayDebug')).
+    // ESKIRGAN — endi hech narsa yozmaydi. Ilgari Multicard javobining xom shakli
+    // (to'lovchi telefoni/IP, merchant FIO/STIR/hisob raqami) shu yerga yozilgan.
+    // Ta'rif faqat select: false uchun qoldirilgan: sxemada bo'lmasa, mongoose bazadagi
+    // eski qiymatni so'rov natijasiga qaytaradi va u yana API javobiga chiqib qoladi.
+    // scripts/unsetPaymentGatewayDebug.js bilan tozalangach, bu maydonni olib tashlash mumkin.
     gatewayDebug: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
