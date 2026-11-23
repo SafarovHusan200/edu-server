@@ -1,8 +1,9 @@
 // scripts/migrateRewardOrder.js
 // Reward.order maydoni paydo bo'lishidan oldingi sovg'alarga boshlang'ich tartib beradi:
 // createdAt kamayish bo'yicha (yangisi oldinda) order = 0, 1, 2, ...
+// Mantiq: src/migrations/rewardOrder.js (deploy'da `npm run migrate` ham shuni ishlatadi)
 //
-// Ishlatilishi (yangi kod deploy qilingandan KEYIN):
+// Ishlatilishi:
 //   node scripts/migrateRewardOrder.js          — faqat ko'rsatadi (hech narsa yozilmaydi)
 //   node scripts/migrateRewardOrder.js --yes    — yozadi
 //
@@ -12,7 +13,7 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-const Reward = require('../src/modules/rewards/reward.model');
+const { migrateRewardOrder } = require('../src/migrations/rewardOrder');
 
 async function main() {
   const confirmed = process.argv.includes('--yes');
@@ -22,31 +23,23 @@ async function main() {
   console.log(`✅ Bazaga ulandi: ${mongoose.connection.name}`);
   console.log(confirmed ? "✍️  Rejim: YOZISH\n" : "👀 Rejim: sinov (hech narsa yozilmaydi)\n");
 
-  const alreadyOrdered = await Reward.countDocuments({ order: { $nin: [0, null] } });
-  if (alreadyOrdered > 0 && !force) {
+  const result = await migrateRewardOrder({ dryRun: !confirmed, force });
+
+  if (result.skipped) {
     console.log(
-      `⏭️  ${alreadyOrdered} ta sovg'ada tartib allaqachon belgilangan — o'tkazib yuborildi.\n` +
+      `⏭️  ${result.alreadyOrdered} ta sovg'ada tartib allaqachon belgilangan — o'tkazib yuborildi.\n` +
         "   Baribir createdAt bo'yicha qayta yozish uchun: --yes --force"
     );
     return;
   }
 
-  const rewards = await Reward.find().sort({ createdAt: -1 }).select('_id title createdAt').lean();
-  rewards.forEach((r, i) => console.log(`   ${String(i).padStart(3)}  ${r.title}`));
+  result.rewards.forEach((r, i) => console.log(`   ${String(i).padStart(3)}  ${r.title}`));
 
   if (!confirmed) {
-    console.log(`\nℹ️ ${rewards.length} ta sovg'a. Yozish uchun: node scripts/migrateRewardOrder.js --yes`);
+    console.log(`\nℹ️ ${result.rewards.length} ta sovg'a. Yozish uchun: node scripts/migrateRewardOrder.js --yes`);
     return;
   }
-
-  if (rewards.length > 0) {
-    await Reward.bulkWrite(
-      rewards.map((r, i) => ({
-        updateOne: { filter: { _id: r._id }, update: { $set: { order: i } } },
-      }))
-    );
-  }
-  console.log(`\n✅ ${rewards.length} ta sovg'aga tartib berildi`);
+  console.log(`\n✅ ${result.updated} ta sovg'aga tartib berildi`);
 }
 
 main()

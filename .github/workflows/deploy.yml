@@ -5,9 +5,40 @@ on:
     branches:
       - main # faqat main branchga push bo'lganda ishga tushadi
 
+# Ketma-ket ikki push bo'lsa — deploylar ustma-ust tushmaydi, navbat bilan ishlaydi
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
+  # 1. Testlar — o'tmasa deploy umuman boshlanmaydi
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.20.0' # serverdagi bilan bir xil
+          cache: npm
+
+      # mongodb-memory-server har safar ~100MB mongod yuklab olmasligi uchun
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: mongodb-binaries-${{ runner.os }}-
+
+      - run: npm ci # aynan package-lock.json'dagi versiyalar
+      - run: npm test
+
+  # 2. Deploy — faqat testlar o'tgandan keyin
   deploy:
-    runs-on: ubuntu-latest # GitHub'ning vaqtinchalik virtual mashinasi
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Deploy via SSH
@@ -17,7 +48,10 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Bu qatorlar serverda, SSH ichida ishga tushadi:
+            # Bu qatorlar serverda, SSH ichida ishga tushadi.
+            # set -e — biror qadam xato bersa, keyingilari bajarilmaydi: masalan npm ci yoki
+            # migratsiya yiqilsa, pm2 restart qilinmaydi va eski versiya ishlashda davom etadi
+            set -e
 
             export NVM_DIR="/root/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
@@ -31,8 +65,14 @@ jobs:
             git fetch origin main       # yangi commit'larni yuklaydi
             git reset --hard origin/main
             # ^ serverdagi lokal o'zgarishlarni bekor qilib, GitHub'dagi
-            #   holatga to'liq moslashtiradi (masalan, kimdir qo'lda
-            #   serverda fayl o'zgartirgan bo'lsa ham, ular yo'qoladi)
+            #   holatga to'liq moslashtiradi (.env, uploads/, storage/ — .gitignore'da,
+            #   ularga tegilmaydi)
 
-            npm install                 # yangi/o'zgargan paketlarni o'rnatadi
+            npm ci
+            # ^ npm install o'rniga: package-lock.json'dagi AYNAN o'sha versiyalar o'rnatiladi
+            #   (testlar o'tgan versiyalar), lock fayl serverda o'zgarmaydi
+
+            npm run migrate
+            # ^ qayta ishga tushirish xavfsiz migratsiyalar (scripts/migrate.js)
+
             pm2 restart edu-server      # ilovani qayta ishga tushiradi

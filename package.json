@@ -16,7 +16,8 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "migrate": "node scripts/migrate.js"
   },
   "jest": {
     "testEnvironment": "node",
