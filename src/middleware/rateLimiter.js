@@ -8,7 +8,7 @@ const skip = () => process.env.NODE_ENV === 'test';
 
 // Login/register/telegram-otp kabi og'ir suiiste'mol qilinadigan endpointlar uchun
 const authLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 15 daqiqa
+  windowMs: 5 * 60 * 1000, // 5 daqiqa
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,

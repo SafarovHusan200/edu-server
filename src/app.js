@@ -21,6 +21,22 @@ const app = express();
 // bu ta'sir qilmaydi — u express.static'ning o'z alohida etag mexanizmi.
 app.set('etag', false);
 
+// Server nginx (reverse proxy) ortida ishlaydi. Busiz req.ip har doim proksining IP'si
+// bo'ladi: rate limiter BARCHA foydalanuvchilarni bitta mijoz deb sanaydi (butun sayt uchun
+// bitta 300 so'rov / 10 login chegarasi), faollik jurnaliga ham proksi IP'si yoziladi.
+// Standart 'loopback' — faqat shu mashinadagi (127.0.0.1/::1) proksining X-Forwarded-For
+// sarlavhasiga ishoniladi, tashqaridan kelgan soxta sarlavha e'tiborga olinmaydi.
+// Proksi boshqa mashinada yoki oldida Cloudflare bo'lsa — TRUST_PROXY'da sozlanadi
+// (hop soni, masalan 2, yoki IP/subnet ro'yxati): https://expressjs.com/en/guide/behind-proxies.html
+const parseTrustProxy = (raw) => {
+  if (raw === undefined || raw === '') return 'loopback';
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  if (/^\d+$/.test(raw)) return Number(raw);
+  return raw;
+};
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+
 // ─────────────────────────────────────────
 // Global Middleware
 // ─────────────────────────────────────────
