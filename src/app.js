@@ -12,6 +12,7 @@ const routes = require('./routes');
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
+const { SERVABLE_EXTENSIONS } = require('./middleware/upload');
 
 const app = express();
 
@@ -71,8 +72,24 @@ if (process.env.NODE_ENV === 'development') {
 // /uploads/lessons/<fayl> havolasi endi tokensiz yuklab olinmasligi uchun yopiladi.
 // Bunday fayllar GET /media/lessons/:file orqali, faqat imzolangan havola bilan beriladi
 // (src/utils/mediaSigning.js). Kurs muqovalari, avatarlar va h.k. ochiq qolaveradi.
-app.use('/uploads/lessons', (req, res) => res.status(404).json({ success: false, statusCode: 404, message: 'Topilmadi' }));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+const uploadNotFound = (req, res) => res.status(404).json({ success: false, statusCode: 404, message: 'Topilmadi' });
+app.use('/uploads/lessons', uploadNotFound);
+// Rasm/pdf/video kengaytmalari odatdagidek beriladi. Qolgan har qanday fayl (.html/.js/.svg —
+// kengaytma fayl nomidan olingan paytda yuklangan bo'lishi mumkin) o'chirilmaydi, lekin
+// brauzerda sahifa/skript sifatida ishga tushmasligi uchun "yuklab olish" qilib beriladi
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, '..', 'uploads'), {
+    dotfiles: 'deny',
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (SERVABLE_EXTENSIONS.has(path.extname(filePath).toLowerCase())) return;
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', 'attachment');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    },
+  })
+);
 
 // ─────────────────────────────────────────
 // API hujjatlari (Swagger)

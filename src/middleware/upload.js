@@ -1,5 +1,6 @@
 // src/middleware/upload.js
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
@@ -17,6 +18,23 @@ const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MATERIAL_MIME_TYPES = [...IMAGE_MIME_TYPES, 'application/pdf', 'video/mp4'];
 const VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 
+// Saqlanadigan fayl kengaytmasi mijoz yuborgan fayl NOMIDAN emas, tekshirilgan
+// mimetype'dan olinadi. Aks holda "x.html"/"x.js" faylini image/png deb yuborib,
+// /uploads orqali server domenida HTML/JS sifatida ochiladigan fayl joylash mumkin edi.
+const EXTENSION_BY_MIME = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'application/pdf': '.pdf',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'video/quicktime': '.mov',
+};
+
+// /uploads orqali odatdagidek (ko'rsatiladigan) beriladigan kengaytmalar (app.js). .jpeg/.jfif —
+// shu tuzatishdan oldin fayl nomidan olingan, image/jpeg bo'lgan eski yuklamalar uchun
+const SERVABLE_EXTENSIONS = new Set([...Object.values(EXTENSION_BY_MIME), '.jpeg', '.jfif']);
+
 const buildStorage = (subdir, root = UPLOADS_ROOT) => {
   const dest = path.join(root, subdir);
 
@@ -26,8 +44,9 @@ const buildStorage = (subdir, root = UPLOADS_ROOT) => {
       cb(null, dest);
     },
     filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      const uniqueName = `${Date.now()}_${Math.round(Math.random() * 1e9)}${ext}`;
+      const ext = EXTENSION_BY_MIME[file.mimetype];
+      if (!ext) return cb(new ApiError(400, `Ruxsat etilmagan fayl turi: ${file.mimetype}`));
+      const uniqueName = `${Date.now()}_${crypto.randomBytes(6).toString('hex')}${ext}`;
       cb(null, uniqueName);
     },
   });
@@ -88,5 +107,6 @@ module.exports = {
   toProtectedPath,
   UPLOADS_ROOT,
   STORAGE_ROOT,
+  SERVABLE_EXTENSIONS,
   LESSONS_STORAGE_DIR,
 };
