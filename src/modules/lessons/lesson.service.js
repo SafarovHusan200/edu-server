@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const Lesson = require('./lesson.model');
+const pick = require('../../utils/pick');
 const Course = require('../courses/course.model');
 const Enrollment = require('../enrollment/enrollment.model');
 const User = require('../users/user.model');
@@ -133,6 +134,13 @@ const getLessonById = async (lessonId, userId, role, watermarkText) => {
   return signLessonMedia(lesson, userId, watermarkText);
 };
 
+// course (darsni boshqa kursga ko'chirish), attachments/videoStatus (yuklash endpointlari) —
+// o'zgartirilmaydi. videoUrl faqat tashqi havola (YouTube va h.k.) yoki null bo'lishi mumkin:
+// /uploads/lessons/... yo'lini qo'lda yozib, boshqa kursning himoyalangan videosini o'z
+// (masalan bepul) darsiga ulab bo'lmasligi uchun
+const LESSON_UPDATABLE_FIELDS = ['title', 'description', 'content', 'order', 'durationMinutes', 'videoUrl'];
+const isExternalUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+
 const updateLesson = async (lessonId, userId, role, updateData) => {
   const lesson = await Lesson.findById(lessonId);
   if (!lesson) throw new ApiError(404, 'Dars topilmadi');
@@ -142,7 +150,14 @@ const updateLesson = async (lessonId, userId, role, updateData) => {
     throw new ApiError(403, 'Siz bu darsni tahrirlay olmaysiz');
   }
 
-  Object.assign(lesson, updateData);
+  const changes = pick(updateData, LESSON_UPDATABLE_FIELDS);
+  if ('videoUrl' in changes && changes.videoUrl !== lesson.videoUrl) {
+    if (changes.videoUrl !== null && !isExternalUrl(changes.videoUrl)) {
+      throw new ApiError(400, "videoUrl to'liq havola (https://...) bo'lishi kerak — fayl yuklash uchun alohida endpoint bor");
+    }
+  }
+
+  Object.assign(lesson, changes);
   await lesson.save();
   return lesson;
 };

@@ -1,6 +1,7 @@
 // src/modules/quizzes/quiz.service.js
 
 const Quiz = require('./quiz.model');
+const pick = require('../../utils/pick');
 const Question = require('../questions/question.model');
 const QuizAttempt = require('../quiz-attempts/quizAttempt.model');
 const User = require('../users/user.model');
@@ -353,7 +354,16 @@ const getQuizByIdWithAnswers = async (quizId) => {
 // ─────────────────────────────────────────
 // UPDATE QUIZ
 // ─────────────────────────────────────────
-const updateQuiz = async (quizId, userId, updateData) => {
+// createdBy (egalik) o'zgartirilmaydi
+const QUIZ_UPDATABLE_FIELDS = [
+  'title', 'description', 'targetType', 'targetId', 'passingScore', 'maxAttempts',
+  'timeLimit', 'targetGrades', 'availableFrom', 'availableUntil', 'isActive',
+];
+// quiz (savolni boshqa quiz'ga ko'chirish) o'zgartirilmaydi
+const QUESTION_UPDATABLE_FIELDS = ['text', 'type', 'options', 'correctAnswer', 'sampleAnswer', 'points', 'order'];
+
+const updateQuiz = async (quizId, userId, rawUpdate) => {
+  const updateData = pick(rawUpdate, QUIZ_UPDATABLE_FIELDS);
   const quiz = await Quiz.findById(quizId);
   if (!quiz) throw new ApiError(404, 'Quiz topilmadi');
 
@@ -380,7 +390,7 @@ const updateQuiz = async (quizId, userId, updateData) => {
     }
   }
 
-  const updated = await Quiz.findByIdAndUpdate(quizId, updateData, { new: true });
+  const updated = await Quiz.findByIdAndUpdate(quizId, updateData, { new: true, runValidators: true });
   return updated;
 };
 
@@ -455,7 +465,11 @@ const updateQuestion = async (questionId, userId, updateData) => {
     throw new ApiError(403, 'Siz bu savolni tahrirlay olmaysiz');
   }
 
-  const updated = await Question.findByIdAndUpdate(questionId, updateData, { new: true });
+  const updated = await Question.findByIdAndUpdate(
+    questionId,
+    pick(updateData, QUESTION_UPDATABLE_FIELDS),
+    { new: true, runValidators: true }
+  );
   return updated;
 };
 

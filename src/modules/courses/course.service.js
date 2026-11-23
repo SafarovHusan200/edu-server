@@ -2,6 +2,7 @@
 
 const mongoose = require('mongoose');
 const Course = require('./course.model');
+const pick = require('../../utils/pick');
 const Category = require('../categories/category.model');
 const Lesson = require('../lessons/lesson.model');
 const Review = require('../reviews/review.model');
@@ -224,6 +225,8 @@ const getCourseById = async (courseId, userId, role, watermarkText) => {
   return { course, lessons: lessonList, hasAccess: access, quizzesCount };
 };
 
+const COURSE_UPDATABLE_FIELDS = ['title', 'description', 'category', 'price', 'isPublished'];
+
 const updateCourse = async (courseId, userId, role, updateData) => {
   const course = await Course.findById(courseId);
   if (!course) throw new ApiError(404, 'Kurs topilmadi');
@@ -232,7 +235,8 @@ const updateCourse = async (courseId, userId, role, updateData) => {
     throw new ApiError(403, 'Siz bu kursni tahrirlay olmaysiz');
   }
 
-  Object.assign(course, updateData);
+  // teacher, ratingAvg/ratingCount, thumbnail (alohida endpoint) — o'zgartirilmaydi
+  Object.assign(course, pick(updateData, COURSE_UPDATABLE_FIELDS));
   await course.save();
   return course;
 };

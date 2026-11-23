@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const Book = require('./book.model');
+const pick = require('../../utils/pick');
 const BookCategory = require('../book-categories/bookCategory.model');
 const ApiError = require('../../utils/ApiError');
 const { getPagination, buildMeta } = require('../../utils/paginate');
@@ -90,6 +91,9 @@ const getBookById = async (bookId, userId, role) => {
   return book;
 };
 
+// uploadedBy, file/coverImage (alohida endpointlar), downloadsCount — o'zgartirilmaydi
+const BOOK_UPDATABLE_FIELDS = ['title', 'author', 'description', 'category', 'grade', 'isPublished'];
+
 const updateBook = async (bookId, userId, role, updateData) => {
   const book = await Book.findById(bookId);
   if (!book) throw new ApiError(404, 'Kitob topilmadi');
@@ -98,7 +102,7 @@ const updateBook = async (bookId, userId, role, updateData) => {
     throw new ApiError(403, 'Siz bu kitobni tahrirlay olmaysiz');
   }
 
-  Object.assign(book, updateData);
+  Object.assign(book, pick(updateData, BOOK_UPDATABLE_FIELDS));
   await book.save();
   return book;
 };
