@@ -1,5 +1,6 @@
 // src/modules/live-quiz/liveQuiz.service.js
 
+const mongoose = require('mongoose');
 const LiveQuiz = require('./liveQuiz.model');
 const LiveSession = require('./liveSession.model');
 const Quiz = require('../quizzes/quiz.model');
@@ -242,6 +243,7 @@ const saveSessionResult = async (game, ranking) => {
   return LiveSession.create({
     quiz: game.quizId,
     host: game.hostId,
+    sessionId: game.sessionId,
     pin: game.pin,
     quizTitle: game.quizTitle,
     startedAt: game.startedAt,
@@ -280,8 +282,11 @@ const getQuizResults = async (id, user, { page, limit }) => {
   return { sessions: items, meta: buildMeta(total, currentPage, pageLimit) };
 };
 
-const getSessionResult = async (sessionId, user) => {
-  const session = await LiveSession.findById(sessionId);
+// id — tarixdagi yozuv _id'si yoki o'yin paytidagi sessionId (doskadan kelgan havola)
+const getSessionResult = async (id, user) => {
+  const session = mongoose.isValidObjectId(id)
+    ? await LiveSession.findById(id)
+    : await LiveSession.findOne({ sessionId: String(id) });
   if (!session) throw new ApiError(404, 'Natija topilmadi');
   if (!STAFF_ROLES.includes(user.role) && session.host.toString() !== user._id.toString()) {
     throw new ApiError(403, "Bu natija sizga tegishli emas");

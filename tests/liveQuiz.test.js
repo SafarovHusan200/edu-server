@@ -270,7 +270,7 @@ describe('Jonli viktorina — Socket.IO oqimi', () => {
     const joined = await call(host, 'host:join', { pin: res.body.data.session.pin });
     expect(joined.ok).toBe(true);
 
-    return { teacher, teacherToken, quiz, pin: res.body.data.session.pin, host };
+    return { teacher, teacherToken, quiz, pin: res.body.data.session.pin, sessionId: res.body.data.session.sessionId, host };
   };
 
   test("to'liq o'yin: anonim + platforma o'yinchilari, ball, reyting, natija saqlanadi", async () => {
@@ -426,7 +426,7 @@ describe('Jonli viktorina — Socket.IO oqimi', () => {
   });
 
   test("boshqa o'qituvchi hostga ulana olmaydi; host:end natijani saqlaydi", async () => {
-    const { pin, host } = await setupGame();
+    const { pin, host, sessionId, teacherToken } = await setupGame();
 
     const { token: otherTeacher } = await createUser({ role: 'teacher' });
     const intruder = await connect(otherTeacher);
@@ -443,6 +443,15 @@ describe('Jonli viktorina — Socket.IO oqimi', () => {
 
     const session = await waitFor(() => LiveSession.findOne({ pin }));
     expect(session.players[0]).toMatchObject({ name: "Yolg'iz", rank: 1, correctCount: 1 });
+
+    // Batafsil natija: doskadagi havola (sessionId) va tarixdagi havola (_id) ikkalasi ham ishlaydi
+    for (const id of [sessionId, session._id.toString()]) {
+      const r = await request(app)
+        .get(`/api/v1/live-quizzes/results/${id}`)
+        .set('Authorization', `Bearer ${teacherToken}`);
+      expect(r.status).toBe(200);
+      expect(r.body.data.session.players[0].name).toBe("Yolg'iz");
+    }
   });
 
   test("o'qish bosqichida javob qabul qilinmaydi, taymer undan keyin boshlanadi", async () => {

@@ -9,6 +9,8 @@ const liveSessionSchema = new mongoose.Schema(
     quiz: { type: mongoose.Schema.Types.ObjectId, ref: 'LiveQuiz', required: true },
     host: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 
+    // O'yin paytidagi identifikator (doska "Batafsil natijalar" havolasi shuni ishlatadi)
+    sessionId: { type: String, default: null },
     pin: { type: String, required: true },
     quizTitle: { type: String, default: '' },
 
@@ -46,5 +48,6 @@ const liveSessionSchema = new mongoose.Schema(
 
 liveSessionSchema.index({ quiz: 1, createdAt: -1 });
 liveSessionSchema.index({ host: 1, createdAt: -1 });
+liveSessionSchema.index({ sessionId: 1 }, { unique: true, partialFilterExpression: { sessionId: { $type: 'string' } } });
 
 module.exports = mongoose.model('LiveSession', liveSessionSchema);
