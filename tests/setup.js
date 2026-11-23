@@ -7,7 +7,12 @@ let mongod;
 
 beforeAll(async () => {
   mongod = await MongoMemoryServer.create();
-  await mongoose.connect(mongod.getUri());
+  // MongoDB drayveri (7.6+) handshake metadatasi uchun `os`ni `await import('os')` bilan
+  // yuklaydi. Jest (ESM'siz) VM'ida dinamik import ishlamaydi — metadata bo'sh ketib, server
+  // "Missing required sub-document 'driver'" deb ulanishni rad etadi va har bir test faylining
+  // beforeAll'i 30s'da timeout bo'ladi. Shuning uchun os modulini to'g'ridan-to'g'ri beramiz.
+  // Faqat test muhitiga tegishli — production'da Node dinamik importni bemalol bajaradi.
+  await mongoose.connect(mongod.getUri(), { runtimeAdapters: { os: require('os') } });
 });
 
 afterEach(async () => {
