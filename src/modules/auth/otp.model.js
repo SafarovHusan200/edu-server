@@ -13,6 +13,12 @@ const otpSchema = new mongoose.Schema({
     required: true,
   },
 
+  // "Saytda kirish" havolasidagi uzun token (otp.service.js) — eski yozuvlarda bo'lmaydi
+  linkToken: {
+    type: String,
+    default: null,
+  },
+
   expiresAt: {
     type: Date,
     required: true,
@@ -26,5 +32,8 @@ const otpSchema = new mongoose.Schema({
 
 // TTL index — expiresAt o'tgandan keyin MongoDB avtomatik o'chiradi
 otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+otpSchema.index({ code: 1 });
+otpSchema.index({ linkToken: 1 });
+otpSchema.index({ telegramId: 1 });
 
 module.exports = mongoose.model('Otp', otpSchema);

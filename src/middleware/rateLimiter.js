@@ -20,6 +20,24 @@ const authLimiter = rateLimit({
   },
 });
 
+// POST /auth/telegram — 6 xonali kodni ketma-ket taxmin qilishga qarshi. Faqat MUVAFFAQIYATSIZ
+// urinishlar sanaladi (to'g'ri kod bilan kirgan oddiy foydalanuvchiga ta'sir qilmaydi).
+// Test muhitida o'chiq; limitning o'zini sinash uchun OTP_LIMITER_ENABLED=true.
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  skip: () => process.env.NODE_ENV === 'test' && process.env.OTP_LIMITER_ENABLED !== 'true',
+  keyGenerator: (req) => `otp:${rateLimit.ipKeyGenerator(req.ip)}`,
+  message: {
+    success: false,
+    statusCode: 429,
+    message: "Kod juda ko'p marta noto'g'ri kiritildi. 15 daqiqadan so'ng qayta urinib ko'ring",
+  },
+});
+
 // Barcha /api/v1 uchun umumiy xavfsizlik to'ri
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -51,4 +69,4 @@ const aiLimiter = rateLimit({
   },
 });
 
-module.exports = { authLimiter, apiLimiter, aiLimiter };
+module.exports = { authLimiter, otpLimiter, apiLimiter, aiLimiter };

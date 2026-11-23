@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const User = require('../users/user.model');
 const ApiError = require('../../utils/ApiError');
-const Otp = require('./otp.model');
+const { consumeLoginOtp } = require('./otp.service');
 const notificationService = require('../notifications/notification.service');
 const { frontendLinks } = require('../../config/frontendLinks');
 const { logActivity } = require('../user-activity/userActivity.service');
@@ -15,11 +15,9 @@ const INIT_DATA_MAX_AGE_SECONDS = 24 * 60 * 60;
 const verifyTelegramOtp = async ({ code }, context = {}) => {
   // 1. OTP kodni bazadan qidirish
   // Bir vaqtning o'zida isUsed va expiresAt ni ham tekshiramiz
-  const otp = await Otp.findOne({
-    code,
-    isUsed: false,
-    expiresAt: { $gt: new Date() },
-  });
+  // `code` — qo'lda kiritilgan 6 xonali kod yoki havoladagi uzun token (otp.service.js).
+  // Kod shu yerning o'zida atomik "ishlatilgan" qilinadi (parallel so'rovlar ikki marta kira olmaydi)
+  const otp = await consumeLoginOtp(code);
 
   if (!otp) {
     throw new ApiError(400, "Kod noto'g'ri yoki muddati tugagan");
@@ -39,10 +37,6 @@ const verifyTelegramOtp = async ({ code }, context = {}) => {
   if (!user.isVerified) {
     throw new ApiError(403, 'Hisobingiz hali administrator tomonidan tasdiqlanmagan');
   }
-
-  // 3. Kodni ishlatilgan deb belgilash
-  otp.isUsed = true;
-  await otp.save();
 
   // 4. Oxirgi kirish vaqtini yangilash (premium muddati tugagan bo'lsa shu bilan birga saqlanadi)
   user.lastLogin = new Date();

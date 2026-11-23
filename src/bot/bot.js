@@ -1,5 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
-const Otp = require('../modules/auth/otp.model');
+const { issueLoginOtp } = require('../modules/auth/otp.service');
 const TelegramLinkToken = require('../modules/auth/telegramLinkToken.model');
 const User = require('../modules/users/user.model');
 const Quiz = require('../modules/quizzes/quiz.model');
@@ -18,40 +18,24 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
 // Foydalanuvchi ma'lumotlarini vaqtincha xotirada ushlab turish uchun state
 const userState = {};
 
-const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
-
-const OTP_TTL_MS = 3 * 60 * 1000; // 3 minut
-
 // Frontend saytining bosh manzili — tg_code bilan to'g'ridan-to'g'ri kirish havolasi uchun
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://edu-platform.uz';
 
-const buildLoginLink = (code) => `${FRONTEND_URL}/login?tg_code=${code}`;
+// Havolada 6 xonali kod emas, uzun linkToken ketadi (otp.service.js) — frontend tg_code'ni
+// o'zgarishsiz POST /auth/telegram'ga `code` sifatida yuboradi
+const buildLoginLink = (linkToken) => `${FRONTEND_URL}/login?tg_code=${linkToken}`;
 
-const buildOtpKeyboard = (code) => ({
+const buildOtpKeyboard = ({ linkToken }) => ({
   inline_keyboard: [
-    [{ text: '🔗 Saytda kirish', url: buildLoginLink(code) }],
+    [{ text: '🔗 Saytda kirish', url: buildLoginLink(linkToken) }],
     [{ text: '🔄 Kodni yangilash', callback_data: 'refresh_otp' }],
   ],
 });
 
-const otpMessageText = (code) =>
+const otpMessageText = ({ code, linkToken }) =>
   `🔐 <b>Tizimga kirish kodi: <code>${code}</code></b>\n\n` +
-  `🔗 Yoki bir bosishda kiring:\n${buildLoginLink(code)}\n\n` +
+  `🔗 Yoki bir bosishda kiring:\n${buildLoginLink(linkToken)}\n\n` +
   `⏳ Amal qilish muddati: 3 daqiqa`;
-
-// Eski kodlarni bekor qilib, yangisini yaratadi — /login va "Kodni yangilash" ikkalasi ham shundan foydalanadi
-async function issueLoginOtp(telegramId) {
-  const code = generateOtp();
-
-  await Otp.deleteMany({ telegramId });
-  await Otp.create({
-    telegramId,
-    code,
-    expiresAt: new Date(Date.now() + OTP_TTL_MS),
-  });
-
-  return code;
-}
 
 // Profil sahifasidan "Telegramni ulash" bosilganda olingan deep-link tokenini
 // tasdiqlab, hisobga telegramId/telegramUsername'ni bog'laydi
@@ -238,13 +222,13 @@ bot.on('callback_query', async (query) => {
         });
       }
 
-      const code = await issueLoginOtp(telegramId);
+      const otp = await issueLoginOtp(telegramId);
 
-      await bot.editMessageText(otpMessageText(code), {
+      await bot.editMessageText(otpMessageText(otp), {
         chat_id: telegramId,
         message_id: query.message.message_id,
         parse_mode: 'HTML',
-        reply_markup: buildOtpKeyboard(code),
+        reply_markup: buildOtpKeyboard(otp),
       });
       bot.answerCallbackQuery(query.id, { text: 'Yangi kod yuborildi ✅' });
     } catch (error) {
@@ -458,11 +442,11 @@ bot.onText(/\/login/, async (msg) => {
       );
     }
 
-    const code = await issueLoginOtp(telegramId);
+    const otp = await issueLoginOtp(telegramId);
 
-    bot.sendMessage(telegramId, otpMessageText(code), {
+    bot.sendMessage(telegramId, otpMessageText(otp), {
       parse_mode: 'HTML',
-      reply_markup: buildOtpKeyboard(code),
+      reply_markup: buildOtpKeyboard(otp),
     });
   } catch (error) {
     bot.sendMessage(telegramId, "Xatolik yuz berdi. Qayta urinib ko'ring.");

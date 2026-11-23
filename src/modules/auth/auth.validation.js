@@ -1,6 +1,7 @@
 // src/modules/auth/auth.validation.js
 
 const { body } = require('express-validator');
+const { CODE_PATTERN, LINK_TOKEN_PATTERN } = require('./otp.service');
 
 const registerValidation = [
   body('name')
@@ -101,11 +102,16 @@ const telegramWebAppValidation = [
 ];
 
 const verifyOtpValidation = [
+  // 6 xonali kod (qo'lda kiritiladi) yoki "Saytda kirish" havolasidagi uzun token
   body('code')
+    .isString()
+    .withMessage('Kod kiritilishi shart')
+    .bail()
+    .trim()
     .notEmpty()
     .withMessage('Kod kiritilishi shart')
     .bail()
-    .isLength({ min: 6, max: 6 })
+    .custom((value) => CODE_PATTERN.test(value) || LINK_TOKEN_PATTERN.test(value))
     .withMessage("Kod 6 ta raqamdan iborat bo'lishi kerak"),
 ];
 

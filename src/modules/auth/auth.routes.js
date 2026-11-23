@@ -4,7 +4,7 @@ const { validationResult } = require('express-validator');
 
 const authController = require('./auth.controller');
 const authenticate = require('../../middleware/authenticate');
-const { authLimiter } = require('../../middleware/rateLimiter');
+const { authLimiter, otpLimiter } = require('../../middleware/rateLimiter');
 const {
   registerValidation,
   loginValidation,
@@ -148,7 +148,14 @@ router.post('/login', authLimiter, loginValidation, validate, authController.log
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
 // POST /api/v1/auth/telegram/verify
-router.post('/telegram', authLimiter, verifyOtpValidation, validate, authController.verifyTelegramOtp);
+router.post(
+  '/telegram',
+  otpLimiter,
+  authLimiter,
+  verifyOtpValidation,
+  validate,
+  authController.verifyTelegramOtp
+);
 
 /**
  * @swagger
