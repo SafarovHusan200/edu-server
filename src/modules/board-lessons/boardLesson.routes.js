@@ -113,7 +113,7 @@ router.post('/upload-image', uploadImage('board-lessons').single('image'), contr
  *       muharrirda ko'rsatadi, o'qituvchi tahrirlab POST /board-lessons orqali saqlaydi.
  *       Javob serverda tozalanadi: noto'g'ri mashqlar tashlab yuboriladi, shuning uchun
  *       slayd/mashq soni so'ralganidan kam bo'lishi mumkin. Limit: har foydalanuvchiga
- *       10 daqiqada 5 ta so'rov. Javob 10–40 soniya olishi mumkin.
+ *       10 daqiqada 5 ta so'rov. Javob odatda 10–40 soniya, model band bo'lsa 2 daqiqagacha.
  *     requestBody:
  *       required: true
  *       content:
@@ -156,7 +156,7 @@ router.post('/upload-image', uploadImage('board-lessons').single('image'), contr
  *       422: { $ref: '#/components/responses/ValidationError' }
  *       429: { description: "Foydalanuvchi limiti (10 daqiqada 5 ta) yoki AI provayder limiti tugadi" }
  *       502: { description: "AI javobini o'qib bo'lmadi yoki yaroqli dars qaytmadi" }
- *       503: { description: "AI xizmati sozlanmagan / band / vaqtincha ishlamayapti" }
+ *       503: { description: "AI xizmati sozlanmagan / band / vaqtincha ishlamayapti. Model band bo'lsa server o'zi qayta urinadi (GEMINI_FALLBACK_MODEL berilgan bo'lsa navbat bilan unga), jami 2 daqiqagacha" }
  *       504: { description: "AI 60 soniyada javob bermadi" }
  */
 // /:id dan OLDIN ro'yxatdan o'tkazilishi shart

@@ -27,6 +27,8 @@ const getConfig = () => {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL;
   const baseUrl = process.env.GEMINI_BASE_URL || undefined;
+  // Ixtiyoriy: asosiy model band (503 "high demand") bo'lsa, shu modelga o'tiladi
+  const fallbackModel = process.env.GEMINI_FALLBACK_MODEL?.trim() || undefined;
   if (!apiKey || !model) throw new ApiError(503, 'AI xizmati sozlanmagan');
 
   const clientKey = `${apiKey}|${baseUrl ?? ''}`;
@@ -34,7 +36,7 @@ const getConfig = () => {
     cachedClient = new GoogleGenAI({ apiKey, ...(baseUrl && { httpOptions: { baseUrl } }) });
     cachedClientKey = clientKey;
   }
-  return { client: cachedClient, model };
+  return { client: cachedClient, model, fallbackModel };
 };
 
 // ─────────────── Bir vaqtdagi chaqiruvlar cheklovi (semafor) ───────────────
@@ -237,14 +239,14 @@ const sanitizeDraft = (raw, input) => {
 
 class ParseError extends Error {}
 
-const callModel = async ({ client, model }, input) => {
+const callModel = async ({ client, model }, input, timeoutMs = REQUEST_TIMEOUT_MS) => {
   const controller = new AbortController();
   let timer;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => {
       controller.abort();
       reject(new ApiError(504, "AI javob berishga ulgurmadi. Qayta urinib ko'ring"));
-    }, REQUEST_TIMEOUT_MS);
+    }, timeoutMs);
   });
 
   try {
@@ -275,6 +277,56 @@ const callModel = async ({ client, model }, input) => {
   }
 };
 
+// ─────────────── Band model: qayta urinish va zaxira model ───────────────
+
+// Gemini band bo'lganda "high demand" (503) xatosi darhol emas, 10–40 soniyada qaytadi,
+// ba'zan model umuman javob bermay timeout'ga tushadi. Shuning uchun urinishlar soni emas,
+// umumiy vaqt cheklanadi: navbat asosiy → zaxira → asosiy..., hammasi budgetMs ichida.
+// Testlarda delayMs 0 ga o'zgartiriladi.
+const retryPolicy = {
+  maxAttempts: 3,
+  attemptTimeoutMs: REQUEST_TIMEOUT_MS, // bitta model chaqiruvi uchun
+  // Asosiy model osilib qolsa ham zaxiraga to'liq urinish (to'liq dars ~30s) sig'ishi uchun.
+  // nginx proxy_read_timeout bundan katta bo'lishi kerak (masalan 150s)
+  budgetMs: 120 * 1000,
+  minAttemptMs: 20 * 1000, // bundan kam vaqt qolsa — yangi urinish boshlanmaydi
+  delayMs: 2000,
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Gemini "This model is currently experiencing high demand" — 503 UNAVAILABLE
+const isOverloaded = (err) =>
+  !(err instanceof ApiError) &&
+  (Number(err?.status) === 503 || /UNAVAILABLE|overloaded|high demand/i.test(String(err?.message ?? '')));
+
+// Band yoki javob bermagan (timeout) — boshqa model/urinishda o'tib ketishi mumkin.
+// Boshqa xatolar (kalit, 4xx, 500) qayta urinilmaydi.
+const isRetryable = (err) => isOverloaded(err) || (err instanceof ApiError && err.statusCode === 504);
+
+const callWithRetry = async ({ client, model, fallbackModel }, input, deadline) => {
+  const models = [model, fallbackModel].filter((m, i, all) => m && all.indexOf(m) === i);
+  let lastError;
+
+  for (let attempt = 0; attempt < retryPolicy.maxAttempts; attempt += 1) {
+    // Zaxira bor bo'lsa darhol unga o'tiladi (kutishsiz); bitta model bo'lsa — biroz kutiladi
+    if (attempt > 0 && models.length === 1) await sleep(retryPolicy.delayMs);
+    const remaining = deadline - Date.now();
+    if (attempt > 0 && remaining < retryPolicy.minAttemptMs) break;
+
+    const current = models[attempt % models.length];
+    try {
+      return await callModel({ client, model: current }, input, Math.min(retryPolicy.attemptTimeoutMs, remaining));
+    } catch (err) {
+      if (!isRetryable(err)) throw err;
+      // "Band" xatosi timeout'dan ustun: foydalanuvchiga "AI hozir juda band" ko'rsatiladi
+      if (!lastError || !isOverloaded(lastError)) lastError = err;
+      console.error(`[board-lessons/ai] ${current} band yoki javob bermadi (urinish ${attempt + 1}):`, err.message.slice(0, 120));
+    }
+  }
+  throw lastError;
+};
+
 // Provayder xatosini foydalanuvchiga ko'rinadigan ApiError'ga aylantiradi.
 // Tafsilotlar (kalit, so'rov matni) faqat logga yoziladi.
 const toApiError = (err) => {
@@ -288,6 +340,7 @@ const toApiError = (err) => {
     return new ApiError(429, 'AI limiti vaqtincha tugadi. Birozdan so\'ng qayta urinib ko\'ring');
   }
   if (err?.name === 'AbortError') return new ApiError(504, "AI javob berishga ulgurmadi. Qayta urinib ko'ring");
+  if (isOverloaded(err)) return new ApiError(503, "AI hozir juda band. Bir necha daqiqadan so'ng qayta urinib ko'ring");
   return new ApiError(503, 'AI xizmati vaqtincha ishlamayapti');
 };
 
@@ -301,10 +354,13 @@ const generateLessonDraft = async (input) => {
 
   await acquire();
   try {
+    // Navbatda kutilgan vaqt hisobga olinmaydi — budget model chaqiruvlari uchun
+    const deadline = Date.now() + retryPolicy.budgetMs;
     let raw;
     for (let attempt = 1; attempt <= 2 && !raw; attempt += 1) {
+      if (attempt > 1 && deadline - Date.now() < retryPolicy.minAttemptMs) break;
       try {
-        raw = await callModel(config, input);
+        raw = await callWithRetry(config, input, deadline);
       } catch (err) {
         if (err instanceof ParseError) {
           console.error(`[board-lessons/ai] JSON o'qilmadi (urinish ${attempt}):`, err.message.slice(0, 200));
@@ -325,4 +381,4 @@ const generateLessonDraft = async (input) => {
   }
 };
 
-module.exports = { generateLessonDraft, sanitizeDraft };
+module.exports = { generateLessonDraft, sanitizeDraft, retryPolicy };

@@ -34,6 +34,16 @@ const GOOD = {
 };
 
 const reply = (obj) => ({ text: typeof obj === 'string' ? obj : JSON.stringify(obj) });
+const overloaded = () =>
+  Object.assign(
+    new Error('{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}'),
+    { status: 503 }
+  );
+
+// Qayta urinishlar orasidagi kutish testlarni sekinlashtirmasin
+const { retryPolicy } = require('../src/modules/board-lessons/boardLesson.ai');
+const RETRY_DEFAULTS = { ...retryPolicy };
+beforeEach(() => Object.assign(retryPolicy, RETRY_DEFAULTS, { delayMs: 0 }));
 const post = (token, body = BODY) => request(app).post(URL).set('Authorization', `Bearer ${token}`).send(body);
 
 let teacherToken;
@@ -42,6 +52,7 @@ const ENV = { ...process.env };
 beforeEach(async () => {
   process.env.GEMINI_API_KEY = 'test-key';
   process.env.GEMINI_MODEL = 'test-flash-model';
+  delete process.env.GEMINI_FALLBACK_MODEL;
   mockGenerateContent.mockReset();
   ({ token: teacherToken } = await createUser({ role: 'teacher' }));
 });
@@ -168,9 +179,77 @@ describe('POST /board-lessons/generate (AI qoralama)', () => {
     expect(JSON.stringify(res.body)).not.toMatch(/test-key|RESOURCE_EXHAUSTED/);
   });
 
-  test('provayder 5xx — 503', async () => {
+  test("model band (503 high demand) — qayta uriniladi, keyin muvaffaqiyat", async () => {
+    mockGenerateContent
+      .mockRejectedValueOnce(overloaded())
+      .mockRejectedValueOnce(overloaded())
+      .mockResolvedValueOnce(reply(GOOD));
+
+    expect((await post(teacherToken)).status).toBe(200);
+    expect(mockGenerateContent).toHaveBeenCalledTimes(3);
+    expect(mockGenerateContent.mock.calls.every(([args]) => args.model === 'test-flash-model')).toBe(true);
+  });
+
+  test("asosiy model band — darhol GEMINI_FALLBACK_MODEL'ga o'tiladi", async () => {
+    process.env.GEMINI_FALLBACK_MODEL = 'test-fallback-model';
+    mockGenerateContent.mockImplementation(async ({ model }) => {
+      if (model === 'test-flash-model') throw overloaded();
+      return reply(GOOD);
+    });
+
+    expect((await post(teacherToken)).status).toBe(200);
+    const models = mockGenerateContent.mock.calls.map(([args]) => args.model);
+    expect(models).toEqual(['test-flash-model', 'test-fallback-model']);
+  });
+
+  test("hammasi band — 503 va aniq xabar, tafsilot ko'rinmaydi", async () => {
+    process.env.GEMINI_FALLBACK_MODEL = 'test-fallback-model';
+    mockGenerateContent.mockRejectedValue(overloaded());
+
+    const res = await post(teacherToken);
+    expect(res.status).toBe(503);
+    expect(res.body.message).toMatch(/AI hozir juda band/);
+    expect(JSON.stringify(res.body)).not.toMatch(/high demand|UNAVAILABLE/);
+    // asosiy → zaxira → asosiy (maxAttempts = 3)
+    expect(mockGenerateContent.mock.calls.map(([args]) => args.model)).toEqual([
+      'test-flash-model',
+      'test-fallback-model',
+      'test-flash-model',
+    ]);
+  });
+
+  test("asosiy model javob bermasa (timeout) — zaxiraga o'tiladi, umumiy vaqt cheklangan", async () => {
+    process.env.GEMINI_FALLBACK_MODEL = 'test-fallback-model';
+    Object.assign(retryPolicy, { attemptTimeoutMs: 100, budgetMs: 1000, minAttemptMs: 0 });
+    mockGenerateContent.mockImplementation(({ model }) =>
+      model === 'test-flash-model' ? new Promise(() => {}) : Promise.resolve(reply(GOOD))
+    );
+
+    expect((await post(teacherToken)).status).toBe(200);
+    expect(mockGenerateContent.mock.calls.map(([args]) => args.model)).toEqual(['test-flash-model', 'test-fallback-model']);
+  });
+
+  test("biri band, keyingisi timeout — 'band' xabari ko'rsatiladi", async () => {
+    Object.assign(retryPolicy, { attemptTimeoutMs: 100, budgetMs: 1000, minAttemptMs: 0, maxAttempts: 2 });
+    mockGenerateContent.mockRejectedValueOnce(overloaded()).mockImplementationOnce(() => new Promise(() => {}));
+
+    const res = await post(teacherToken);
+    expect(res.status).toBe(503);
+    expect(res.body.message).toMatch(/AI hozir juda band/);
+  });
+
+  test("vaqt tugasa — yangi urinish boshlanmaydi, 504", async () => {
+    Object.assign(retryPolicy, { budgetMs: 200, minAttemptMs: 150 });
+    mockGenerateContent.mockImplementation(() => new Promise(() => {}));
+
+    expect((await post(teacherToken)).status).toBe(504);
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+  });
+
+  test("boshqa 5xx xatolar qayta urinilmaydi", async () => {
     mockGenerateContent.mockRejectedValue(Object.assign(new Error('Internal'), { status: 500 }));
     expect((await post(teacherToken)).status).toBe(503);
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
   });
 
   test('validatsiya xatolari — 422, Gemini chaqirilmaydi', async () => {
