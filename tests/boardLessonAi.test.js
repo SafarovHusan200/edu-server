@@ -289,19 +289,3 @@ describe('GEMINI_BASE_URL (proksi)', () => {
     expect(GoogleGenAI).toHaveBeenLastCalledWith({ apiKey: 'proxy-test-key' });
   });
 });
-
-describe('aiLimiter', () => {
-  test("bir foydalanuvchiga 10 daqiqada 5 tadan ortiq so'rov — 429", async () => {
-    process.env.AI_LIMITER_ENABLED = 'true';
-    mockGenerateContent.mockResolvedValue(reply(GOOD));
-    const { token } = await createUser({ role: 'teacher' });
-
-    const statuses = [];
-    for (let i = 0; i < 6; i += 1) statuses.push((await post(token)).status);
-
-    expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
-    // Boshqa foydalanuvchiga ta'sir qilmaydi
-    expect((await post(teacherToken)).status).toBe(200);
-    delete process.env.AI_LIMITER_ENABLED;
-  });
-});

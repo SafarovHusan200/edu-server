@@ -205,8 +205,8 @@ qoralamasini tuzadi, natija bazaga saqlanmaydi. Provayderga bog'liq hamma narsa
 `boardLesson.ai.js`da (boshqa provayderga o'tish — faqat shu fayl): structured output
 (`responseSchema`), javob serverda qayta tozalanadi (`sanitizeDraft`: uzunliklar, enum'lar,
 variantlar 2-4, correctIndex, markdown'dan rasm/havola/HTML olib tashlanadi), buzilgan JSON'da
-1 marta qayta urinish, 60 s timeout. Bepul limitni himoya qilish: `aiLimiter` (foydalanuvchiga
-10 daqiqada 5 ta) va bir vaqtda ko'pi bilan 3 ta chaqiruv (navbatda 60 s dan ko'p kutsa 503).
+1 marta qayta urinish, 60 s timeout. Bepul limitni himoya qilish: bir vaqtda ko'pi bilan 3 ta chaqiruv
+(navbatda 60 s dan ko'p kutsa 503). Login qilgan foydalanuvchi uchun so'rov soni cheklanmaydi.
 
 ### Ma'lumotlar zaxiralash (`src/jobs/`)
 Har kuni soat 03:00 (Asia/Tashkent, `node-cron`) butun MongoDB (barcha kolleksiyalar)

@@ -7,6 +7,7 @@ const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const mediaController = require('./media.controller');
 const hlsController = require('./hls.controller');
 const authenticate = require('../../middleware/authenticate');
+const { skipForTestOrLoggedIn } = require('../../middleware/rateLimiter');
 
 // Bitta uid (yoki anonim bo'lsa IP) uchun daqiqasiga 120 so'rov — video bir nechta
 // Range so'rovi yuborishi (segmentlab yuklash) normal, shuning uchun limit yuqori
@@ -15,7 +16,7 @@ const mediaLimiter = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => process.env.NODE_ENV === 'test',
+  skip: skipForTestOrLoggedIn, // login qilgan foydalanuvchi chegarasiz
   keyGenerator: (req) => req.query.uid || ipKeyGenerator(req.ip),
   message: {
     success: false,
@@ -62,7 +63,7 @@ const keyLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => process.env.NODE_ENV === 'test',
+  skip: skipForTestOrLoggedIn, // login qilgan foydalanuvchi chegarasiz
   keyGenerator: (req) => req.user?.id || ipKeyGenerator(req.ip),
   message: {
     success: false,
