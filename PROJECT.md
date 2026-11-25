@@ -232,8 +232,20 @@ qo'lda tiklash uchun CLI (`--yes` flagisiz faqat dry-run).
 
 - `helmet` (barcha route'larda, `/api-docs` bundan mustasno — Swagger UI ishlashi uchun).
 - `cors` — `CLIENT_URL` orqali sozlanadi.
-- `express-rate-limit` — umumiy API (`/api/v1` — 15 daqiqada 300 so'rov) va alohida
-  og'ir endpointlar (login/register/OTP — 5 daqiqada 10 ta muvaffaqiyatsiz urinish, muvaffaqiyatlilari sanalmaydi) uchun; test muhitida o'chirilgan.
+- `express-rate-limit` (`src/middleware/rateLimiter.js`) — maktab sharoitiga moslangan: sinfdagi
+  barcha o'quvchilar bitta Wi-Fi (NAT) orqali chiqadi, serverga bitta IP bo'lib ko'rinadi.
+  - **Umumiy `/api/v1`** — faqat anonim so'rovlar: IP bo'yicha 15 daqiqada 300 ta. Login qilgan
+    foydalanuvchi (yaroqli Bearer JWT yoki login qilgan foydalanuvchiga imzolangan media havolasi)
+    va `X-Internal-Key: <SSR_INTERNAL_KEY>` sarlavhali frontend SSR so'rovlari chegarasiz
+    (`SSR_INTERNAL_KEY` bo'sh bo'lsa SSR imtiyozi o'chiq). Media (video/HLS) limitlari ham shunday.
+  - **Login/register/Telegram** — faqat muvaffaqiyatsiz urinishlar (status >= 400) sanaladi:
+    IP + login (telefon, faqat raqamlar) bo'yicha 5 daqiqada 10 ta — bir o'quvchi parolni
+    adashtirsa faqat o'sha akkaunt bloklanadi; IP bo'yicha umumiy to'r — 5 daqiqada 100 ta.
+    `/auth/telegram` va `/auth/telegram-webapp` da login identifikatori yo'q — faqat IP.
+  - **Telegram OTP kodi** — IP bo'yicha 15 daqiqada 5 ta noto'g'ri kod.
+  - Haqiqiy mijoz IP'si uchun `TRUST_PROXY` to'g'ri sozlangan bo'lishi shart (nginx ortida).
+  - Test muhitida o'chiq; limitlarni sinash uchun `AUTH_LIMITER_ENABLED`, `OTP_LIMITER_ENABLED`,
+    `API_LIMITER_ENABLED` = `true` (`tests/rateLimit.test.js`).
 - Parollar bcrypt bilan bir tomonlama hash qilinadi, API javoblarida hech qachon
   qaytarilmaydi (`toJSON()` orqali avtomatik olib tashlanadi).
 - `tokenVersion` orqali parol o'zgarganda/logout qilinganda barcha eski tokenlar
