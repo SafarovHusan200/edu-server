@@ -54,12 +54,15 @@ const isLoggedIn = (req) => {
 
 const skipForTestOrLoggedIn = (req) => skip() || isLoggedIn(req);
 
-// Login/register/telegram-otp kabi og'ir suiiste'mol qilinadigan endpointlar uchun
+// Login/register/telegram-otp kabi og'ir suiiste'mol qilinadigan endpointlar uchun.
+// Faqat MUVAFFAQIYATSIZ urinishlar (status >= 400) sanaladi: maktabda butun sinf bitta
+// IP (NAT) orqali chiqadi, to'g'ri kirgan o'quvchilar limitni yeb qo'ymasligi kerak.
 const authLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 daqiqa
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
   skip,
   message: {
     success: false,

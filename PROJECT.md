@@ -233,7 +233,7 @@ qo'lda tiklash uchun CLI (`--yes` flagisiz faqat dry-run).
 - `helmet` (barcha route'larda, `/api-docs` bundan mustasno — Swagger UI ishlashi uchun).
 - `cors` — `CLIENT_URL` orqali sozlanadi.
 - `express-rate-limit` — umumiy API (`/api/v1` — 15 daqiqada 300 so'rov) va alohida
-  og'ir endpointlar (login/register/OTP — 5 daqiqada 10 so'rov) uchun; test muhitida o'chirilgan.
+  og'ir endpointlar (login/register/OTP — 5 daqiqada 10 ta muvaffaqiyatsiz urinish, muvaffaqiyatlilari sanalmaydi) uchun; test muhitida o'chirilgan.
 - Parollar bcrypt bilan bir tomonlama hash qilinadi, API javoblarida hech qachon
   qaytarilmaydi (`toJSON()` orqali avtomatik olib tashlanadi).
 - `tokenVersion` orqali parol o'zgarganda/logout qilinganda barcha eski tokenlar
