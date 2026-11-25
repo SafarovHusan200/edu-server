@@ -18,6 +18,7 @@ const { QUIZ_MAX_REWARD } = require('../../config/gamification');
 const { applyDiamondMultiplier } = require('../../utils/diamonds');
 const { frontendLinks } = require('../../config/frontendLinks');
 const { getPagination } = require('../../utils/paginate');
+const { formatGrade } = require('../user-activity/userActivity.service');
 
 // Xato xabarlarida vaqtni har doim Toshkent vaqti bilan, "10:10 01.01.2026"
 // shaklida ko'rsatish uchun (server qaysi timezone'da ishlashidan qat'i nazar)
@@ -236,9 +237,13 @@ const submitAttempt = async (attemptId, studentId, answers) => {
   attempt.submittedAt = new Date();
 
   const [student, teacher] = await Promise.all([
-    User.findById(studentId).select('name'),
+    User.findById(studentId).select('name grade'),
     User.findById(quiz.createdBy).select('name'),
   ]);
+
+  // O'qituvchiga boradigan xabarlarda o'quvchi ismi bilan birga sinfi ham ko'rsatiladi
+  const studentGrade = formatGrade(student?.grade);
+  const studentLine = `👤 O'quvchi: ${student?.name ?? 'Talaba'}${studentGrade ? `\n🏫 Sinf: ${studentGrade}` : ''}`;
 
   const correctCount = evaluatedAnswers.filter((a) => a.isCorrect).length;
   const totalQuestions = evaluatedAnswers.length;
@@ -262,7 +267,7 @@ const submitAttempt = async (attemptId, studentId, answers) => {
       userId: quiz.createdBy,
       type: 'quiz',
       title: '📥 Yangi natija',
-      message: `👤 O'quvchi: ${student?.name ?? 'Talaba'}\n📚 Fan: "${quiz.title}"\n✅ Natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n${passed ? "🟢 Holat: o'tdi" : "🔴 Holat: o'ta olmadi"}`,
+      message: `${studentLine}\n📚 Fan: "${quiz.title}"\n✅ Natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n${passed ? "🟢 Holat: o'tdi" : "🔴 Holat: o'ta olmadi"}`,
       meta: { quizId: quiz._id, attemptId: attempt._id, studentId },
       url: frontendLinks.teacherQuizResults(quiz._id),
       buttonText: "📋 Natijalarni ko'rish",
@@ -276,7 +281,7 @@ const submitAttempt = async (attemptId, studentId, answers) => {
       userId: quiz.createdBy,
       type: 'quiz',
       title: '📝 Tekshirish kerak',
-      message: `👤 O'quvchi: ${student?.name ?? 'Talaba'}\n📚 Fan: "${quiz.title}"\n❓ ${openEndedCount} ta ochiq savolga javob yubordi — tekshirib, baholab bering`,
+      message: `${studentLine}\n📚 Fan: "${quiz.title}"\n❓ ${openEndedCount} ta ochiq savolga javob yubordi — tekshirib, baholab bering`,
       meta: { quizId: quiz._id, attemptId: attempt._id, studentId },
       url: frontendLinks.reviewOpenEnded(quiz._id, attempt._id),
       buttonText: '🌐 Saytda tekshirish',
