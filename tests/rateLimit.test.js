@@ -1,4 +1,5 @@
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 const { createUser } = require('./helpers');
 
@@ -56,56 +57,43 @@ describe('authLimiter: IP + login bo\'yicha', () => {
   });
 });
 
-describe('apiLimiter: X-Internal-Key (SSR)', () => {
-  const KEY = 'ssr-test-internal-key-0123456789';
-
+describe("apiLimiter: faqat anonim so'rovlar", () => {
   beforeEach(() => {
     process.env.API_LIMITER_ENABLED = 'true';
-    process.env.SSR_INTERNAL_KEY = KEY;
   });
   afterEach(() => {
     delete process.env.API_LIMITER_ENABLED;
-    delete process.env.SSR_INTERNAL_KEY;
   });
 
-  // Mavjud bo'lmagan anonim route — 404, lekin limiter undan oldin ishlaydi
-  const hit = (ip, key) => {
+  // Mavjud bo'lmagan route — 404, lekin limiter undan oldin ishlaydi
+  const hit = (ip, token) => {
     const req = request(app).get('/api/v1/__rate-limit-probe').set('X-Forwarded-For', ip);
-    return key === undefined ? req : req.set('X-Internal-Key', key);
+    return token ? req.set('Authorization', `Bearer ${token}`) : req;
   };
 
-  test("to'g'ri kalit bilan limitga tushmaydi, noto'g'ri kalit bilan tushadi", async () => {
+  test("anonim so'rovlar sanaladi, yaroqli token bilan sanalmaydi", async () => {
     const ip = '198.51.100.50';
+    const valid = jwt.sign({ id: 'x' }, process.env.JWT_TOKEN_SECRET);
+    const forged = jwt.sign({ id: 'x' }, 'boshqa-secret');
 
-    // Noto'g'ri / kalitsiz — sanaladi
-    const wrong = await hit(ip, 'notogri-kalit');
-    expect(wrong.headers['ratelimit-remaining']).toBe('299');
-    expect((await hit(ip, KEY.slice(0, -1))).headers['ratelimit-remaining']).toBe('298');
-    expect((await hit(ip)).headers['ratelimit-remaining']).toBe('297');
+    expect((await hit(ip)).headers['ratelimit-remaining']).toBe('299');
+    expect((await hit(ip, forged)).headers['ratelimit-remaining']).toBe('298');
 
-    // To'g'ri kalit — limiter o'tkazib yuboradi (sarlavha yo'q, hisoblagich o'zgarmaydi)
     for (let i = 0; i < 3; i += 1) {
-      const ok = await hit(ip, KEY);
-      expect(ok.status).not.toBe(429);
-      expect(ok.headers['ratelimit-remaining']).toBeUndefined();
+      expect((await hit(ip, valid)).headers['ratelimit-remaining']).toBeUndefined();
     }
-    expect((await hit(ip)).headers['ratelimit-remaining']).toBe('296');
+    expect((await hit(ip)).headers['ratelimit-remaining']).toBe('297');
   });
 
-  test("300 ta anonim so'rovdan keyin 429, to'g'ri kalit bilan esa o'tadi", async () => {
+  test("300 ta anonim so'rovdan keyin 429, login qilgan foydalanuvchi esa o'tadi", async () => {
     const ip = '198.51.100.51';
-    for (let i = 0; i < 300; i += 1) await hit(ip, 'notogri');
+    for (let i = 0; i < 300; i += 1) await hit(ip);
 
-    const blocked = await hit(ip, 'notogri');
+    const blocked = await hit(ip);
     expect(blocked.status).toBe(429);
-    expect(blocked.body.statusCode).toBe(429);
+    expect(blocked.body).toEqual({ success: false, statusCode: 429, message: expect.any(String) });
 
-    expect((await hit(ip, KEY)).status).toBe(404);
-  });
-
-  test('SSR_INTERNAL_KEY bo\'sh bo\'lsa imtiyoz o\'chiq', async () => {
-    delete process.env.SSR_INTERNAL_KEY;
-    const res = await hit('198.51.100.52', '');
-    expect(res.headers['ratelimit-remaining']).toBe('299');
+    const valid = jwt.sign({ id: 'x' }, process.env.JWT_TOKEN_SECRET);
+    expect((await hit(ip, valid)).status).toBe(404);
   });
 });

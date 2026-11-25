@@ -1,6 +1,5 @@
 // src/middleware/rateLimiter.js
 
-const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const { verifySignature, verifyHlsSignature } = require('../utils/mediaSigning');
@@ -16,7 +15,7 @@ const skipInTestUnless = (flag) => () => process.env.NODE_ENV === 'test' && proc
 
 const tooManyAttempts = (message) => ({ success: false, statusCode: 429, message });
 
-// ─────────────── Login qilgan foydalanuvchi va ichki (SSR) so'rovlar ───────────────
+// ─────────────── Login qilgan foydalanuvchi ───────────────
 
 // Imzolangan media havolalari (video/HLS/material) — player Bearer token yubormaydi,
 // lekin havola faqat login qilgan foydalanuvchi uchun (uid != 'anon') imzolangan bo'lsa
@@ -62,23 +61,7 @@ const isLoggedIn = (req) => {
   return hasSignedUserMediaLink(req);
 };
 
-// Frontend (Next.js) SSR so'rovlari tokensiz va hammasi bitta server IP'sidan keladi —
-// ular `X-Internal-Key: <SSR_INTERNAL_KEY>` sarlavhasi bilan anonim limitdan ozod.
-// SSR_INTERNAL_KEY bo'sh bo'lsa imtiyoz o'chiq. Kalit hech qayerda logga yozilmaydi.
-const hasInternalKey = (req) => {
-  const expected = process.env.SSR_INTERNAL_KEY;
-  const given = req.headers['x-internal-key'];
-  if (!expected || typeof given !== 'string' || !given) return false;
-
-  const expectedBuf = Buffer.from(expected);
-  const givenBuf = Buffer.from(given);
-  if (expectedBuf.length !== givenBuf.length) return false;
-  return crypto.timingSafeEqual(expectedBuf, givenBuf);
-};
-
-const isTrustedRequest = (req) => isLoggedIn(req) || hasInternalKey(req);
-
-const skipForTestOrLoggedIn = (req) => skip() || isTrustedRequest(req);
+const skipForTestOrLoggedIn = (req) => skip() || isLoggedIn(req);
 
 // ─────────────── Login / register / Telegram ───────────────
 
@@ -144,7 +127,7 @@ const otpLimiter = rateLimit({
 // ─────────────── Umumiy /api/v1 ───────────────
 
 // Barcha /api/v1 uchun umumiy xavfsizlik to'ri — faqat anonim so'rovlar uchun
-// (login qilgan foydalanuvchi va X-Internal-Key bilan kelgan SSR so'rovlari chegarasiz).
+// (login qilgan foydalanuvchi chegarasiz).
 // Test muhitida o'chiq; limitning o'zini sinash uchun API_LIMITER_ENABLED=true.
 const skipInTestApi = skipInTestUnless('API_LIMITER_ENABLED');
 const apiLimiter = rateLimit({
@@ -152,7 +135,7 @@ const apiLimiter = rateLimit({
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => skipInTestApi() || isTrustedRequest(req),
+  skip: (req) => skipInTestApi() || isLoggedIn(req),
   message: tooManyAttempts("Juda ko'p so'rov yubordingiz. Birozdan so'ng qayta urinib ko'ring"),
 });
 
@@ -162,6 +145,5 @@ module.exports = {
   otpLimiter,
   apiLimiter,
   isLoggedIn,
-  hasInternalKey,
   skipForTestOrLoggedIn,
 };

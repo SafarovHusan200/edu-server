@@ -236,8 +236,7 @@ qo'lda tiklash uchun CLI (`--yes` flagisiz faqat dry-run).
   barcha o'quvchilar bitta Wi-Fi (NAT) orqali chiqadi, serverga bitta IP bo'lib ko'rinadi.
   - **Umumiy `/api/v1`** — faqat anonim so'rovlar: IP bo'yicha 15 daqiqada 300 ta. Login qilgan
     foydalanuvchi (yaroqli Bearer JWT yoki login qilgan foydalanuvchiga imzolangan media havolasi)
-    va `X-Internal-Key: <SSR_INTERNAL_KEY>` sarlavhali frontend SSR so'rovlari chegarasiz
-    (`SSR_INTERNAL_KEY` bo'sh bo'lsa SSR imtiyozi o'chiq). Media (video/HLS) limitlari ham shunday.
+    chegarasiz. Media (video/HLS) limitlari ham shunday.
   - **Login/register/Telegram** — faqat muvaffaqiyatsiz urinishlar (status >= 400) sanaladi:
     IP + login (telefon, faqat raqamlar) bo'yicha 5 daqiqada 10 ta — bir o'quvchi parolni
     adashtirsa faqat o'sha akkaunt bloklanadi; IP bo'yicha umumiy to'r — 5 daqiqada 100 ta.
