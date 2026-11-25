@@ -8,6 +8,8 @@ const quizAttemptService = require('../modules/quiz-attempts/quizAttempt.service
 const notificationService = require('../modules/notifications/notification.service');
 const { frontendLinks } = require('../config/frontendLinks');
 const { logActivity } = require('../modules/user-activity/userActivity.service');
+const { canUseMiniApp, buildOpenButton, isHttps, MINI_APP_URL } = require('./miniApp');
+const { syncMiniAppMenu } = require('./telegramNotifier');
 
 // Test muhitida polling boshlanmaydi — aks holda testlar haqiqiy Telegram
 // serveriga ulanib, jarayon ochiq qolib ketishiga (hanging) sabab bo'lardi.
@@ -31,6 +33,24 @@ const buildOtpKeyboard = ({ linkToken }) => ({
     [{ text: '🔄 Kodni yangilash', callback_data: 'refresh_otp' }],
   ],
 });
+
+// O'qituvchi/admin uchun Mini App'ni ochish tugmasi (aks holda undefined)
+const miniAppMarkup = (user) =>
+  canUseMiniApp(user) && isHttps(MINI_APP_URL)
+    ? { inline_keyboard: [[buildOpenButton()]] }
+    : undefined;
+
+// Menyu tugmasini rolga moslab, o'qituvchi/admin'ga Mini App'ni ochish tugmasini yuboradi
+const offerMiniApp = async (telegramId, user) => {
+  syncMiniAppMenu({ ...user, telegramId });
+  const markup = miniAppMarkup(user);
+  if (!markup) return;
+  await bot.sendMessage(
+    telegramId,
+    "📱 Baholash, testlar va boshqaruv endi Telegram'ning o'zida — pastdagi «Ilova» tugmasi yoki shu tugma orqali oching:",
+    { reply_markup: markup }
+  );
+};
 
 const otpMessageText = ({ code, linkToken }) =>
   `🔐 <b>Tizimga kirish kodi: <code>${code}</code></b>\n\n` +
@@ -76,6 +96,7 @@ async function handleTelegramLink(telegramId, telegramUsername, token) {
       `✅ Profilingiz muvaffaqiyatli ulandi, <b>${user.name}</b>! Endi tizimdagi bildirishnomalar shu yerga ham keladi.`,
       { parse_mode: 'HTML' }
     );
+    await offerMiniApp(telegramId, user.toObject());
   } catch (error) {
     console.error('Telegram ulash xatosi:', error.message);
     bot.sendMessage(telegramId, "Xatolik yuz berdi. Qayta urinib ko'ring.").catch(() => {});
@@ -117,10 +138,11 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
       );
     }
 
-    bot.sendMessage(
+    await bot.sendMessage(
       telegramId,
       `Xush kelibsiz, ${user.name}! Kirish uchun /login buyrug'ini bosing.`
     );
+    await offerMiniApp(telegramId, user.toObject());
   } catch (error) {
     console.error(error);
   }
@@ -164,7 +186,7 @@ bot.on('contact', async (msg) => {
         );
       }
 
-      return bot.sendMessage(
+      await bot.sendMessage(
         telegramId,
         `✅ Xush kelibsiz, <b>${existingUser.name}</b>!\n\n` +
           `Kirish uchun /login buyrug'ini bosing.`,
@@ -173,6 +195,7 @@ bot.on('contact', async (msg) => {
           reply_markup: { remove_keyboard: true },
         }
       );
+      return offerMiniApp(telegramId, existingUser.toObject());
     }
 
     // User yo'q — to'liq ro'yxatdan o'tkazish
@@ -616,6 +639,43 @@ bot.onText(/\/tekshir/, async (msg) => {
   } catch (error) {
     console.error('/tekshir xatosi:', error.message);
     bot.sendMessage(telegramId, "Xatolik yuz berdi. Qayta urinib ko'ring.");
+  }
+});
+
+// --- 7. MINI APP ---
+// /app — o'qituvchi/admin uchun Telegram Mini App'ni ochish tugmasi (menyu tugmasini ham tiklaydi)
+bot.onText(/^\/app(?:@\w+)?$/, async (msg) => {
+  const telegramId = msg.from.id;
+
+  try {
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return bot.sendMessage(telegramId, "Siz hali ro'yxatdan o'tmadingiz. Iltimos, /start bosing.");
+    }
+
+    syncMiniAppMenu(user);
+
+    if (!canUseMiniApp(user)) {
+      return bot.sendMessage(
+        telegramId,
+        user.isBlocked
+          ? 'Kechirasiz, profilingiz bloklangan.'
+          : !user.isVerified
+            ? 'Hisobingiz hali administrator tomonidan tasdiqlanmagan.'
+            : "Mini ilova hozircha faqat o'qituvchi va adminlar uchun. Saytga kirish: /login"
+      );
+    }
+
+    const markup = miniAppMarkup(user);
+    if (!markup) {
+      return bot.sendMessage(telegramId, 'Mini ilova hozircha sozlanmagan. Saytga kirish: /login');
+    }
+    return bot.sendMessage(telegramId, '📱 Ilovani ochish uchun tugmani bosing:', {
+      reply_markup: markup,
+    });
+  } catch (error) {
+    console.error('/app xatosi:', error.message);
+    bot.sendMessage(telegramId, "Xatolik yuz berdi. Qayta urinib ko'ring.").catch(() => {});
   }
 });
 

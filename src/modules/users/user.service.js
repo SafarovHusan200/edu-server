@@ -7,6 +7,7 @@ const User = require('./user.model');
 const Course = require('../courses/course.model');
 const TelegramLinkToken = require('../auth/telegramLinkToken.model');
 const notificationService = require('../notifications/notification.service');
+const { syncMiniAppMenu } = require('../../bot/telegramNotifier');
 const ApiError = require('../../utils/ApiError');
 const { logActivity, formatGrade } = require('../user-activity/userActivity.service');
 const { getPagination, buildMeta } = require('../../utils/paginate');
@@ -154,6 +155,8 @@ const verifyUser = async (id, verifiedById) => {
   user.verifiedAt = new Date();
   await user.save();
   await logActivity({ userId: user._id, type: 'verified', actorId: verifiedById });
+  // O'qituvchi/admin bo'lsa — bot chatida «📱 Ilova» (Mini App) tugmasi paydo bo'ladi
+  syncMiniAppMenu(user);
 
   await notificationService.createNotification({
     userId: user._id,
@@ -264,6 +267,7 @@ const setBlocked = async (id, isBlocked, actorId = null) => {
   await user.save();
   if (changed) {
     await logActivity({ userId: user._id, type: isBlocked ? 'blocked' : 'unblocked', actorId });
+    syncMiniAppMenu(user);
   }
   return user;
 };
@@ -295,6 +299,7 @@ const updateUser = async (id, { name, phone, role, tarif, grade }, actorId = nul
 
   await user.save();
   await logUserUpdate(user, before, actorId);
+  if (before.role !== user.role) syncMiniAppMenu(user);
   return user;
 };
 

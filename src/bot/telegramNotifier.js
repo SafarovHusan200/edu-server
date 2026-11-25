@@ -37,4 +37,24 @@ const sendTelegramMessage = async (telegramId, text, options) => {
   }
 };
 
-module.exports = { sendTelegramMessage };
+// Foydalanuvchi chatidagi menyu tugmasini (pastki chap «📱 Ilova») uning roliga
+// moslaydi: tasdiqlangan o'qituvchi/admin — Mini App, qolganlar — standart menyu.
+// Rol/tasdiq/blok holati o'zgarganda chaqiriladi; xatolar asosiy amalni to'xtatmaydi.
+const syncMiniAppMenu = async (user) => {
+  if (!user?.telegramId) return;
+  if (process.env.NODE_ENV === 'test') return;
+  if (!process.env.TELEGRAM_BOT_TOKEN) return;
+
+  try {
+    const { buildMenuButton } = require('./miniApp');
+    const bot = require('./bot');
+    await bot.setChatMenuButton({
+      chat_id: user.telegramId,
+      menu_button: JSON.stringify(buildMenuButton(user)),
+    });
+  } catch (error) {
+    console.error('❌ Mini App menyu tugmasi o\'rnatilmadi:', error.message);
+  }
+};
+
+module.exports = { sendTelegramMessage, syncMiniAppMenu };

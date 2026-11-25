@@ -178,6 +178,11 @@ mukofotlarni faqat premium studentlar olishi mumkin.
   - `/tekshir` — **o'qituvchi botning ichida, saytga kirmasdan**, ochiq savolli (hali
     tekshirilmagan) test javoblarini ko'rib, ball qo'yib baholay oladi (inline keyboard
     orqali savol-savol o'tiladi).
+  - **Mini App (o'qituvchi/admin)** — `/app` buyrug'i va chat menyusidagi «📱 Ilova» tugmasi
+    frontenddagi `FRONTEND_URL/tg` sahifasini ochadi (`src/bot/miniApp.js`). Menyu tugmasi
+    faqat tasdiqlangan, bloklanmagan teacher/admin/superadmin'ga beriladi va tasdiqlash/blok/rol
+    o'zgarganda `telegramNotifier.syncMiniAppMenu` orqali yangilanadi. Kirish —
+    `POST /auth/telegram-webapp` (initData). O'quvchilar uchun Mini App hozircha yo'q.
 - Bildirishnoma matnlari va linklar `src/config/frontendLinks.js`da markazlashtirilgan —
   frontend route'lari o'zgarsa shu bir joydan yangilanadi.
 
