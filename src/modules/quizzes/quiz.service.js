@@ -248,11 +248,18 @@ const getQuizzes = async ({ targetType, targetId, page, limit }, requesterId, re
 // ─────────────────────────────────────────
 // GET QUIZZES MY — filter bo'yicha o'qituvchini o'zini testlarini ko'rsatadi
 // ─────────────────────────────────────────
-const getQuizzesMy = async ({ id, targetType, targetId, page, limit }) => {
+const getQuizzesMy = async ({ id, targetType, targetId, search, isActive, page, limit }) => {
   const filter = { createdBy: id };
 
   if (targetType) filter.targetType = targetType;
   if (targetType && targetId) filter.targetId = targetId;
+  // isActive: "true" | "false" — boshqa qiymatlar e'tiborsiz qoldiriladi
+  if (isActive === 'true' || isActive === 'false') filter.isActive = isActive === 'true';
+  // search — test nomi bo'yicha (regex maxsus belgilari ekranlanadi)
+  if (typeof search === 'string' && search.trim()) {
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.title = { $regex: escaped, $options: 'i' };
+  }
 
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 

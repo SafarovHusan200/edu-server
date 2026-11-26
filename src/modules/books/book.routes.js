@@ -24,6 +24,10 @@ const TEACHING_ROLES = ['teacher', 'admin', 'superadmin'];
  *       - { name: category, in: query, schema: { type: string } }
  *       - { name: grade, in: query, schema: { type: integer, minimum: 1, maximum: 11 } }
  *       - { name: search, in: query, schema: { type: string } }
+ *       - name: uploadedBy
+ *         in: query
+ *         description: "Muallif (User ID) bo'yicha filtr. `me` — joriy foydalanuvchining kitoblari (login talab qilinadi, draftlar ham chiqadi)"
+ *         schema: { type: string }
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
  *     responses:

@@ -1,6 +1,7 @@
 // src/modules/books/book.service.js
 
 const fs = require('fs');
+const mongoose = require('mongoose');
 const path = require('path');
 const Book = require('./book.model');
 const pick = require('../../utils/pick');
@@ -46,7 +47,9 @@ const createBook = async ({ title, author, description, category, grade, uploade
 // Kim nima ko'radi — kurslardagi bilan bir xil qoida:
 // admin/superadmin — hammasi, login qilgan foydalanuvchi — published + o'zi yuklagan draftlar,
 // anonim — faqat published
-const getBooks = async ({ page, limit, category, grade, search, userId, role }) => {
+// uploadedBy — muallif bo'yicha filtr ("Kitoblarim" uchun). "me" — joriy foydalanuvchi.
+// Ko'rinish qoidasi saqlanadi: boshqa o'qituvchining draftlari baribir chiqmaydi.
+const getBooks = async ({ page, limit, category, grade, search, uploadedBy, userId, role }) => {
   const { skip, limit: pageLimit, page: currentPage } = getPagination({ page, limit });
 
   const isStaff = ['admin', 'superadmin'].includes(role);
@@ -55,12 +58,21 @@ const getBooks = async ({ page, limit, category, grade, search, userId, role }) 
     ? {}
     : { $or: [{ isPublished: true }, ...(userId ? [{ uploadedBy: userId }] : [])] };
 
+  if (uploadedBy) {
+    const uploaderId = uploadedBy === 'me' ? userId : uploadedBy;
+    if (!uploaderId) throw new ApiError(401, "uploadedBy=me uchun avval tizimga kiring");
+    if (!mongoose.isValidObjectId(uploaderId)) throw new ApiError(400, "uploadedBy noto'g'ri format");
+    filter.uploadedBy = uploaderId;
+  }
   if (category) filter.category = category;
   if (grade) filter.grade = grade;
-  if (search) {
+  // search — oddiy matn sifatida izlanadi: regex maxsus belgilari ( . * ( [ va h.k.)
+  // ekranlanadi, aks holda "(" kabi qiymat 500 xato berardi
+  if (typeof search === 'string' && search.trim()) {
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     filter.$and = [
       ...(filter.$and ?? []),
-      { $or: [{ title: { $regex: search, $options: 'i' } }, { author: { $regex: search, $options: 'i' } }] },
+      { $or: [{ title: { $regex: escaped, $options: 'i' } }, { author: { $regex: escaped, $options: 'i' } }] },
     ];
   }
 

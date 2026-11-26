@@ -77,6 +77,8 @@ router.get('/', authenticate.optional, quizController.getQuizzes);
  *     parameters:
  *       - { name: targetType, in: query, schema: { type: string, enum: [course, lesson, standalone] } }
  *       - { name: targetId, in: query, schema: { type: string } }
+ *       - { name: search, in: query, description: "Test nomi bo'yicha qidiruv (katta-kichik harf farqsiz)", schema: { type: string } }
+ *       - { name: isActive, in: query, description: "Holat: true — faol, false — faol emas", schema: { type: boolean } }
  *       - { name: page, in: query, schema: { type: integer, default: 1 } }
  *       - { name: limit, in: query, schema: { type: integer, default: 10 } }
  *     responses:

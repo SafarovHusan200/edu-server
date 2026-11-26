@@ -25,7 +25,7 @@ const createBook = asyncHandler(async (req, res) => {
 
 // GET /api/v1/books
 const getBooks = asyncHandler(async (req, res) => {
-  const { page, limit, category, grade, search } = req.query;
+  const { page, limit, category, grade, search, uploadedBy } = req.query;
 
   const { books, meta } = await bookService.getBooks({
     page,
@@ -33,6 +33,7 @@ const getBooks = asyncHandler(async (req, res) => {
     category,
     grade,
     search,
+    uploadedBy,
     userId: req.user?.id,
     role: req.user?.role,
   });

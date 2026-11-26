@@ -58,12 +58,14 @@ const getQuizzes = asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────
 const getQuizzesMy = asyncHandler(async (req, res) => {
   const id = req.user._id;
-  const { targetType, targetId, page, limit } = req.query;
+  const { targetType, targetId, search, isActive, page, limit } = req.query;
 
   const { quizzes, meta } = await quizService.getQuizzesMy({
     id,
     targetType,
     targetId,
+    search,
+    isActive,
     page,
     limit,
   });
