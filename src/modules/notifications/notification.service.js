@@ -38,6 +38,9 @@ const createNotification = async ({
   buttonText,
   callbackData,
   callbackButtonText,
+  // true — faqat ilovadagi bildirishnoma, Telegram'ga yuborilmaydi
+  // (masalan bot o'zi shu xabarni boshqa shaklda yuborgan bo'lsa)
+  skipTelegram = false,
 }) => {
   const fullMeta = url ? { ...meta, url } : meta;
   const notification = await Notification.create({
@@ -48,7 +51,7 @@ const createNotification = async ({
     meta: fullMeta,
   });
 
-  const user = await User.findById(userId).select('telegramId');
+  const user = skipTelegram ? null : await User.findById(userId).select('telegramId');
   if (user?.telegramId) {
     // Fire-and-forget — Telegram sekin/ishlamasa ham asosiy oqim kutib turmaydi.
     // Telegram xabari hali ham asl (emojili) title/message'dan foydalanadi.

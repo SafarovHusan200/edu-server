@@ -20,6 +20,19 @@ const { frontendLinks } = require('../../config/frontendLinks');
 const { getPagination } = require('../../utils/paginate');
 const { formatGrade } = require('../user-activity/userActivity.service');
 
+// O'qituvchiga boradigan "📥 Yangi natija" xabari matni — avtomatik baholangan test,
+// saytda va botda ochiq savollarni baholash: uchala holatda ham bir xil shakl
+const formatTeacherResultMessage = ({ student, quizTitle, correctCount, totalQuestions, scorePercent, passed }) => {
+  const studentGrade = formatGrade(student?.grade);
+  return (
+    `👤 O'quvchi: ${student?.name ?? 'Talaba'}${studentGrade ? `\n🏫 Sinf: ${studentGrade}` : ''}\n` +
+    `📚 Fan: "${quizTitle}"\n` +
+    `✅ Natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n` +
+    `${passed ? "🟢 Holat: o'tdi" : "🔴 Holat: o'ta olmadi"}`
+  );
+};
+const TEACHER_RESULT_TITLE = '📥 Yangi natija';
+
 // Xato xabarlarida vaqtni har doim Toshkent vaqti bilan, "10:10 01.01.2026"
 // shaklida ko'rsatish uchun (server qaysi timezone'da ishlashidan qat'i nazar)
 const formatTashkentTime = (date) => {
@@ -266,8 +279,15 @@ const submitAttempt = async (attemptId, studentId, answers) => {
     await notificationService.createNotification({
       userId: quiz.createdBy,
       type: 'quiz',
-      title: '📥 Yangi natija',
-      message: `${studentLine}\n📚 Fan: "${quiz.title}"\n✅ Natija: ${correctCount}/${totalQuestions} to'g'ri (${scorePercent}%)\n${passed ? "🟢 Holat: o'tdi" : "🔴 Holat: o'ta olmadi"}`,
+      title: TEACHER_RESULT_TITLE,
+      message: formatTeacherResultMessage({
+        student,
+        quizTitle: quiz.title,
+        correctCount,
+        totalQuestions,
+        scorePercent,
+        passed,
+      }),
       meta: { quizId: quiz._id, attemptId: attempt._id, studentId },
       url: frontendLinks.teacherQuizResults(quiz._id),
       buttonText: "📋 Natijalarni ko'rish",
@@ -347,7 +367,9 @@ const getQuizResults = async (quizId, teacherId, role) => {
 // ─────────────────────────────────────────
 // REVIEW OPEN ENDED (teacher)
 // ─────────────────────────────────────────
-const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
+// fromBot — bot o'qituvchiga natijani o'zi (/tekshir eslatmasi bilan) yuboradi,
+// shuning uchun o'qituvchining Telegram nusxasi yuborilmaydi (ilovadagi bildirishnoma qoladi)
+const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers, { fromBot = false } = {}) => {
   // reviewedAnswers = [{ questionId, pointsEarned, isCorrect, feedback? }]
   // isCorrect va pointsEarned bir-biridan mustaqil — ustoz qisman ball berib,
   // baribir "to'liq to'g'ri emas" deb belgilashi mumkin (yoki aksincha)
@@ -402,6 +424,26 @@ const reviewOpenEnded = async (attemptId, teacherId, reviewedAnswers) => {
     meta: { quizId: attempt.quiz._id, attemptId: attempt._id },
     url: frontendLinks.quizAttemptResult(attempt.quiz._id, attempt._id),
     buttonText: "📊 Natijani ko'rish",
+  });
+
+  // O'qituvchiga — avtomatik baholangan testlardagi bilan bir xil "📥 Yangi natija"
+  const student = await User.findById(attempt.student).select('name grade');
+  await notificationService.createNotification({
+    userId: attempt.quiz.createdBy._id,
+    type: 'quiz',
+    title: TEACHER_RESULT_TITLE,
+    message: formatTeacherResultMessage({
+      student,
+      quizTitle: attempt.quiz.title,
+      correctCount,
+      totalQuestions,
+      scorePercent,
+      passed: attempt.passed,
+    }),
+    meta: { quizId: attempt.quiz._id, attemptId: attempt._id, studentId: attempt.student },
+    url: frontendLinks.teacherQuizResults(attempt.quiz._id),
+    buttonText: "📋 Natijalarni ko'rish",
+    skipTelegram: fromBot,
   });
 
   return attempt;
@@ -507,6 +549,8 @@ const getPendingReviewsCount = async (teacherId, role) => {
 };
 
 module.exports = {
+  formatTeacherResultMessage,
+  TEACHER_RESULT_TITLE,
   startAttempt,
   submitAttempt,
   getMyAttempts,

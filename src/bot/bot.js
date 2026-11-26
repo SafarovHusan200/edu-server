@@ -526,15 +526,28 @@ async function advanceReviewFlow(telegramId) {
     const attempt = await quizAttemptService.reviewOpenEnded(
       flow.attemptId,
       teacher._id,
-      flow.reviewedAnswers
+      flow.reviewedAnswers,
+      // Servis o'qituvchiga Telegram nusxasini yubormaydi — natijani shu yerda
+      // /tekshir eslatmasi bilan bitta xabarda yuboramiz (ikki marta kelmasligi uchun)
+      { fromBot: true }
     );
+
+    // Saytda baholanganda keladigan "📥 Yangi natija" xabari bilan bir xil matn
+    const student = await User.findById(attempt.student).select('name grade');
+    const message = quizAttemptService.formatTeacherResultMessage({
+      student,
+      quizTitle: attempt.quiz.title,
+      correctCount: attempt.answers.filter((a) => a.isCorrect).length,
+      totalQuestions: attempt.answers.length,
+      scorePercent: attempt.scorePercent,
+      passed: attempt.passed,
+    });
 
     await bot.sendMessage(
       telegramId,
-      `✅ Baholash yakunlandi!\n📊 Yakuniy natija: ${attempt.scorePercent}%\n` +
-        `${attempt.passed ? "🟢 O'quvchi o'tdi" : "🔴 O'quvchi o'ta olmadi"}\n\n` +
-        `O'quvchiga natija haqida bildirishnoma yuborildi. Boshqa tekshirilishi kerak bo'lgan ` +
-        `ishlarni ko'rish uchun: /tekshir`
+      // parse_mode yo'q — o'quvchi ismi/test nomidagi "<", "&" xabarni buzmasligi uchun
+      `${quizAttemptService.TEACHER_RESULT_TITLE}\n${message}\n\n` +
+        `O'quvchiga natija yuborildi. Boshqa tekshiriladigan ishlar: /tekshir`
     );
   } catch (error) {
     console.error('Botda review yakunlash xatosi:', error.message);
