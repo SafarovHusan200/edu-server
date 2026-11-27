@@ -41,8 +41,8 @@ const frontendLinks = {
 
   adminPendingUsers: () => `${FRONTEND_URL}/admin/users?tab=unverified`,
 
-  // TAXMIN — frontend jamoasi tomonidan hali tasdiqlanmagan, tekshirib ko'rish kerak
-  quizShares: () => `${FRONTEND_URL}/teacher/quizzes/shares`,
+  // Frontend: app/(app)/teacher/quiz-shares (/teacher/quizzes/shares [id] sahifasiga tushib qolardi)
+  quizShares: () => `${FRONTEND_URL}/teacher/quiz-shares`,
 };
 
 module.exports = { FRONTEND_URL, BACKEND_URL, frontendLinks };
